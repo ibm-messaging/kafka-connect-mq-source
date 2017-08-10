@@ -1,0 +1,84 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.ibm.mq.kafkaconnect</groupId>
+  <artifactId>kafka-connect-mq-source</artifactId>
+  <packaging>jar</packaging>
+  <version>0.1-SNAPSHOT</version>
+  <name>kafka-connect-mq-source</name>
+    <organization>
+      <name>IBM Corporation</name>
+      <url>http://ibm.com</url>
+  </organization>
+  <url>http://ibm.com</url>
+  <description>
+      A Kafka Connect connector for copying data from IBM MQ into Apache Kafka.
+  </description>
+  <licenses>
+      <license>
+          <name>Apache License 2.0</name>
+          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+          <distribution>repo</distribution>
+      </license>
+  </licenses>
+  <dependencies>
+    <dependency>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>connect-api</artifactId>
+        <version>0.11.0.0</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>javax.jms</groupId>
+      <artifactId>javax.jms-api</artifactId>
+      <version>2.0.1</version>
+    </dependency>
+    <dependency>
+      <groupId>com.ibm.mq</groupId>
+      <artifactId>allclient</artifactId>
+      <version>9.0.0.1</version>
+    </dependency>
+  </dependencies>
+
+  <repositories>
+    <repository>
+        <id>local-maven-repo</id>
+        <url>file:///${project.basedir}/local-maven-repo</url>
+    </repository>
+  </repositories>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.1</version>
+        <configuration>
+          <source>1.7</source>
+          <target>1.7</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+          <executions>
+              <execution>
+                  <phase>package</phase>
+                  <goals>
+                      <goal>single</goal>
+                  </goals>
+              </execution>
+          </executions>
+          <configuration>
+              <descriptorRefs>
+                  <descriptorRef>jar-with-dependencies</descriptorRef>
+              </descriptorRefs>
+          </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
