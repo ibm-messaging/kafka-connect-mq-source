@@ -10,16 +10,21 @@ To build the connector, you must have the following installed:
 * [Maven](https://maven.apache.org)
 * Java 7 or later
 
-In an empty directory, clone the repository:
+Download the MQ client JAR by following the instructions in [Getting the IBM MQ classes for Java and JMS](https://www-01.ibm.com/support/docview.wss?uid=swg21683398). Once you've accepted the license, download the *IBM MQ JMS and Java redistributable client* file (currently called `9.0.0.1-IBM-MQC-Redist-Java.zip`). Unpack the ZIP file.
+
+Clone the repository with the following command:
 ```shell
 git clone https://github.com/ibm-messaging/kafka-connect-mq-source.git
 ```
 
-Download the MQ client JAR by following the instructions in [Getting the IBM MQ classes for Java and JMS](https://www-01.ibm.com/support/docview.wss?uid=swg21683398). Once you've accepted the license, download the *IBM MQ JMS and Java redistributable client* file (currently called `9.0.0.1-IBM-MQC-Redist-Java.zip`).
+Change directory into the `kafka-connect-mq-source` directory:
+```shell
+cd kafka-connect-mq-source
+```
 
-Unpack the ZIP file and copy the JAR file `allclient-9.0.0.1.jar` into the top level directory into which you cloned the repository earlier.
+Copy the JAR file `allclient-9.0.0.1.jar` that you unpacked from the ZIP file earlier into the `kafka-connect-mq-source` directory.
 
-So this JAR file can be used as a dependency in building the connector, run the following command to create a local Maven repository containing just this file:
+Run the following command to create a local Maven repository containing just this file so that it can be used to build the connector:
 ```shell
 mvn deploy:deploy-file -Durl=file://local-maven-repo -Dfile=allclient-9.0.0.1.jar -DgroupId=com.ibm.mq -DartifactId=allclient -Dpackaging=jar -Dversion=9.0.0.1
 ```
@@ -28,6 +33,7 @@ Build the connector using Maven:
 ```shell
 mvn clean package
 ```
+
 Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.1-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
 
 
@@ -61,13 +67,19 @@ When the MQ source connector reads a message from MQ, it chooses a schema to rep
 There's no single configuration that will always be right, but here are some high-level suggestions.
 
 * Pass unchanged binary data as the Kafka message value
-  > `value.converter=org.apache.kafka.connect.converters.ByteArrayConverter`
+```
+value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
+```
 * Messages are JMS BytesMessage, pass byte array as the Kafka message value
-  > `mq.message.body.jms=true`
-  > `value.converter=org.apache.kafka.connect.converters.ByteArrayConverter`
+```
+mq.message.body.jms=true
+value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
+```
 * Messages are JMS TextMessage, pass string as the Kafka message value
-  > `mq.message.body.jms=true`
-  > `value.converter=org.apache.kafka.connect.storage.StringConverter`
+```
+mq.message.body.jms=true
+value.converter=org.apache.kafka.connect.storage.StringConverter
+```
 
 ### The gory detail
 The MQ source connector has a configuration option *mq.message.body.jms* that controls whether it interprets the MQ messages as JMS messages or regular MQ messages. By default, *mq.message.body.jms=false* which gives the following behaviour.
