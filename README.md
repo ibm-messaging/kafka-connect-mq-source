@@ -1,5 +1,5 @@
 # Kafka Connect source connector for IBM MQ
-kafka-connect-mqsource is a [Kafka Connector](http://kafka.apache.org/documentation.html#connect) for copying data from IBM MQ into Apache Kafka.
+kafka-connect-mqsource is a [Kafka Connect](http://kafka.apache.org/documentation.html#connect) source connector for copying data from IBM MQ into Apache Kafka.
 
 The connector is supplied as source code which you can easily build into a JAR file.
 
