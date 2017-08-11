@@ -49,6 +49,7 @@ public class JMSReader {
     // Configs
     private String userName;
     private String password;
+    private String sslCipherSuite;
     private String topic;
     private boolean messageBodyJms;
 
@@ -120,6 +121,20 @@ public class JMSReader {
             catch (JMSException jmse) {
                 ;
             }
+        }
+    }
+
+    /**
+     * Setter for SSL-related configuration.
+     * 
+     * @param sslCipherSuite     
+     */
+    public void setSSLConfiguration(String sslCipherSuite)
+    {
+        this.sslCipherSuite = sslCipherSuite;
+        if (this.sslCipherSuite != null)
+        {
+            mqConnFactory.setSSLCipherSuite(this.sslCipherSuite);
         }
     }
 
@@ -290,7 +305,8 @@ public class JMSReader {
         while (t != null) {
             if (t instanceof MQException) {
                 MQException mqe = (MQException)t;
-                log.error("MQ error: CompCode {}, Reason {}", mqe.getCompCode(), mqe.getReason());
+                log.error("MQ error: CompCode {}, Reason {} {}", mqe.getCompCode(), mqe.getReason(),
+                          MQConstants.lookupReasonCode(mqe.getReason()));
                 reason = mqe.getReason();
                 break;
             }

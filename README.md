@@ -22,11 +22,11 @@ Change directory into the `kafka-connect-mq-source` directory:
 cd kafka-connect-mq-source
 ```
 
-Copy the JAR file `allclient-9.0.0.1.jar` that you unpacked from the ZIP file earlier into the `kafka-connect-mq-source` directory.
+Copy the JAR file `com.ibm.mq.allclient.jar` that you unpacked from the ZIP file earlier into the `kafka-connect-mq-source` directory.
 
 Run the following command to create a local Maven repository containing just this file so that it can be used to build the connector:
 ```shell
-mvn deploy:deploy-file -Durl=file://local-maven-repo -Dfile=allclient-9.0.0.1.jar -DgroupId=com.ibm.mq -DartifactId=allclient -Dpackaging=jar -Dversion=9.0.0.1
+mvn deploy:deploy-file -Durl=file://local-maven-repo -Dfile=com.ibm.mq.allclient.jar -DgroupId=com.ibm.mq -DartifactId=allclient -Dpackaging=jar -Dversion=9.0.0.1
 ```
 
 Build the connector using Maven:
@@ -109,6 +109,15 @@ There are three basic converters built into Apache Kafka, with the likely useful
 In addition, there is another converter for the Avro format that is part of the Confluent Platform. This has not been tested with the MQ source connector at this time.
 
 
+## Security
+The connector supports authentication with user name and password and also connections secured with TLS using a server-side certificate. It does not currently support TLS mutual authentication with client-side certificates.
+
+### Setting up TLS using a server-side certificate
+To enable use of TLS, set the configuration 'mq.ssl.cipher.suite' to the name of the cipher suite which matches the CipherSpec in the SSLCIPH attribute of the MQ server-connection channel. Use the table of supported cipher suites for MQ 9.0.x [here](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.0.0/com.ibm.mq.dev.doc/q113220_.htm) as a reference. Note that the names of the CipherSpecs as used in the MQ configuration are not necessarily the same as the cipher suite names that the connector uses. The connector uses the JMS interface so it follows the Java conventions.
+
+You will need to put the public part of the queue manager's certificate in a JSSE truststore and then provide the location of the truststore as property to the Kafka Connect worker that you're using to run the connector.
+
+
 ## Configuration
 The configuration options for the MQ Source Connector are as follows:
 
@@ -121,17 +130,22 @@ The configuration options for the MQ Source Connector are as follows:
 | mq.user.name            | The user name for authenticating with the queue manager     | string  |               | User name                   |
 | mq.password             | The password for authenticating with the queue manager      | string  |               | Password                    |
 | mq.message.body.jms     | Whether to interpret the message body as a JMS message type | boolean | false         |                             |
+| mq.ssl.cipher.suite     | The name of the cipher suite for TLS connection             | string  |               | Blank or valid cipher suite |
 | topic                   | The name of the target Kafka topic                          | string  |               | Topic name                  |
 
 
 ## Future enhancements
-The first version of the connector is intentionally basic. The idea is to enhance it with additional features to make it more capable. Some possible future enhancements are:
-* TLS connections
+The connector is intentionally basic. The idea is to enhance it over time with additional features to make it more capable. Some possible future enhancements are:
+* TLS mutual authentication
 * Message key support
 * Configurable schema for MQ messages
 * JMX metrics
 * JSON parsing so that the JSON type information is supplied to the converter
 * Testing with the Confluent Platform Avro converter and Schema Registry
+
+
+## Issues and contributions
+For issues relating specifically to this connect, please use the [GitHub issue tracker](https://github.com/ibm-messaging/kafka-connect-mq-source/issues). If you do submit a Pull Request related to this connector, please indicate in the Pull Request that you accept and agree to be bound by the terms of the [IBM Contributor License Agreement](CLA.md).
 
 
 ## License

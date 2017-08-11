@@ -36,6 +36,7 @@ public class MQSourceTask extends SourceTask {
     private String queueName;
     private String userName;
     private String password;
+    private String sslCipherSuite;
     private String topic;
 
     private static int BATCH_SIZE = 50;
@@ -69,10 +70,15 @@ public class MQSourceTask extends SourceTask {
         queueName = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE);
         userName = props.get(MQSourceConnector.CONFIG_NAME_MQ_USER_NAME);
         password = props.get(MQSourceConnector.CONFIG_NAME_MQ_PASSWORD);
+        sslCipherSuite = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_CIPHER_SUITE);
         topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
 
         // Construct a reader to interface with MQ
         reader = new JMSReader(queueManager, connectionNameList, channelName, queueName, userName, password, topic);
+
+        if (sslCipherSuite != null) {
+            reader.setSSLConfiguration(sslCipherSuite);
+        }
 
         String mbj = props.get(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS);
         if (mbj != null) {
