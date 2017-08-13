@@ -115,7 +115,7 @@ The connector supports authentication with user name and password and also conne
 ### Setting up TLS using a server-side certificate
 To enable use of TLS, set the configuration 'mq.ssl.cipher.suite' to the name of the cipher suite which matches the CipherSpec in the SSLCIPH attribute of the MQ server-connection channel. Use the table of supported cipher suites for MQ 9.0.x [here](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.0.0/com.ibm.mq.dev.doc/q113220_.htm) as a reference. Note that the names of the CipherSpecs as used in the MQ configuration are not necessarily the same as the cipher suite names that the connector uses. The connector uses the JMS interface so it follows the Java conventions.
 
-You will need to put the public part of the queue manager's certificate in a JSSE truststore and then provide the location of the truststore as a property to the Kafka Connect worker that you're using to run the connector.
+You will need to put the public part of the queue manager's certificate in the JSSE truststore used by the Kafka Connect worker that you're using to run the connector. If you need to specify extra arguments to the worker's JVM, you can use the EXTRA_ARGS environment variable.
 
 
 ## Configuration
