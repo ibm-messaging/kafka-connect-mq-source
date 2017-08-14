@@ -110,12 +110,18 @@ In addition, there is another converter for the Avro format that is part of the 
 
 
 ## Security
-The connector supports authentication with user name and password and also connections secured with TLS using a server-side certificate. It does not currently support TLS mutual authentication with client-side certificates.
+The connector supports authentication with user name and password and also connections secured with TLS using a server-side certificate and mutual authentication with client-side certificates.
 
 ### Setting up TLS using a server-side certificate
 To enable use of TLS, set the configuration 'mq.ssl.cipher.suite' to the name of the cipher suite which matches the CipherSpec in the SSLCIPH attribute of the MQ server-connection channel. Use the table of supported cipher suites for MQ 9.0.x [here](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.0.0/com.ibm.mq.dev.doc/q113220_.htm) as a reference. Note that the names of the CipherSpecs as used in the MQ configuration are not necessarily the same as the cipher suite names that the connector uses. The connector uses the JMS interface so it follows the Java conventions.
 
 You will need to put the public part of the queue manager's certificate in the JSSE truststore used by the Kafka Connect worker that you're using to run the connector. If you need to specify extra arguments to the worker's JVM, you can use the EXTRA_ARGS environment variable.
+
+### Setting up TLS for mutual authentication
+You will need to put the public part of the client's certificate in the queue manager's key repository. You will also need to configure the worker's JVM with the location and password for the keystore containing the client's certificate.
+
+### Troubleshooting
+For troubleshooting, or to better understand the handshake performed by the IBM MQ Java client application in combination with your specific JSSE provider, you can enable debugging by setting `javax.net.debug=ssl` in the JVM environment.
 
 
 ## Configuration
@@ -130,18 +136,19 @@ The configuration options for the MQ Source Connector are as follows:
 | mq.user.name            | The user name for authenticating with the queue manager     | string  |               | User name                   |
 | mq.password             | The password for authenticating with the queue manager      | string  |               | Password                    |
 | mq.message.body.jms     | Whether to interpret the message body as a JMS message type | boolean | false         |                             |
-| mq.ssl.cipher.suite     | The name of the cipher suite for TLS connection             | string  |               | Blank or valid cipher suite |
+| mq.ssl.cipher.suite     | The name of the cipher suite for TLS (SSL) connection       | string  |               | Blank or valid cipher suite |
+| mq.ssl.peer.name        | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern         |
 | topic                   | The name of the target Kafka topic                          | string  |               | Topic name                  |
 
 
 ## Future enhancements
 The connector is intentionally basic. The idea is to enhance it over time with additional features to make it more capable. Some possible future enhancements are:
-* TLS mutual authentication
 * Message key support
 * Configurable schema for MQ messages
 * JMX metrics
 * JSON parsing so that the JSON type information is supplied to the converter
 * Testing with the Confluent Platform Avro converter and Schema Registry
+* Separate TLS configuration for the connector so that keystore location and so on can be specified as configurations
 
 
 ## Issues and contributions

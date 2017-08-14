@@ -50,6 +50,7 @@ public class JMSReader {
     private String userName;
     private String password;
     private String sslCipherSuite;
+    private String sslPeerName;
     private String topic;
     private boolean messageBodyJms;
 
@@ -127,14 +128,24 @@ public class JMSReader {
     /**
      * Setter for SSL-related configuration.
      * 
-     * @param sslCipherSuite     
+     * @param sslCipherSuite     The name of the cipher suite for TLS (SSL) connection
+     * @param sslPeerName        The distinguished name pattern of the TLS (SSL) peer
      */
-    public void setSSLConfiguration(String sslCipherSuite)
+    public void setSSLConfiguration(String sslCipherSuite, String sslPeerName)
     {
         this.sslCipherSuite = sslCipherSuite;
         if (this.sslCipherSuite != null)
         {
             mqConnFactory.setSSLCipherSuite(this.sslCipherSuite);
+            if (this.sslPeerName != null)
+            {
+                try {
+                    mqConnFactory.setSSLPeerName(sslPeerName);
+                }
+                catch (JMSException jmse) {
+                    ;
+                }
+            }
         }
     }
 
