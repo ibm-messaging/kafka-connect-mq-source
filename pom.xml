@@ -4,7 +4,7 @@
   <groupId>com.ibm.mq.kafkaconnect</groupId>
   <artifactId>kafka-connect-mq-source</artifactId>
   <packaging>jar</packaging>
-  <version>0.1-SNAPSHOT</version>
+  <version>0.2-SNAPSHOT</version>
   <name>kafka-connect-mq-source</name>
     <organization>
       <name>IBM Corporation</name>
@@ -25,6 +25,12 @@
     <dependency>
         <groupId>org.apache.kafka</groupId>
         <artifactId>connect-api</artifactId>
+        <version>0.11.0.0</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>connect-json</artifactId>
         <version>0.11.0.0</version>
         <scope>provided</scope>
     </dependency>

@@ -34,7 +34,7 @@ Build the connector using Maven:
 mvn clean package
 ```
 
-Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.1-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
+Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.2-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
 
 
 ## Running the connector
@@ -60,51 +60,65 @@ bin/connect-standalone.sh connect-standalone.properties mq-source.properties
 ## Data formats
 Kafka Connect is very flexible but it's important to understand the way that it processes messages to end up with a reliable system. When the connector encounters a message that it cannot process, it stops rather than throwing the message away. Therefore, you need to make sure that the configuration you use can handle the messages the connector will process.
 
+This is rather complicated and it's likely that a future update of the connector will simplify matters.
+
 Each message in Kafka Connect is associated with a representation of the message format known as a *schema*. Each Kafka message actually has two parts, key and value, and each part has its own schema. The MQ source connector does not currently use message keys, but some of the configuration options use the word *Value* because they refer to the Kafka message value.
 
-When the MQ source connector reads a message from MQ, it chooses a schema to represent the message format and creates a Java object containing the message value. Each message is then processed using a *converter* which creates the message that's published on a Kafka topic. You need to choose a converter appropriate to the format of messages that will pass through the connector.
+When the MQ source connector reads a message from MQ, it chooses a schema to represent the message format and creates an internal object called a *record* containing the message value. This conversion is performed using a *record builder*.  Each record is then processed using a *converter* which creates the message that's published on a Kafka topic.
+
+There are two record builders supplied with the connector, although you can write your own. The basic rule is that if you just want the message to be passed along to Kafka unchanged, the default record builder is probably the best choice. If the incoming data is in JSON format and you want to use a schema based on its structure, use the JSON record builder.
+
+There are three converters build into Apache Kafka and another which is part of the Confluent Platform. You need to make sure that the incoming message format, the setting of the *mq.message.body.jms* configuration, the record builder and converter are all compatible. By default, everything is just treated as bytes but if you want the connector to understand the message format and apply more sophisticated processing such as single-message transforms, you'll need a more complex configuration. The following table shows the basic options that work.
+
+| Record builder class                                  | Incoming MQ message    | mq.message.body.jms | Converter class                                        | Outgoing Kafka message  |
+| ----------------------------------------------------- | ---------------------- | ------------------- | ------------------------------------------------------ | ----------------------- |
+| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | Any                    | false (default)     | org.apache.kafka.connect.converters.ByteArrayConverter | **Binary data**         |
+| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | JMS BytesMessage       | true                | org.apache.kafka.connect.converters.ByteArrayConverter | **Binary data**         |
+| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | JMS TextMessage        | true                | org.apache.kafka.connect.storage.StringConverter       | **String data**         |
+| com.ibm.mq.kafkaconnect.builders.JsonRecordBuilder    | JSON, may have schema  | Not used            | org.apache.kafka.connect.json.JsonConverter            | **JSON, no schema**     |
+| com.ibm.mq.kafkaconnect.builders.JsonRecordBuilder    | JSON, may have schema  | Not used            | io.confluent.connect.avro.AvroConverter                | **Binary-encoded Avro** |
 
 There's no single configuration that will always be right, but here are some high-level suggestions.
 
-* Pass unchanged binary data as the Kafka message value
+* Pass unchanged binary (or string) data as the Kafka message value
 ```
 value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
+```
+* Message format is MQSTR, pass string data as the Kafka message value
+```
+mq.message.body.jms=true
+value.converter=org.apache.kafka.connect.converters.StringConverter
 ```
 * Messages are JMS BytesMessage, pass byte array as the Kafka message value
 ```
 mq.message.body.jms=true
 value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 ```
-* Messages are JMS TextMessage, pass string as the Kafka message value
+* Messages are JMS TextMessage, pass string data as the Kafka message value
 ```
 mq.message.body.jms=true
 value.converter=org.apache.kafka.connect.storage.StringConverter
 ```
 
+
 ### The gory detail
-The MQ source connector has a configuration option *mq.message.body.jms* that controls whether it interprets the MQ messages as JMS messages or regular MQ messages. By default, *mq.message.body.jms=false* which gives the following behaviour.
+The messages received from MQ are processed by a record builder which builds a Kafka Connect record to represent the message. There are two record builders supplied with the MQ source connector. The connector has a configuration option *mq.message.body.jms* that controls whether it interprets the MQ messages as JMS messages or regular MQ messages.
 
-| Incoming message format | Value schema   | Value class |
-| ----------------------- | -------------- | ----------- |
-| Any                     | OPTIONAL_BYTES | byte[]      |
+| Record builder class                                  | mq.message.body.jms | Incoming message body | Value schema       | Value class        |
+| ----------------------------------------------------- | ------------------- | --------------------- | ------------------ | ------------------ |
+| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | false (default)     | Any                   | OPTIONAL_BYTES     | byte[]             |
+| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | true                | JMS BytesMessage      | null               | byte[]             |
+| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | true                | JMS TextMessage       | null               | String             |
+| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | true                | Everything else       | *EXCEPTION*        | *EXCEPTION*        |
+| com.ibm.mq.kafkaconnect.builders.JsonRecordBuilder    | Not used            | JSON                  | Depends on message | Depends on message |
 
-This means that all messages are treated as arrays of bytes, and the converter must be able to handle arrays of bytes.
+You must then choose a converter than can handle the value schema and class. There are three basic converters built into Apache Kafka, with the likely useful combinations in **bold**.
 
-When you set *mq.message.body.jms=true*, the MQ messages are interpreted as JMS messages. This is appropriate if the applications sending the messages are themselves using JMS. This gives the following behaviour.
-
-| Incoming message format | Value schema | Value class      |
-| ----------------------- | ------------ | ---------------- |
-| JMS BytesMessage        | null         | byte[]           |
-| JMS TextMessage         | null         | java.lang.String |
-| Anything else           | *EXCEPTION*  | *EXCEPTION*      |
-
-There are three basic converters built into Apache Kafka, with the likely useful combinations in **bold**.
-
-| Converter class                                        | byte[]              | java.lang.String |
-| ------------------------------------------------------ | ------------------- | ---------------- |
-| org.apache.kafka.connect.converters.ByteArrayConverter | **Binary data**     | *EXCEPTION*      |
-| org.apache.kafka.connect.storage.StringConverter       | Works, not useful   | **String data**  |
-| org.apache.kafka.connect.json.JsonConverter            | Base-64 JSON String | JSON String      |
+| Converter class                                        | Output for byte[]   | Output for String | Output for compound schema |
+| ------------------------------------------------------ | ------------------- | ----------------- | -------------------------- |
+| org.apache.kafka.connect.converters.ByteArrayConverter | **Binary data**     | *EXCEPTION*       | *EXCEPTION*                |
+| org.apache.kafka.connect.storage.StringConverter       | Works, not useful   | **String data**   | Works, not useful          |
+| org.apache.kafka.connect.json.JsonConverter            | Base-64 JSON String | JSON String       | **JSON data**              |
 
 In addition, there is another converter for the Avro format that is part of the Confluent Platform. This has not been tested with the MQ source connector at this time.
 
@@ -135,6 +149,7 @@ The configuration options for the MQ Source Connector are as follows:
 | mq.queue                | The name of the source MQ queue                             | string  |               | MQ queue name               |
 | mq.user.name            | The user name for authenticating with the queue manager     | string  |               | User name                   |
 | mq.password             | The password for authenticating with the queue manager      | string  |               | Password                    |
+| mq.record.builder       | The class used to build the Kafka Connect record               | string  |               | Class implementing RecordBuilder |
 | mq.message.body.jms     | Whether to interpret the message body as a JMS message type | boolean | false         |                             |
 | mq.ssl.cipher.suite     | The name of the cipher suite for TLS (SSL) connection       | string  |               | Blank or valid cipher suite |
 | mq.ssl.peer.name        | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern         |
@@ -143,10 +158,10 @@ The configuration options for the MQ Source Connector are as follows:
 
 ## Future enhancements
 The connector is intentionally basic. The idea is to enhance it over time with additional features to make it more capable. Some possible future enhancements are:
+* Simplification of handling message formats
 * Message key support
 * Configurable schema for MQ messages
 * JMX metrics
-* JSON parsing so that the JSON type information is supplied to the converter
 * Testing with the Confluent Platform Avro converter and Schema Registry
 * Separate TLS configuration for the connector so that keystore location and so on can be specified as configurations
 

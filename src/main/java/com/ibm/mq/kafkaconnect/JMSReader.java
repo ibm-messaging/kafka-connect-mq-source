@@ -18,19 +18,17 @@ package com.ibm.mq.kafkaconnect;
 import com.ibm.mq.MQException;
 import com.ibm.mq.constants.MQConstants;
 import com.ibm.mq.jms.*;
+import com.ibm.mq.kafkaconnect.builders.RecordBuilder;
 import com.ibm.msg.client.wmq.WMQConstants;
-
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import javax.jms.BytesMessage;
 import javax.jms.JMSConsumer;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.JMSRuntimeException;
 import javax.jms.Message;
-import javax.jms.TextMessage;
 
-import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -49,8 +47,6 @@ public class JMSReader {
     // Configs
     private String userName;
     private String password;
-    private String sslCipherSuite;
-    private String sslPeerName;
     private String topic;
     private boolean messageBodyJms;
 
@@ -60,6 +56,8 @@ public class JMSReader {
     private JMSConsumer jmsCons;
     private MQQueue queue;
 
+    private RecordBuilder builder;
+    
     private boolean connected = false;                    // Whether connected to MQ
     private boolean inflight = false;                     // Whether messages in-flight in current transaction
     private boolean inperil = false;                      // Whether current transaction must be forced to roll back
@@ -67,23 +65,27 @@ public class JMSReader {
 
     private static long RECEIVE_TIMEOUT = 30000l;
 
+    public JMSReader() {}
+
     /**
-     * Constructor.
-     *
-     * @param queueManager       Queue manager name
-     * @param connectionNameList Connection name list, comma-separated list of host(port) entries
-     * @param channelName        Server-connection channel name
-     * @param queueName          Queue name
-     * @param userName           User name for authenticating to MQ, can be null
-     * @param password           Password for authenticating to MQ, can be null
-     * @param topic              Kafka topic name
+     * Configure this class.
+     * 
+     * @param props initial configuration
      *
      * @throws ConnectException   Operation failed and connector should stop.
      */
-    public JMSReader(String queueManager, String connectionNameList, String channelName, String queueName, String userName, String password, String topic) throws ConnectException {
-        this.userName = userName;
-        this.password = password;
-        this.topic = topic;
+    public void configure(Map<String, String> props) {
+        String queueManager = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE_MANAGER);
+        String connectionNameList = props.get(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_NAME_LIST);
+        String channelName = props.get(MQSourceConnector.CONFIG_NAME_MQ_CHANNEL_NAME);
+        String queueName = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE);
+        String userName = props.get(MQSourceConnector.CONFIG_NAME_MQ_USER_NAME);
+        String password = props.get(MQSourceConnector.CONFIG_NAME_MQ_PASSWORD);
+        String builderClass = props.get(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER);
+        String mbj = props.get(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS);
+        String sslCipherSuite = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_CIPHER_SUITE);
+        String sslPeerName = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_PEER_NAME);
+        String topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
 
         try {
             mqConnFactory = new MQConnectionFactory();
@@ -91,61 +93,42 @@ public class JMSReader {
             mqConnFactory.setQueueManager(queueManager);
             mqConnFactory.setConnectionNameList(connectionNameList);
             mqConnFactory.setChannel(channelName);
-
             queue = new MQQueue(queueName);
-            messageBodyJms = false;
+            
+            this.userName = userName;
+            this.password = password;
+    
+            this.messageBodyJms = false;
             queue.setMessageBodyStyle(WMQConstants.WMQ_MESSAGE_BODY_MQ);
+            if (mbj != null) {
+                if (Boolean.parseBoolean(mbj)) {
+                    this.messageBodyJms = true;
+                    queue.setMessageBodyStyle(WMQConstants.WMQ_MESSAGE_BODY_JMS);
+                }
+            }
+
+            if (sslCipherSuite != null) {
+                mqConnFactory.setSSLCipherSuite(sslCipherSuite);
+                if (sslPeerName != null)
+                {
+                    mqConnFactory.setSSLPeerName(sslPeerName);
+                }
+            }
+
+            this.topic = topic;
         }
         catch (JMSException | JMSRuntimeException jmse) {
             log.debug("JMS exception {}", jmse);
             throw new ConnectException(jmse);
         }
-    }
 
-    /**
-     * Setter for message body as JMS.
-     *
-     * @param messageBodyJms     Whether to interpret the message body as a JMS message type
-     */
-    public void setMessageBodyJms(boolean messageBodyJms)
-    {
-        if (messageBodyJms != this.messageBodyJms) {
-            this.messageBodyJms = messageBodyJms;
-            try {
-                if (!messageBodyJms) {
-                    queue.setMessageBodyStyle(WMQConstants.WMQ_MESSAGE_BODY_MQ);
-                }
-                else {
-                    queue.setMessageBodyStyle(WMQConstants.WMQ_MESSAGE_BODY_JMS);
-                }
-            }
-            catch (JMSException jmse) {
-                ;
-            }
+        try {
+            Class<? extends RecordBuilder> c = Class.forName(builderClass).asSubclass(RecordBuilder.class);
+            builder = c.newInstance();
         }
-    }
-
-    /**
-     * Setter for SSL-related configuration.
-     * 
-     * @param sslCipherSuite     The name of the cipher suite for TLS (SSL) connection
-     * @param sslPeerName        The distinguished name pattern of the TLS (SSL) peer
-     */
-    public void setSSLConfiguration(String sslCipherSuite, String sslPeerName)
-    {
-        this.sslCipherSuite = sslCipherSuite;
-        if (this.sslCipherSuite != null)
-        {
-            mqConnFactory.setSSLCipherSuite(this.sslCipherSuite);
-            if (this.sslPeerName != null)
-            {
-                try {
-                    mqConnFactory.setSSLPeerName(sslPeerName);
-                }
-                catch (JMSException jmse) {
-                    ;
-                }
-            }
+        catch (ClassNotFoundException | IllegalAccessException | InstantiationException | NullPointerException exc) {
+            log.debug("Could not instantiate message builder {}", builderClass);
+            throw new ConnectException("Could not instantiate message builder", exc);
         }
     }
 
@@ -193,12 +176,19 @@ public class JMSReader {
 
             if (m != null) {
                 inflight = true;
-                sr = buildRecord(m);
+
+                // We've received a message in a transacted session so we must only permit the transaction
+                // to commit once we've passed it on to Kafka. Temporarily mark the transaction as "in-peril"
+                // so that any exception thrown will result in the transaction rolling back instead of committing.
+                inperil = true;
+                
+                sr = builder.toSourceRecord(jmsCtxt, topic, messageBodyJms, m);
+                inperil = false;
             }
         }
-        catch (JMSRuntimeException jmse) {
-            log.debug("JMS exception {}", jmse);
-            handleException(jmse);
+        catch (JMSException | JMSRuntimeException | ConnectException exc) {
+            log.debug("JMS exception {}", exc);
+            handleException(exc);
         }
 
         return sr;
@@ -356,61 +346,5 @@ public class JMSReader {
             throw new RetriableException(exc);
         }
         throw new ConnectException(exc);
-    }
-
-    /**
-     * Builds a Kafka Connect SourceRecord from a JMS message.
-     *
-     * @throws ConnectException   Operation failed and connector should stop.
-     */
-    private SourceRecord buildRecord(Message m) throws ConnectException {
-        Schema valueSchema = null;
-        Object value = null;
-
-        // We've received a message in a transacted session so we must only permit the transaction
-        // to commit once we've passed it on to Kafka. Temporarily mark the transaction as "in-peril"
-        // so that any exception thrown will result in the transaction rolling back instead of committing.
-        inperil = true;
-
-        try {
-            // Interpreting the body as a JMS message type, we can accept BytesMessages and TextMessage only.
-            // We do not know the schema so do not specify one.
-            if (messageBodyJms) {
-                if (m instanceof BytesMessage) {
-                    log.trace("Bytes message with no schema");
-                    value = m.getBody(byte[].class);
-                    inperil = false;
-                }
-                else if (m instanceof TextMessage) {
-                    log.trace("Text message with no schema");
-                    value = m.getBody(String.class);
-                    inperil = false;
-                }
-                else {
-                    log.error("Unsupported JMS message type {}", m.getClass());
-                    throw new ConnectException("Unsupported JMS message type");
-                }
-            }
-            else {
-                // Not interpreting the body as a JMS message type, all messages come through as BytesMessage.
-                // In this case, we specify the value schema as OPTIONAL_BYTES.
-                if (m instanceof BytesMessage) {
-                    log.trace("Bytes message with OPTIONAL_BYTES schema");
-                    valueSchema = Schema.OPTIONAL_BYTES_SCHEMA;
-                    value = m.getBody(byte[].class);
-                    inperil = false;
-                }
-                else {
-                    log.error("Unsupported JMS message type {}", m.getClass());
-                    throw new ConnectException("Unsupported JMS message type");
-                }
-            }
-        }
-        catch (JMSException jmse) {
-            log.debug("JMS exception {}", jmse);
-            handleException(jmse);
-        }
-
-        return new SourceRecord(null, null, topic, valueSchema, value);
     }
 }

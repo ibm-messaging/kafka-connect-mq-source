@@ -29,17 +29,6 @@ import org.slf4j.LoggerFactory;
 public class MQSourceTask extends SourceTask {
     private static final Logger log = LoggerFactory.getLogger(MQSourceTask.class);
 
-    // Configs
-    private String queueManager;
-    private String connectionNameList;
-    private String channelName;
-    private String queueName;
-    private String userName;
-    private String password;
-    private String sslCipherSuite;
-    private String sslPeerName;
-    private String topic;
-
     private static int BATCH_SIZE = 50;
 
     private JMSReader reader;
@@ -65,27 +54,9 @@ public class MQSourceTask extends SourceTask {
             log.trace("Task props entry {} : {}", entry.getKey(), entry.getValue());
         }
 
-        queueManager = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE_MANAGER);
-        connectionNameList = props.get(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_NAME_LIST);
-        channelName = props.get(MQSourceConnector.CONFIG_NAME_MQ_CHANNEL_NAME);
-        queueName = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE);
-        userName = props.get(MQSourceConnector.CONFIG_NAME_MQ_USER_NAME);
-        password = props.get(MQSourceConnector.CONFIG_NAME_MQ_PASSWORD);
-        sslCipherSuite = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_CIPHER_SUITE);
-        sslPeerName = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_PEER_NAME);
-        topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
-
         // Construct a reader to interface with MQ
-        reader = new JMSReader(queueManager, connectionNameList, channelName, queueName, userName, password, topic);
-
-        if (sslCipherSuite != null) {
-            reader.setSSLConfiguration(sslCipherSuite, sslPeerName);
-        }
-
-        String mbj = props.get(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS);
-        if (mbj != null) {
-            reader.setMessageBodyJms(Boolean.parseBoolean(mbj));
-        }
+        reader = new JMSReader();
+        reader.configure(props);
 
         // Make a connection as an initial test of the configuration
         reader.connect();

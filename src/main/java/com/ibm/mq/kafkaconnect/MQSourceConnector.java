@@ -59,6 +59,10 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_MQ_PASSWORD = "The password for authenticating with the queue manager.";
     public static final String CONFIG_DISPLAY_MQ_PASSWORD = "Password";
 
+    public static final String CONFIG_NAME_MQ_RECORD_BUILDER = "mq.record.builder";
+    public static final String CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER = "The class used to build the Kafka Connect records.";
+    public static final String CONFIG_DISPLAY_MQ_RECORD_BUILDER = "Record builder";
+
     public static final String CONFIG_NAME_MQ_MESSAGE_BODY_JMS = "mq.message.body.jms"; 
     public static final String CONFIG_DOCUMENTATION_MQ_MESSAGE_BODY_JMS = "Whether to interpret the message body as a JMS message type.";
     public static final String CONFIG_DISPLAY_MQ_MESSAGE_BODY_JMS = "Message body as JMS";
@@ -75,7 +79,7 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
-    public static String VERSION = "0.1";
+    public static String VERSION = "0.2";
 
     private Map<String, String> configProps;
 
@@ -162,16 +166,20 @@ public class MQSourceConnector extends SourceConnector {
                       CONFIG_DOCUMENTATION_MQ_PASSWORD, CONFIG_GROUP_MQ, 6, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_PASSWORD);
 
+        config.define(CONFIG_NAME_MQ_RECORD_BUILDER, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
+                      CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER, CONFIG_GROUP_MQ, 7, Width.LONG,
+                      CONFIG_DISPLAY_MQ_RECORD_BUILDER);
+
         config.define(CONFIG_NAME_MQ_MESSAGE_BODY_JMS, Type.BOOLEAN, Boolean.FALSE, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_MESSAGE_BODY_JMS, CONFIG_GROUP_MQ, 7, Width.SHORT,
+                      CONFIG_DOCUMENTATION_MQ_MESSAGE_BODY_JMS, CONFIG_GROUP_MQ, 8, Width.SHORT,
                       CONFIG_DISPLAY_MQ_MESSAGE_BODY_JMS);
 
         config.define(CONFIG_NAME_MQ_SSL_CIPHER_SUITE, Type.STRING, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_SSL_CIPHER_SUITE, CONFIG_GROUP_MQ, 8, Width.MEDIUM,
+                      CONFIG_DOCUMENTATION_MQ_SSL_CIPHER_SUITE, CONFIG_GROUP_MQ, 9, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_SSL_CIPHER_SUITE);
 
         config.define(CONFIG_NAME_MQ_SSL_PEER_NAME, Type.STRING, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_SSL_PEER_NAME, CONFIG_GROUP_MQ, 9, Width.MEDIUM,
+                      CONFIG_DOCUMENTATION_MQ_SSL_PEER_NAME, CONFIG_GROUP_MQ, 10, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_SSL_PEER_NAME);
 
         config.define(CONFIG_NAME_TOPIC, Type.STRING, null, Importance.HIGH,
