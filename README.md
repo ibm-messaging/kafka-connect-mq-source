@@ -10,8 +10,6 @@ To build the connector, you must have the following installed:
 * [Maven](https://maven.apache.org)
 * Java 7 or later
 
-Download the MQ client JAR by following the instructions in [Getting the IBM MQ classes for Java and JMS](https://www-01.ibm.com/support/docview.wss?uid=swg21683398). Once you've accepted the license, download the *IBM MQ JMS and Java redistributable client* file (currently called `9.0.0.1-IBM-MQC-Redist-Java.zip`). Unpack the ZIP file.
-
 Clone the repository with the following command:
 ```shell
 git clone https://github.com/ibm-messaging/kafka-connect-mq-source.git
@@ -22,19 +20,12 @@ Change directory into the `kafka-connect-mq-source` directory:
 cd kafka-connect-mq-source
 ```
 
-Copy the JAR file `com.ibm.mq.allclient.jar` that you unpacked from the ZIP file earlier into the `kafka-connect-mq-source` directory.
-
-Run the following command to create a local Maven repository containing just this file so that it can be used to build the connector:
-```shell
-mvn deploy:deploy-file -Durl=file://local-maven-repo -Dfile=com.ibm.mq.allclient.jar -DgroupId=com.ibm.mq -DartifactId=allclient -Dpackaging=jar -Dversion=9.0.0.1
-```
-
 Build the connector using Maven:
 ```shell
 mvn clean package
 ```
 
-Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.2-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
+Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.3-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
 
 
 ## Running the connector
@@ -141,19 +132,19 @@ For troubleshooting, or to better understand the handshake performed by the IBM 
 ## Configuration
 The configuration options for the MQ Source Connector are as follows:
 
-| Name                    | Description                                                 | Type    | Default       | Valid values                |
-| ----------------------- | ----------------------------------------------------------- | ------- | ------------- | --------------------------- |
-| mq.queue.manager        | The name of the MQ queue manager                            | string  |               | MQ queue manager name       |
-| mq.connection.name.list | List of connection names for queue manager                  | string  |               | host(port)[,host(port),...] |
-| mq.channel.name         | The name of the server-connection channel                   | string  |               | MQ channel name             |
-| mq.queue                | The name of the source MQ queue                             | string  |               | MQ queue name               |
-| mq.user.name            | The user name for authenticating with the queue manager     | string  |               | User name                   |
-| mq.password             | The password for authenticating with the queue manager      | string  |               | Password                    |
-| mq.record.builder       | The class used to build the Kafka Connect record               | string  |               | Class implementing RecordBuilder |
-| mq.message.body.jms     | Whether to interpret the message body as a JMS message type | boolean | false         |                             |
-| mq.ssl.cipher.suite     | The name of the cipher suite for TLS (SSL) connection       | string  |               | Blank or valid cipher suite |
-| mq.ssl.peer.name        | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern         |
-| topic                   | The name of the target Kafka topic                          | string  |               | Topic name                  |
+| Name                    | Description                                                 | Type    | Default       | Valid values                     |
+| ----------------------- | ----------------------------------------------------------- | ------- | ------------- | -------------------------------- |
+| mq.queue.manager        | The name of the MQ queue manager                            | string  |               | MQ queue manager name            |
+| mq.connection.name.list | List of connection names for queue manager                  | string  |               | host(port)[,host(port),...]      |
+| mq.channel.name         | The name of the server-connection channel                   | string  |               | MQ channel name                  |
+| mq.queue                | The name of the source MQ queue                             | string  |               | MQ queue name                    |
+| mq.user.name            | The user name for authenticating with the queue manager     | string  |               | User name                        |
+| mq.password             | The password for authenticating with the queue manager      | string  |               | Password                         |
+| mq.record.builder       | The class used to build the Kafka Connect record            | string  |               | Class implementing RecordBuilder |
+| mq.message.body.jms     | Whether to interpret the message body as a JMS message type | boolean | false         |                                  |
+| mq.ssl.cipher.suite     | The name of the cipher suite for TLS (SSL) connection       | string  |               | Blank or valid cipher suite      |
+| mq.ssl.peer.name        | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern              |
+| topic                   | The name of the target Kafka topic                          | string  |               | Topic name                       |
 
 
 ## Future enhancements
@@ -171,7 +162,7 @@ For issues relating specifically to this connect, please use the [GitHub issue t
 
 
 ## License
-Copyright 2017 IBM Corporation
+Copyright 2017, 2018 IBM Corporation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

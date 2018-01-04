@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- * Copyright 2017 IBM Corporation
+ * Copyright 2017, 2018 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
   <groupId>com.ibm.mq.kafkaconnect</groupId>
   <artifactId>kafka-connect-mq-source</artifactId>
   <packaging>jar</packaging>
-  <version>0.2-SNAPSHOT</version>
+  <version>0.3-SNAPSHOT</version>
   <name>kafka-connect-mq-source</name>
     <organization>
       <name>IBM Corporation</name>
@@ -58,8 +58,8 @@
     </dependency>
     <dependency>
       <groupId>com.ibm.mq</groupId>
-      <artifactId>allclient</artifactId>
-      <version>9.0.0.1</version>
+      <artifactId>com.ibm.mq.allclient</artifactId>
+      <version>9.0.4.0</version>
     </dependency>
 
     <dependency>
@@ -75,13 +75,6 @@
         <scope>test</scope>
     </dependency>
   </dependencies>
-
-  <repositories>
-    <repository>
-        <id>local-maven-repo</id>
-        <url>file:///${project.basedir}/local-maven-repo</url>
-    </repository>
-  </repositories>
 
   <build>
     <plugins>
