@@ -23,32 +23,36 @@
   <version>0.3-SNAPSHOT</version>
   <name>kafka-connect-mq-source</name>
     <organization>
-      <name>IBM Corporation</name>
-      <url>http://ibm.com</url>
+    <name>IBM Corporation</name>
+    <url>http://ibm.com</url>
   </organization>
   <url>http://ibm.com</url>
   <description>
       A Kafka Connect connector for copying data from IBM MQ into Apache Kafka.
   </description>
   <licenses>
-      <license>
-          <name>Apache License 2.0</name>
-          <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-          <distribution>repo</distribution>
-      </license>
+    <license>
+      <name>Apache License 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+      <distribution>repo</distribution>
+    </license>
   </licenses>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
   <dependencies>
     <dependency>
-        <groupId>org.apache.kafka</groupId>
-        <artifactId>connect-api</artifactId>
-        <version>0.11.0.0</version>
-        <scope>provided</scope>
-    </dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>connect-api</artifactId>
+      <version>0.11.0.0</version>
+      <scope>provided</scope>
+      </dependency>
     <dependency>
-        <groupId>org.apache.kafka</groupId>
-        <artifactId>connect-json</artifactId>
-        <version>0.11.0.0</version>
-        <scope>provided</scope>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>connect-json</artifactId>
+      <version>0.11.0.0</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -69,10 +73,10 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-log4j12</artifactId>
-        <version>1.7.25</version>
-        <scope>test</scope>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
+      <version>1.7.25</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -88,19 +92,20 @@
       </plugin>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
-          <executions>
-              <execution>
-                  <phase>package</phase>
-                  <goals>
-                      <goal>single</goal>
-                  </goals>
-              </execution>
-          </executions>
-          <configuration>
-              <descriptorRefs>
-                  <descriptorRef>jar-with-dependencies</descriptorRef>
-              </descriptorRefs>
-          </configuration>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+        <descriptorRefs>
+          <descriptorRef>jar-with-dependencies</descriptorRef>
+        </descriptorRefs>
+        </configuration>
       </plugin>
     </plugins>
   </build>
