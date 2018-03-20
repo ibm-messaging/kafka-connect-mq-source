@@ -20,7 +20,7 @@
   <groupId>com.ibm.mq.kafkaconnect</groupId>
   <artifactId>kafka-connect-mq-source</artifactId>
   <packaging>jar</packaging>
-  <version>0.3-SNAPSHOT</version>
+  <version>0.4-SNAPSHOT</version>
   <name>kafka-connect-mq-source</name>
     <organization>
     <name>IBM Corporation</name>
@@ -102,9 +102,9 @@
           </execution>
         </executions>
         <configuration>
-        <descriptorRefs>
-          <descriptorRef>jar-with-dependencies</descriptorRef>
-        </descriptorRefs>
+          <descriptors>
+            <descriptor>src/assembly/package.xml</descriptor>
+          </descriptors>
         </configuration>
       </plugin>
     </plugins>

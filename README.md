@@ -25,7 +25,7 @@ Build the connector using Maven:
 mvn clean package
 ```
 
-Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.3-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
+Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.4-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
 
 
 ## Running the connector
