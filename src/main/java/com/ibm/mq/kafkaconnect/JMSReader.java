@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 IBM Corporation
+ * Copyright 2017, 2018 IBM Corporation
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -139,8 +139,24 @@ public class JMSReader {
      * @throws ConnectException   Operation failed and connector should stop.
      */
     public void connect() throws ConnectException, RetriableException {
-        connectInternal();
-        log.info("Connection to MQ established");
+        try {
+            if (userName != null) {
+                jmsCtxt = mqConnFactory.createContext(userName, password, JMSContext.SESSION_TRANSACTED);
+            }
+            else {
+                jmsCtxt = mqConnFactory.createContext(JMSContext.SESSION_TRANSACTED);
+            }            
+
+            jmsCons = jmsCtxt.createConsumer(queue);
+            connected = true;
+        
+            log.info("Connection to MQ established");
+        }
+        catch (JMSRuntimeException jmse) {
+            log.info("Connection to MQ could not be established");
+            log.debug("JMS exception {}", jmse);
+            handleException(jmse);
+        }
     }
 
     /**
@@ -149,12 +165,11 @@ public class JMSReader {
      * @param wait                Whether to wait indefinitely for a message
      *
      * @return The SourceRecord representing the message
-     *
-     * @throws RetriableException Operation failed, but connector should continue to retry.
-     * @throws ConnectException   Operation failed and connector should stop.
      */
-    public SourceRecord receive(boolean wait) throws ConnectException, RetriableException {
-        connectInternal();
+    public SourceRecord receive(boolean wait) {
+        if (!connectInternal()) {
+            return null;
+        }
 
         Message m = null;
         SourceRecord sr = null;
@@ -197,12 +212,12 @@ public class JMSReader {
     /**
      * Commits the current transaction. If the current transaction contains a message that could not
      * be processed, the transaction is "in peril" and is rolled back instead to avoid data loss.
-     *
-     * @throws RetriableException Operation failed, but connector should continue to retry.
-     * @throws ConnectException   Operation failed and connector should stop.
      */
-    public void commit() throws ConnectException, RetriableException {
-        connectInternal();
+    public void commit() {
+        if (!connectInternal()) {
+            return;
+        }
+
         try {
             if (inflight) {
                 inflight = false;
@@ -211,7 +226,6 @@ public class JMSReader {
                     inperil = false;
                     log.trace("Rolling back in-flight transaction");
                     jmsCtxt.rollback();
-                    throw new RetriableException("Transaction rolled back");
                 }
                 else {
                     jmsCtxt.commit();
@@ -241,16 +255,15 @@ public class JMSReader {
     /**
      * Internal method to connect to MQ.
      *
-     * @throws RetriableException Operation failed, but connector should continue to retry.
-     * @throws ConnectException   Operation failed and connector should stop.
+     * @return true if connection can be used, false otherwise
      */
-    private void connectInternal() throws ConnectException, RetriableException {
+    private boolean connectInternal() {
         if (connected) {
-            return;
+            return true;
         }
 
         if (closeNow.get()) {
-            throw new ConnectException("Connection closing");
+            return false;
         }
 
         try {
@@ -263,11 +276,16 @@ public class JMSReader {
 
             jmsCons = jmsCtxt.createConsumer(queue);
             connected = true;
+        
+            log.info("Connection to MQ established");
         }
         catch (JMSRuntimeException jmse) {
             log.debug("JMS exception {}", jmse);
             handleException(jmse);
+            return false;
         }
+
+        return true;
     }
 
     /**
@@ -289,6 +307,7 @@ public class JMSReader {
         finally
         {
             jmsCtxt = null;
+            log.debug("Connection to MQ closed");
         }
     }
 
@@ -296,7 +315,7 @@ public class JMSReader {
      * Handles exceptions from MQ. Some JMS exceptions are treated as retriable meaning that the
      * connector can keep running and just trying again is likely to fix things.
      */
-    private void handleException(Throwable exc) throws ConnectException, RetriableException {
+    private ConnectException handleException(Throwable exc) {
         boolean isRetriable = false;
         boolean mustClose = true;
         int reason = -1;
@@ -330,7 +349,7 @@ public class JMSReader {
                 isRetriable = true;
                 break;
 
-            // These reason codes indicates that the connect is still OK, but just retrying later
+            // These reason codes indicate that the connect is still OK, but just retrying later
             // will probably recover - possibly with administrative action on the queue manager
             case MQConstants.MQRC_GET_INHIBITED:
                 isRetriable = true;
@@ -343,8 +362,9 @@ public class JMSReader {
         }
 
         if (isRetriable) {
-            throw new RetriableException(exc);
+            return new RetriableException(exc);
         }
-        throw new ConnectException(exc);
+
+        return new ConnectException(exc);
     }
 }
