@@ -20,6 +20,7 @@ import com.ibm.mq.constants.MQConstants;
 import com.ibm.mq.jms.*;
 import com.ibm.mq.kafkaconnect.builders.RecordBuilder;
 import com.ibm.msg.client.wmq.WMQConstants;
+
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -134,11 +135,8 @@ public class JMSReader {
 
     /**
      * Connects to MQ.
-     *
-     * @throws RetriableException Operation failed, but connector should continue to retry.
-     * @throws ConnectException   Operation failed and connector should stop.
      */
-    public void connect() throws ConnectException, RetriableException {
+    public void connect() {
         try {
             if (userName != null) {
                 jmsCtxt = mqConnFactory.createContext(userName, password, JMSContext.SESSION_TRANSACTED);
