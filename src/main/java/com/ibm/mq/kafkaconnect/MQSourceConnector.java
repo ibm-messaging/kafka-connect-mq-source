@@ -79,7 +79,7 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
-    public static String VERSION = "0.3";
+    public static String VERSION = "0.4";
 
     private Map<String, String> configProps;
 
