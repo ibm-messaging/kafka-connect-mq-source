@@ -25,7 +25,7 @@ Build the connector using Maven:
 mvn clean package
 ```
 
-Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.4-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
+Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.5-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
 
 
 ## Running the connector
@@ -153,7 +153,6 @@ The connector is intentionally basic. The idea is to enhance it over time with a
 * Simplification of handling message formats
 * Message key support
 * JMX metrics
-* Testing with the Confluent Platform Avro converter and Schema Registry
 * Separate TLS configuration for the connector so that keystore location and so on can be specified as configurations
 
 

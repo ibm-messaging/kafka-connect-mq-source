@@ -154,7 +154,7 @@ topic=TSOURCE
 
 Change directory to the Kafka root directory. Start the connector worker replacing `<connector-root-directory>`:
 ``` shell
-CLASSPATH=<connector-root-directory>/target/kafka-connect-mq-source-0.4-SNAPSHOT-jar-with-dependencies.jar bin/connect-standalone.sh config/connect-standalone.properties ~/mq-source.properties
+CLASSPATH=<connector-root-directory>/target/kafka-connect-mq-source-0.5-SNAPSHOT-jar-with-dependencies.jar bin/connect-standalone.sh config/connect-standalone.properties ~/mq-source.properties
 ```
 
 Wait while the worker starts and then prints:
@@ -212,7 +212,7 @@ mq.password=passw0rd
 
 Change directory to the Kafka root directory. Start the connector worker replacing `<connector-root-directory>`:
 ``` shell
-CLASSPATH=<connector-root-directory>/target/kafka-connect-mq-sink-0.4-SNAPSHOT-jar-with-dependencies.jar bin/kafka-connect-standalone config/connect-standalone.properties ~/mq-sink.properties
+CLASSPATH=<connector-root-directory>/target/kafka-connect-mq-sink-0.5-SNAPSHOT-jar-with-dependencies.jar bin/kafka-connect-standalone config/connect-standalone.properties ~/mq-sink.properties
 ```
 
 Wait while the worker starts and then prints:
