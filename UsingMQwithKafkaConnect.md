@@ -144,7 +144,7 @@ cp config/mq-source.properties ~
 Edit the following properties in the `~/mq-source.properties` file to match the configuration so far:
 ```
 mq.queue.manager=MYQM
-mq.connection.name.list=localhost:1414
+mq.connection.name.list=localhost(1414)
 mq.channel.name=MYSVRCONN
 mq.queue=MYQSOURCE
 mq.user.name=alice
@@ -203,7 +203,7 @@ Edit the following properties in the `~/mq-sink.properties` to match the configu
 ```
 topics=TSINK
 mq.queue.manager=MYQM
-mq.connection.name.list=localhost:1414
+mq.connection.name.list=localhost(1414)
 mq.channel.name=MYSVRCONN
 mq.queue=MYQSINK
 mq.user.name=alice
