@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 IBM Corporation
+ * Copyright 2017, 2018 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.TextMessage;
 
+import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.json.JsonConverter;
@@ -34,15 +35,15 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Builds Kafka Connect SourceRecords from messages. It parses the bytes of the payload of JMS
- * BytesMessage and TextMesage as JSON and creates a SourceRecord with a null schema.
+ * BytesMessage and TextMessage as JSON and creates a SourceRecord with a null schema.
  */
-public class JsonRecordBuilder implements RecordBuilder {
+public class JsonRecordBuilder extends BaseRecordBuilder {
     private static final Logger log = LoggerFactory.getLogger(JsonRecordBuilder.class);
 
     private JsonConverter converter;
     
     public JsonRecordBuilder() {
-        log.info("Building records using com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder");
+        log.info("Building records using com.ibm.mq.kafkaconnect.builders.JsonRecordBuilder");
         converter = new JsonConverter();
         
         // We just want the payload, not the schema in the output message
@@ -54,19 +55,20 @@ public class JsonRecordBuilder implements RecordBuilder {
     }
     
     /**
-     * Convert a message into a Kafka Connect SourceRecord.
+     * Gets the value schema to use for the Kafka Connect SourceRecord.
      * 
      * @param context            the JMS context to use for building messages
      * @param topic              the Kafka topic
      * @param messageBodyJms     whether to interpret MQ messages as JMS messages
      * @param message            the message
      * 
-     * @return the Kafka Connect SourceRecord
+     * @return the Kafka Connect SourceRecord's value
      * 
      * @throws JMSException      Message could not be converted
      */
-    @Override public SourceRecord toSourceRecord(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException {
+    @Override SchemaAndValue getValue(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException {
         byte[] payload;
+
         if (message instanceof BytesMessage) {
             payload = message.getBody(byte[].class);
         }
@@ -79,7 +81,6 @@ public class JsonRecordBuilder implements RecordBuilder {
             throw new ConnectException("Unsupported JMS message type");
         }
 
-        SchemaAndValue sv = converter.toConnectData(topic, payload);
-        return new SourceRecord(null, null, topic, sv.schema(), sv.value());
+        return converter.toConnectData(topic, payload);
     }
 }

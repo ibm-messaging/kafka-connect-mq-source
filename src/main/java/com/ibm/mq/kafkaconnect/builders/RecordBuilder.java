@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 IBM Corporation
+ * Copyright 2017, 2018 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,28 @@
  */
 package com.ibm.mq.kafkaconnect.builders;
 
+import java.util.Map;
+
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.Message;
 
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 
 /**
  * Builds Kafka Connect SourceRecords from messages.
  */
 public interface RecordBuilder {
+    /**
+     * Configure this class.
+     * 
+     * @param props initial configuration
+     *
+     * @throws ConnectException   Operation failed and connector should stop.
+     */
+    default void configure(Map<String, String> props) {}
+
     /**
      * Convert a message into a Kafka Connect SourceRecord.
      * 

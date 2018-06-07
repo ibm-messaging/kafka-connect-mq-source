@@ -25,7 +25,7 @@ Build the connector using Maven:
 mvn clean package
 ```
 
-Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.5-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
+Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.6-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
 
 
 ## Running the connector
@@ -91,7 +91,6 @@ mq.message.body.jms=true
 value.converter=org.apache.kafka.connect.storage.StringConverter
 ```
 
-
 ### The gory detail
 The messages received from MQ are processed by a record builder which builds a Kafka Connect record to represent the message. There are two record builders supplied with the MQ source connector. The connector has a configuration option *mq.message.body.jms* that controls whether it interprets the MQ messages as JMS messages or regular MQ messages.
 
@@ -113,6 +112,17 @@ You must then choose a converter than can handle the value schema and class. The
 
 In addition, there is another converter for the Avro format that is part of the Confluent Platform. This has not been tested with the MQ source connector at this time.
 
+### Key support and partitioning
+By default, the connector does not use keys for the Kafka messages it publishes. It can be configured to use the JMS message headers to set the key of the Kafka records. You could use this, for example, to use the MQMD correlation identifier as the partitioning key when the messages are published to Kafka. There are three valid values for the `mq.record.builder.key.header` that controls this behavior.
+
+| mq.record.builder.key.header | Key schema      | Key class | Recommended value for key.converter                    |
+| ---------------------------- |---------------- | --------- | ------------------------------------------------------ |
+| JMSMessageID                 | OPTIONAL_STRING | String    | org.apache.kafka.connect.storage.StringConverter       |
+| JMSCorrelationID             | OPTIONAL_STRING | String    | org.apache.kafka.connect.storage.StringConverter       |
+| JMSCorrelationIDAsBytes      | OPTIONAL_BYTES  | byte[]    | org.apache.kafka.connect.converters.ByteArrayConverter |
+
+In MQ, the message ID and correlation ID are both 24-byte arrays. As strings, the connector represents them using a sequence of 48 hexadecimal characters.
+
 
 ## Security
 The connector supports authentication with user name and password and also connections secured with TLS using a server-side certificate and mutual authentication with client-side certificates.
@@ -132,32 +142,32 @@ For troubleshooting, or to better understand the handshake performed by the IBM 
 ## Configuration
 The configuration options for the MQ Source Connector are as follows:
 
-| Name                    | Description                                                 | Type    | Default       | Valid values                     |
-| ----------------------- | ----------------------------------------------------------- | ------- | ------------- | -------------------------------- |
-| mq.queue.manager        | The name of the MQ queue manager                            | string  |               | MQ queue manager name            |
-| mq.connection.name.list | List of connection names for queue manager                  | string  |               | host(port)[,host(port),...]      |
-| mq.channel.name         | The name of the server-connection channel                   | string  |               | MQ channel name                  |
-| mq.queue                | The name of the source MQ queue                             | string  |               | MQ queue name                    |
-| mq.user.name            | The user name for authenticating with the queue manager     | string  |               | User name                        |
-| mq.password             | The password for authenticating with the queue manager      | string  |               | Password                         |
-| mq.record.builder       | The class used to build the Kafka Connect record            | string  |               | Class implementing RecordBuilder |
-| mq.message.body.jms     | Whether to interpret the message body as a JMS message type | boolean | false         |                                  |
-| mq.ssl.cipher.suite     | The name of the cipher suite for TLS (SSL) connection       | string  |               | Blank or valid cipher suite      |
-| mq.ssl.peer.name        | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern              |
-| topic                   | The name of the target Kafka topic                          | string  |               | Topic name                       |
+| Name                         | Description                                                 | Type    | Default       | Valid values                                            |
+| ---------------------------- | ----------------------------------------------------------- | ------- | ------------- | ------------------------------------------------------- |
+| mq.queue.manager             | The name of the MQ queue manager                            | string  |               | MQ queue manager name                                   |
+| mq.connection.name.list      | List of connection names for queue manager                  | string  |               | host(port)[,host(port),...]                             |
+| mq.channel.name              | The name of the server-connection channel                   | string  |               | MQ channel name                                         |
+| mq.queue                     | The name of the source MQ queue                             | string  |               | MQ queue name                                           |
+| mq.user.name                 | The user name for authenticating with the queue manager     | string  |               | User name                                               |
+| mq.password                  | The password for authenticating with the queue manager      | string  |               | Password                                                |
+| mq.record.builder            | The class used to build the Kafka Connect record            | string  |               | Class implementing RecordBuilder                        |
+| mq.message.body.jms          | Whether to interpret the message body as a JMS message type | boolean | false         |                                                         |
+| mq.record.builder.key.header | The JMS message header to use as the Kafka record key       | string  |               | JMSMessageID, JMSCorrelationID, JMSCorrelationIDAsBytes |
+| mq.ssl.cipher.suite          | The name of the cipher suite for TLS (SSL) connection       | string  |               | Blank or valid cipher suite                             |
+| mq.ssl.peer.name             | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern                                     |
+| topic                        | The name of the target Kafka topic                          | string  |               | Topic name                                              |
 
 
 ## Future enhancements
 The connector is intentionally basic. The idea is to enhance it over time with additional features to make it more capable. Some possible future enhancements are:
 * Configurable schema for MQ messages
 * Simplification of handling message formats
-* Message key support
 * JMX metrics
 * Separate TLS configuration for the connector so that keystore location and so on can be specified as configurations
 
 
 ## Issues and contributions
-For issues relating specifically to this connect, please use the [GitHub issue tracker](https://github.com/ibm-messaging/kafka-connect-mq-source/issues). If you do submit a Pull Request related to this connector, please indicate in the Pull Request that you accept and agree to be bound by the terms of the [IBM Contributor License Agreement](CLA.md).
+For issues relating specifically to this connector, please use the [GitHub issue tracker](https://github.com/ibm-messaging/kafka-connect-mq-source/issues). If you do submit a Pull Request related to this connector, please indicate in the Pull Request that you accept and agree to be bound by the terms of the [IBM Contributor License Agreement](CLA.md).
 
 
 ## License

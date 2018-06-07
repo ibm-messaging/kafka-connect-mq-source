@@ -126,6 +126,7 @@ public class JMSReader {
         try {
             Class<? extends RecordBuilder> c = Class.forName(builderClass).asSubclass(RecordBuilder.class);
             builder = c.newInstance();
+            builder.configure(props);
         }
         catch (ClassNotFoundException | IllegalAccessException | InstantiationException | NullPointerException exc) {
             log.debug("Could not instantiate message builder {}", builderClass);
