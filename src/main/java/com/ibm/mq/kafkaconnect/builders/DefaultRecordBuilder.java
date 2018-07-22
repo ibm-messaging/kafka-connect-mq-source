@@ -64,11 +64,11 @@ public class DefaultRecordBuilder extends BaseRecordBuilder {
         // We do not know the schema so do not specify one.
         if (messageBodyJms) {
             if (message instanceof BytesMessage) {
-                log.trace("Bytes message with no schema");
+                log.debug("Bytes message with no schema");
                 value = message.getBody(byte[].class);
             }
             else if (message instanceof TextMessage) {
-                log.trace("Text message with no schema");
+                log.debug("Text message with no schema");
                 value = message.getBody(String.class);
             }
             else {
@@ -79,7 +79,7 @@ public class DefaultRecordBuilder extends BaseRecordBuilder {
         else {
             // Not interpreting the body as a JMS message type, all messages come through as BytesMessage.
             // In this case, we specify the value schema as OPTIONAL_BYTES.
-            log.trace("Bytes message with OPTIONAL_BYTES schema");
+            log.debug("Bytes message with OPTIONAL_BYTES schema");
             valueSchema = Schema.OPTIONAL_BYTES_SCHEMA;
             value = message.getBody(byte[].class);
         }

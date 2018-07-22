@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 IBM Corporation
+ * Copyright 2017, 2018 IBM Corporation
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -29,9 +30,12 @@ import org.slf4j.LoggerFactory;
 public class MQSourceTask extends SourceTask {
     private static final Logger log = LoggerFactory.getLogger(MQSourceTask.class);
 
-    private static int BATCH_SIZE = 50;
+    private static int BATCH_SIZE = 100;
+    private static int MAXUMSGS = 10000;
+    private static int MAXUMSGS_DELAY_MS = 500;
 
     private JMSReader reader;
+    private AtomicInteger uncommittedMessages = new AtomicInteger(0);
 
     public MQSourceTask() {
     }
@@ -50,8 +54,10 @@ public class MQSourceTask extends SourceTask {
      * @param props initial configuration
      */
     @Override public void start(Map<String, String> props) {
+        log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
+
         for (final Entry<String, String> entry: props.entrySet()) {
-            log.trace("Task props entry {} : {}", entry.getKey(), entry.getValue());
+            log.debug("Task props entry {} : {}", entry.getKey(), entry.getValue());
         }
 
         // Construct a reader to interface with MQ
@@ -60,6 +66,8 @@ public class MQSourceTask extends SourceTask {
 
         // Make a connection as an initial test of the configuration
         reader.connect();
+
+        log.trace("[{}]  Exit {}.start", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**
@@ -69,21 +77,34 @@ public class MQSourceTask extends SourceTask {
      * @return a list of source records
      */
     @Override public List<SourceRecord> poll() throws InterruptedException {
+        log.trace("[{}] Entry {}.poll", Thread.currentThread().getId(), this.getClass().getName());
+
         final List<SourceRecord> msgs = new ArrayList<>();
         int messageCount = 0;
+        int uncom = this.uncommittedMessages.get();
 
-        log.info("Polling for records");
-        SourceRecord src;
-        do {
-            // For the first message in the batch, wait indefinitely
-            src = reader.receive(messageCount == 0 ? true : false);
-            if (src != null) {
-                msgs.add(src);
-                messageCount++;
-            }
-        } while ((src != null) && (messageCount < BATCH_SIZE));
+        if (uncom < MAXUMSGS) {
+            log.info("Polling for records");
 
-        log.trace("Poll returning {} records", messageCount);
+            SourceRecord src;
+            do {
+                // For the first message in the batch, wait a while if no message
+                src = reader.receive(messageCount == 0 ? true : false);
+                if (src != null) {
+                    msgs.add(src);
+                    messageCount++;
+                    uncom = this.uncommittedMessages.incrementAndGet();
+                }
+            } while ((src != null) && (messageCount < BATCH_SIZE) && (uncom < MAXUMSGS));
+
+            log.debug("Poll returning {} records", messageCount);
+        }
+        else {
+            log.info("Uncommitted message limit reached");
+            Thread.sleep(MAXUMSGS_DELAY_MS);
+        }
+
+        log.trace("[{}]  Exit {}.poll, retval={}", Thread.currentThread().getId(), this.getClass().getName(), messageCount);
         return msgs;
     }
 
@@ -100,8 +121,13 @@ public class MQSourceTask extends SourceTask {
      * </p>
      */
     public void commit() throws InterruptedException {
-        log.trace("Committing records");
+        log.trace("[{}] Entry {}.commit", Thread.currentThread().getId(), this.getClass().getName());
+
+        log.debug("Committing records");
         reader.commit();
+        this.uncommittedMessages.set(0);
+
+        log.trace("[{}]  Exit {}.commit", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**
@@ -115,8 +141,12 @@ public class MQSourceTask extends SourceTask {
      * {@link java.nio.channels.Selector#wakeup() wakeup()} to interrupt any ongoing requests.
      */
     @Override public void stop() {
+        log.trace("[{}] Entry {}.stop", Thread.currentThread().getId(), this.getClass().getName());
+
         if (reader != null) {
             reader.close();
         }
+
+        log.trace("[{}]  Exit {}.stop", Thread.currentThread().getId(), this.getClass().getName());
     }
 }

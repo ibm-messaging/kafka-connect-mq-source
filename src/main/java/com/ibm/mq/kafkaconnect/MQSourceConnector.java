@@ -86,7 +86,7 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
-    public static String VERSION = "0.6";
+    public static String VERSION = "1.0";
 
     private Map<String, String> configProps;
 
@@ -106,10 +106,14 @@ public class MQSourceConnector extends SourceConnector {
      * @param props configuration settings
      */
     @Override public void start(Map<String, String> props) {
+        log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
+
         configProps = props;
         for (final Entry<String, String> entry: props.entrySet()) {
-            log.trace("Connector props entry {} : {}", entry.getKey(), entry.getValue());
+            log.debug("Connector props entry {} : {}", entry.getKey(), entry.getValue());
         }
+
+        log.trace("[{}]  Exit {}.start", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**
@@ -127,11 +131,15 @@ public class MQSourceConnector extends SourceConnector {
      * @return configurations for Tasks
      */
     @Override public List<Map<String, String>> taskConfigs(int maxTasks) {
+        log.trace("[{}] Entry {}.taskConfigs, maxTasks={}", Thread.currentThread().getId(), this.getClass().getName(), maxTasks);
+
         List<Map<String, String>> taskConfigs = new ArrayList<>();
         for (int i = 0; i < maxTasks; i++)
         {
             taskConfigs.add(configProps);
         }
+
+        log.trace("[{}]  Exit {}.taskConfigs, retval={}", Thread.currentThread().getId(), this.getClass().getName(), taskConfigs);
         return taskConfigs;
     }
 
@@ -139,7 +147,8 @@ public class MQSourceConnector extends SourceConnector {
      * Stop this connector.
      */
     @Override public void stop() {
-
+        log.trace("[{}] Entry {}.stop", Thread.currentThread().getId(), this.getClass().getName());
+        log.trace("[{}]  Exit {}.stop", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**

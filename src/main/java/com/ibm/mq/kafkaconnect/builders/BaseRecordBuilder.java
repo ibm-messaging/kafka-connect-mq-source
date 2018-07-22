@@ -48,6 +48,8 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
      * @throws ConnectException   Operation failed and connector should stop.
      */
     @Override public void configure(Map<String, String> props) {
+        log.trace("[{}] Entry {}.configure, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
+
         String kh = props.get(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER);
         if (kh != null) {
             if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSMESSAGEID)) {
@@ -64,10 +66,12 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             }
             else
             {
-                log.debug("Unsupported MQ record builder key header value {}", kh);
+                log.error("Unsupported MQ record builder key header value {}", kh);
                 throw new ConnectException("Unsupported MQ record builder key header value");
             }
         }
+
+        log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**

@@ -37,7 +37,6 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Reads messages from MQ using JMS. Uses a transacted session, adding messages to the current
  * transaction until told to commit. Automatically reconnects as needed.
@@ -76,6 +75,8 @@ public class JMSReader {
      * @throws ConnectException   Operation failed and connector should stop.
      */
     public void configure(Map<String, String> props) {
+        log.trace("[{}] Entry {}.configure, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
+
         String queueManager = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE_MANAGER);
         String connectionNameList = props.get(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_NAME_LIST);
         String channelName = props.get(MQSourceConnector.CONFIG_NAME_MQ_CHANNEL_NAME);
@@ -94,6 +95,8 @@ public class JMSReader {
             mqConnFactory.setQueueManager(queueManager);
             mqConnFactory.setConnectionNameList(connectionNameList);
             mqConnFactory.setChannel(channelName);
+            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, true);
+
             queue = new MQQueue(queueName);
             
             this.userName = userName;
@@ -119,7 +122,7 @@ public class JMSReader {
             this.topic = topic;
         }
         catch (JMSException | JMSRuntimeException jmse) {
-            log.debug("JMS exception {}", jmse);
+            log.error("JMS exception {}", jmse);
             throw new ConnectException(jmse);
         }
 
@@ -129,15 +132,19 @@ public class JMSReader {
             builder.configure(props);
         }
         catch (ClassNotFoundException | IllegalAccessException | InstantiationException | NullPointerException exc) {
-            log.debug("Could not instantiate message builder {}", builderClass);
+            log.error("Could not instantiate message builder {}", builderClass);
             throw new ConnectException("Could not instantiate message builder", exc);
         }
+
+        log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**
      * Connects to MQ.
      */
     public void connect() {
+        log.trace("[{}] Entry {}.connect", Thread.currentThread().getId(), this.getClass().getName());
+
         try {
             if (userName != null) {
                 jmsCtxt = mqConnFactory.createContext(userName, password, JMSContext.SESSION_TRANSACTED);
@@ -153,9 +160,11 @@ public class JMSReader {
         }
         catch (JMSRuntimeException jmse) {
             log.info("Connection to MQ could not be established");
-            log.debug("JMS exception {}", jmse);
+            log.error("JMS exception {}", jmse);
             handleException(jmse);
         }
+
+        log.trace("[{}]  Exit {}.connect", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**
@@ -166,7 +175,10 @@ public class JMSReader {
      * @return The SourceRecord representing the message
      */
     public SourceRecord receive(boolean wait) {
+        log.trace("[{}] Entry {}.receive", Thread.currentThread().getId(), this.getClass().getName());
+
         if (!connectInternal()) {
+            log.trace("[{}]  Exit {}.receive, retval=null", Thread.currentThread().getId(), this.getClass().getName());
             return null;
         }
 
@@ -176,12 +188,12 @@ public class JMSReader {
             if (wait) {
                 while ((m == null) && !closeNow.get())
                 {
-                    log.trace("Waiting {} ms for message", RECEIVE_TIMEOUT);
+                    log.debug("Waiting {} ms for message", RECEIVE_TIMEOUT);
                     m = jmsCons.receive(RECEIVE_TIMEOUT);
                 }
 
                 if (m == null) {
-                    log.trace("No message received");
+                    log.debug("No message received");
                 }
             }
             else {
@@ -201,10 +213,11 @@ public class JMSReader {
             }
         }
         catch (JMSException | JMSRuntimeException | ConnectException exc) {
-            log.debug("JMS exception {}", exc);
+            log.error("JMS exception {}", exc);
             handleException(exc);
         }
 
+        log.trace("[{}]  Exit {}.receive, retval={}", Thread.currentThread().getId(), this.getClass().getName(), sr);
         return sr;
     }
 
@@ -213,6 +226,8 @@ public class JMSReader {
      * be processed, the transaction is "in peril" and is rolled back instead to avoid data loss.
      */
     public void commit() {
+        log.trace("[{}] Entry {}.commit", Thread.currentThread().getId(), this.getClass().getName());
+
         if (!connectInternal()) {
             return;
         }
@@ -223,7 +238,7 @@ public class JMSReader {
 
                 if (inperil) {
                     inperil = false;
-                    log.trace("Rolling back in-flight transaction");
+                    log.debug("Rolling back in-flight transaction");
                     jmsCtxt.rollback();
                 }
                 else {
@@ -232,15 +247,19 @@ public class JMSReader {
             }
         }
         catch (JMSRuntimeException jmse) {
-            log.debug("JMS exception {}", jmse);
+            log.error("JMS exception {}", jmse);
             handleException(jmse);
         }
+
+        log.trace("[{}]  Exit {}.commit", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**
      * Closes the connection.
      */
     public void close() {
+        log.trace("[{}] Entry {}.close", Thread.currentThread().getId(), this.getClass().getName());
+
         try {
             JMSContext ctxt = jmsCtxt;
             closeNow.set(true);
@@ -249,6 +268,8 @@ public class JMSReader {
         catch (JMSRuntimeException jmse) {
             ;
         }
+
+        log.trace("[{}]  Exit {}.close", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**
@@ -262,9 +283,11 @@ public class JMSReader {
         }
 
         if (closeNow.get()) {
+            log.debug("Closing connection now");
             return false;
         }
 
+        log.trace("[{}] Entry {}.connectInternal", Thread.currentThread().getId(), this.getClass().getName());
         try {
             if (userName != null) {
                 jmsCtxt = mqConnFactory.createContext(userName, password, JMSContext.SESSION_TRANSACTED);
@@ -279,11 +302,13 @@ public class JMSReader {
             log.info("Connection to MQ established");
         }
         catch (JMSRuntimeException jmse) {
-            log.debug("JMS exception {}", jmse);
+            log.error("JMS exception {}", jmse);
             handleException(jmse);
+            log.trace("[{}]  Exit {}.connectInternal, retval=false", Thread.currentThread().getId(), this.getClass().getName());
             return false;
         }
 
+        log.trace("[{}]  Exit {}.connectInternal, retval=true", Thread.currentThread().getId(), this.getClass().getName());
         return true;
     }
 
@@ -291,6 +316,8 @@ public class JMSReader {
      * Internal method to close the connection.
      */
     private void closeInternal() {
+        log.trace("[{}] Entry {}.closeInternal", Thread.currentThread().getId(), this.getClass().getName());
+
         try {
             inflight = false;
             inperil = false;
@@ -308,6 +335,8 @@ public class JMSReader {
             jmsCtxt = null;
             log.debug("Connection to MQ closed");
         }
+
+        log.trace("[{}]  Exit {}.closeInternal", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**

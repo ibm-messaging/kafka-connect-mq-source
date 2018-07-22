@@ -4,7 +4,3 @@ target/
 .settings/
 .project
 .vscode/
-# Exclude local Maven repo used to incorporate downloaded MQ client JAR into the connector
-local-maven-repo/
-# Exclude MQ client JAR in the top level of the work tree
-allclient*.jar

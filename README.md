@@ -8,7 +8,7 @@ The connector is supplied as source code which you can easily build into a JAR f
 To build the connector, you must have the following installed:
 * [git](https://git-scm.com/)
 * [Maven](https://maven.apache.org)
-* Java 7 or later
+* Java 8 or later
 
 Clone the repository with the following command:
 ```shell
@@ -25,15 +25,15 @@ Build the connector using Maven:
 mvn clean package
 ```
 
-Once built, the output is a single JAR called `target/kafka-connect-mq-source-0.6-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
+Once built, the output is a single JAR called `target/kafka-connect-mq-source-1.0-SNAPSHOT-jar-with-dependencies.jar` which contains all of the required dependencies.
 
 
 ## Running the connector
 To run the connector, you must have:
 * The JAR from building the connector
 * A properties file containing the configuration for the connector
-* Apache Kafka
-* IBM MQ v7.5 or later
+* Apache Kafka, either standalone or included as part of an offering such as IBM Event Streams
+* IBM MQ v8 or later, or the IBM MQ on Cloud service
 
 The connector can be run in a Kafka Connect worker in either standalone (single process) or distributed mode. It's a good idea to start in standalone mode.
 
@@ -139,6 +139,14 @@ You will need to put the public part of the client's certificate in the queue ma
 For troubleshooting, or to better understand the handshake performed by the IBM MQ Java client application in combination with your specific JSSE provider, you can enable debugging by setting `javax.net.debug=ssl` in the JVM environment.
 
 
+## Performance and syncpoint limit
+The connector uses a transacted JMS session to receive messages from MQ in syncpoint and periodically commits the in-flight transaction. This has the effect of batching messages together for improved efficiency. However, the frequency of committing transactions is controlled by the Kafka Connect framework rather than the connector. The connector is only able to receive up to the queue manager's maximum uncommitted message limit (typically 10000 messages) before committing.
+
+By default, Kafka Connect only commits every 60 seconds (10 seconds for the standalone worker), meaning that each task is limited to a rate of about 166 messages per second. You can increase the frequency of committing by using the `offset.flush.interval.ms` configuration in the worker configuration file. For example, if you set `offset.flush.interval.ms=5000`, the connector commits every 5 seconds increasing the maximum rate per task to about 2000 messages per second.
+
+If messages are being received faster than they can be committed, the connector prints a message `Uncommitted message limit reached` and sleeps for a short delay. You should use this as an indication to set the `offset.flush.interval.ms` to a lower value, or increase the number of tasks.
+
+
 ## Configuration
 The configuration options for the MQ Source Connector are as follows:
 
@@ -160,10 +168,12 @@ The configuration options for the MQ Source Connector are as follows:
 
 ## Future enhancements
 The connector is intentionally basic. The idea is to enhance it over time with additional features to make it more capable. Some possible future enhancements are:
-* Configurable schema for MQ messages
-* Simplification of handling message formats
 * JMX metrics
 * Separate TLS configuration for the connector so that keystore location and so on can be specified as configurations
+
+
+## Support
+A commercially supported version of this connector is available for customers with a support entitlement for [IBM Event Streams](https://developer.ibm.com/messaging/event-streams/).
 
 
 ## Issues and contributions
