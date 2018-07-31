@@ -1,9 +1,9 @@
 # Using IBM MQ with Kafka Connect
-Many organizations use both IBM MQ and Apache Kafka for their messaging needs. Although they're often used to solve different kinds of messaging problems, people often want to connect them together. When connecting Apache Kafka to other systems, the technology of choice is the Kafka Connect framework.
+Many organizations use both IBM MQ and Apache Kafka for their messaging needs. Although they're typically used to solve different kinds of messaging problems, people often want to connect them together. When connecting Apache Kafka to other systems, the technology of choice is the Kafka Connect framework.
 
 A pair of basic connectors for IBM MQ are available as source code available on GitHub. The source connector (https://github.com/ibm-messaging/kafka-connect-mq-source) is used to take messages from an MQ queue and transfer them to a Kafka topic, while the sink connector (https://github.com/ibm-messaging/kafka-connect-mq-sink) goes the other way. The GitHub projects have instructions for building the connectors, but once you've successfully built the JAR files, what next?
 
-These instructions tell you how to set up MQ and Apache Kafka from scratch and use the connectors to transfer messages between them. The instructions are for MQ v9 running on Linux, so if you're using a different version or platform, you might have to adjust them slightly. The instructions also expect Apache Kafka 0.10.2.0 or later.
+These instructions tell you how to set up MQ and Apache Kafka from scratch and use the connectors to transfer messages between them. The instructions are for MQ v9 running on Linux, so if you're using a different version or platform, you might have to adjust them slightly. The instructions also expect Apache Kafka 1.0 or later.
 
 
 ## Kafka Connect concepts
@@ -88,7 +88,7 @@ The queue manager is now ready to accept connection from Kafka Connect connector
 ### Download and set up Apache Kafka
 If you do not already have Apache Kafka, you can download it from here: http://kafka.apache.org/downloads. Make sure you have the prerequisites installed, such as Java.
 
-Download the latest .tgz file (called something like `kafka_2.11-1.0.0.tgz`) and unpack it. The top-level directory of the unpacked .tgz file is referred to as the *Kafka root directory*. It contains several directories including `bin` for the Kafka executables and `config` for the configuration files.
+Download the latest .tgz file (called something like `kafka_2.11-2.0.0.tgz`) and unpack it. The top-level directory of the unpacked .tgz file is referred to as the *Kafka root directory*. It contains several directories including `bin` for the Kafka executables and `config` for the configuration files.
 
 There are several components required to run a minimal Kafka cluster. It's easiest to run them each in a separate terminal window, starting in the Kafka root directory.
 
@@ -154,7 +154,7 @@ topic=TSOURCE
 
 Change directory to the Kafka root directory. Start the connector worker replacing `<connector-root-directory>`:
 ``` shell
-CLASSPATH=<connector-root-directory>/target/kafka-connect-mq-source-0.6-SNAPSHOT-jar-with-dependencies.jar bin/connect-standalone.sh config/connect-standalone.properties ~/mq-source.properties
+CLASSPATH=<connector-root-directory>/target/kafka-connect-mq-source-1.0-SNAPSHOT-jar-with-dependencies.jar bin/connect-standalone.sh config/connect-standalone.properties ~/mq-source.properties
 ```
 
 Wait while the worker starts and then prints:
@@ -212,7 +212,7 @@ mq.password=passw0rd
 
 Change directory to the Kafka root directory. Start the connector worker replacing `<connector-root-directory>`:
 ``` shell
-CLASSPATH=<connector-root-directory>/target/kafka-connect-mq-sink-0.6-SNAPSHOT-jar-with-dependencies.jar bin/kafka-connect-standalone config/connect-standalone.properties ~/mq-sink.properties
+CLASSPATH=<connector-root-directory>/target/kafka-connect-mq-sink-0.7-SNAPSHOT-jar-with-dependencies.jar bin/kafka-connect-standalone config/connect-standalone.properties ~/mq-sink.properties
 ```
 
 Wait while the worker starts and then prints:

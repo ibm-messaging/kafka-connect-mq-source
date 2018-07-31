@@ -32,7 +32,7 @@ Once built, the output is a single JAR called `target/kafka-connect-mq-source-1.
 To run the connector, you must have:
 * The JAR from building the connector
 * A properties file containing the configuration for the connector
-* Apache Kafka, either standalone or included as part of an offering such as IBM Event Streams
+* Apache Kafka 1.0 or later, either standalone or included as part of an offering such as IBM Event Streams
 * IBM MQ v8 or later, or the IBM MQ on Cloud service
 
 The connector can be run in a Kafka Connect worker in either standalone (single process) or distributed mode. It's a good idea to start in standalone mode.
