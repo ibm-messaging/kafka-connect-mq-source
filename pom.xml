@@ -17,7 +17,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>com.ibm.mq.kafkaconnect</groupId>
+  <groupId>com.ibm.eventstreams.connect</groupId>
   <artifactId>kafka-connect-mq-source</artifactId>
   <packaging>jar</packaging>
   <version>1.0-SNAPSHOT</version>
@@ -63,7 +63,7 @@
     <dependency>
       <groupId>com.ibm.mq</groupId>
       <artifactId>com.ibm.mq.allclient</artifactId>
-      <version>9.0.4.0</version>
+      <version>9.1.0.0</version>
     </dependency>
 
     <dependency>

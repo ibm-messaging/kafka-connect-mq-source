@@ -13,9 +13,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package com.ibm.mq.kafkaconnect.builders;
+package com.ibm.eventstreams.connect.mqsource.builders;
 
-import com.ibm.mq.kafkaconnect.MQSourceConnector;
+import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
 
 import java.util.Map;
 

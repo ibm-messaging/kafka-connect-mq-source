@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package com.ibm.mq.kafkaconnect.builders;
+package com.ibm.eventstreams.connect.mqsource.builders;
 
 import static java.nio.charset.StandardCharsets.*;
 
@@ -43,7 +43,7 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
     private JsonConverter converter;
     
     public JsonRecordBuilder() {
-        log.info("Building records using com.ibm.mq.kafkaconnect.builders.JsonRecordBuilder");
+        log.info("Building records using com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
         converter = new JsonConverter();
         
         // We just want the payload, not the schema in the output message

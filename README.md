@@ -61,13 +61,13 @@ There are two record builders supplied with the connector, although you can writ
 
 There are three converters build into Apache Kafka and another which is part of the Confluent Platform. You need to make sure that the incoming message format, the setting of the *mq.message.body.jms* configuration, the record builder and converter are all compatible. By default, everything is just treated as bytes but if you want the connector to understand the message format and apply more sophisticated processing such as single-message transforms, you'll need a more complex configuration. The following table shows the basic options that work.
 
-| Record builder class                                  | Incoming MQ message    | mq.message.body.jms | Converter class                                        | Outgoing Kafka message  |
-| ----------------------------------------------------- | ---------------------- | ------------------- | ------------------------------------------------------ | ----------------------- |
-| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | Any                    | false (default)     | org.apache.kafka.connect.converters.ByteArrayConverter | **Binary data**         |
-| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | JMS BytesMessage       | true                | org.apache.kafka.connect.converters.ByteArrayConverter | **Binary data**         |
-| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | JMS TextMessage        | true                | org.apache.kafka.connect.storage.StringConverter       | **String data**         |
-| com.ibm.mq.kafkaconnect.builders.JsonRecordBuilder    | JSON, may have schema  | Not used            | org.apache.kafka.connect.json.JsonConverter            | **JSON, no schema**     |
-| com.ibm.mq.kafkaconnect.builders.JsonRecordBuilder    | JSON, may have schema  | Not used            | io.confluent.connect.avro.AvroConverter                | **Binary-encoded Avro** |
+| Record builder class                                                | Incoming MQ message    | mq.message.body.jms | Converter class                                        | Outgoing Kafka message  |
+| ------------------------------------------------------------------- | ---------------------- | ------------------- | ------------------------------------------------------ | ----------------------- |
+| com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder | Any                    | false (default)     | org.apache.kafka.connect.converters.ByteArrayConverter | **Binary data**         |
+| com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder | JMS BytesMessage       | true                | org.apache.kafka.connect.converters.ByteArrayConverter | **Binary data**         |
+| com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder | JMS TextMessage        | true                | org.apache.kafka.connect.storage.StringConverter       | **String data**         |
+| com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder    | JSON, may have schema  | Not used            | org.apache.kafka.connect.json.JsonConverter            | **JSON, no schema**     |
+| com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder    | JSON, may have schema  | Not used            | io.confluent.connect.avro.AvroConverter                | **Binary-encoded Avro** |
 
 There's no single configuration that will always be right, but here are some high-level suggestions.
 
@@ -94,13 +94,13 @@ value.converter=org.apache.kafka.connect.storage.StringConverter
 ### The gory detail
 The messages received from MQ are processed by a record builder which builds a Kafka Connect record to represent the message. There are two record builders supplied with the MQ source connector. The connector has a configuration option *mq.message.body.jms* that controls whether it interprets the MQ messages as JMS messages or regular MQ messages.
 
-| Record builder class                                  | mq.message.body.jms | Incoming message body | Value schema       | Value class        |
-| ----------------------------------------------------- | ------------------- | --------------------- | ------------------ | ------------------ |
-| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | false (default)     | Any                   | OPTIONAL_BYTES     | byte[]             |
-| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | true                | JMS BytesMessage      | null               | byte[]             |
-| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | true                | JMS TextMessage       | null               | String             |
-| com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder | true                | Everything else       | *EXCEPTION*        | *EXCEPTION*        |
-| com.ibm.mq.kafkaconnect.builders.JsonRecordBuilder    | Not used            | JSON                  | Depends on message | Depends on message |
+| Record builder class                                                | mq.message.body.jms | Incoming message body | Value schema       | Value class        |
+| ------------------------------------------------------------------- | ------------------- | --------------------- | ------------------ | ------------------ |
+| com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder | false (default)     | Any                   | OPTIONAL_BYTES     | byte[]             |
+| com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder | true                | JMS BytesMessage      | null               | byte[]             |
+| com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder | true                | JMS TextMessage       | null               | String             |
+| com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder | true                | Everything else       | *EXCEPTION*        | *EXCEPTION*        |
+| com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder    | Not used            | JSON                  | Depends on message | Depends on message |
 
 You must then choose a converter than can handle the value schema and class. There are three basic converters built into Apache Kafka, with the likely useful combinations in **bold**.
 
@@ -128,7 +128,7 @@ In MQ, the message ID and correlation ID are both 24-byte arrays. As strings, th
 The connector supports authentication with user name and password and also connections secured with TLS using a server-side certificate and mutual authentication with client-side certificates.
 
 ### Setting up TLS using a server-side certificate
-To enable use of TLS, set the configuration `mq.ssl.cipher.suite` to the name of the cipher suite which matches the CipherSpec in the SSLCIPH attribute of the MQ server-connection channel. Use the table of supported cipher suites for MQ 9.0.x [here](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.0.0/com.ibm.mq.dev.doc/q113220_.htm) as a reference. Note that the names of the CipherSpecs as used in the MQ configuration are not necessarily the same as the cipher suite names that the connector uses. The connector uses the JMS interface so it follows the Java conventions.
+To enable use of TLS, set the configuration `mq.ssl.cipher.suite` to the name of the cipher suite which matches the CipherSpec in the SSLCIPH attribute of the MQ server-connection channel. Use the table of supported cipher suites for MQ 9.1 [here] ((https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.dev.doc/q113220_.htm) as a reference. Note that the names of the CipherSpecs as used in the MQ configuration are not necessarily the same as the cipher suite names that the connector uses. The connector uses the JMS interface so it follows the Java conventions.
 
 You will need to put the public part of the queue manager's certificate in the JSSE truststore used by the Kafka Connect worker that you're using to run the connector. If you need to specify extra arguments to the worker's JVM, you can use the EXTRA_ARGS environment variable.
 

@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package com.ibm.mq.kafkaconnect.builders;
+package com.ibm.eventstreams.connect.mqsource.builders;
 
 import javax.jms.BytesMessage;
 import javax.jms.JMSContext;
@@ -41,7 +41,7 @@ public class DefaultRecordBuilder extends BaseRecordBuilder {
     private static final Logger log = LoggerFactory.getLogger(DefaultRecordBuilder.class);
 
     public DefaultRecordBuilder() {
-        log.info("Building records using com.ibm.mq.kafkaconnect.builders.DefaultRecordBuilder");
+        log.info("Building records using com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
     }
     
     /**
