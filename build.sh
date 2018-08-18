@@ -1,8 +1,9 @@
 #!/bin/bash
-curl http://www-us.apache.org/dist/maven/maven-3/3.5.3/binaries/apache-maven-3.5.3-bin.tar.gz -o maven.tar.gz
+MAVEN_VERSION="3.5.4"
+curl -v "http://www-us.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" -o maven.tar.gz
 tar xzf maven.tar.gz
 export MVNROOT=$PWD
-export PATH=$PWD/apache-maven-3.5.3/bin:$PATH
+export PATH=$PWD/apache-maven-${MAVEN_VERSION}/bin:$PATH
 
 # Maven install
 mvn clean
