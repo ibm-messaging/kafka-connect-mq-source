@@ -58,12 +58,15 @@ public class JMSReader {
 
     private RecordBuilder builder;
     
-    private boolean connected = false;                    // Whether connected to MQ
-    private boolean inflight = false;                     // Whether messages in-flight in current transaction
-    private boolean inperil = false;                      // Whether current transaction must be forced to roll back
-    private AtomicBoolean closeNow = new AtomicBoolean(); // Whether close has been requested
+    private boolean connected = false;                              // Whether connected to MQ
+    private boolean inflight = false;                               // Whether messages in-flight in current transaction
+    private boolean inperil = false;                                // Whether current transaction must be forced to roll back
+    private AtomicBoolean closeNow = new AtomicBoolean();           // Whether close has been requested
+    private long reconnectDelayMillis = RECONNECT_DELAY_MILLIS_MIN; // Delay between repeated reconnect attempts
 
     private static long RECEIVE_TIMEOUT = 30000l;
+    private static long RECONNECT_DELAY_MILLIS_MIN = 64l;
+    private static long RECONNECT_DELAY_MILLIS_MAX = 8192l;
 
     public JMSReader() {}
 
@@ -297,11 +300,25 @@ public class JMSReader {
             }            
 
             jmsCons = jmsCtxt.createConsumer(queue);
+            reconnectDelayMillis = RECONNECT_DELAY_MILLIS_MIN;
             connected = true;
         
             log.info("Connection to MQ established");
         }
         catch (JMSRuntimeException jmse) {
+            // Delay slightly so that repeated reconnect loops don't run too fast
+            try {
+                Thread.sleep(reconnectDelayMillis);
+            }
+            catch (InterruptedException ie) {
+                ;
+            }
+
+            if (reconnectDelayMillis < RECONNECT_DELAY_MILLIS_MAX)
+            {
+                reconnectDelayMillis = reconnectDelayMillis * 2;
+            }
+
             log.error("JMS exception {}", jmse);
             handleException(jmse);
             log.trace("[{}]  Exit {}.connectInternal, retval=false", Thread.currentThread().getId(), this.getClass().getName());
