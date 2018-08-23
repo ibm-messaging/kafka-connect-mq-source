@@ -15,10 +15,11 @@
  */
 package com.ibm.eventstreams.connect.mqsource;
 
+import com.ibm.eventstreams.connect.mqsource.builders.RecordBuilder;
+
 import com.ibm.mq.MQException;
 import com.ibm.mq.constants.MQConstants;
 import com.ibm.mq.jms.*;
-import com.ibm.eventstreams.connect.mqsource.builders.RecordBuilder;
 import com.ibm.msg.client.wmq.WMQConstants;
 
 import java.util.Map;
@@ -215,9 +216,13 @@ public class JMSReader {
                 inperil = false;
             }
         }
-        catch (JMSException | JMSRuntimeException | ConnectException exc) {
+        catch (JMSException | JMSRuntimeException exc) {
             log.error("JMS exception {}", exc);
             handleException(exc);
+        }
+        catch (ConnectException exc) {
+            log.error("Connect exception {}", exc);
+            throw exc;
         }
 
         log.trace("[{}]  Exit {}.receive, retval={}", Thread.currentThread().getId(), this.getClass().getName(), sr);
@@ -266,7 +271,9 @@ public class JMSReader {
         try {
             JMSContext ctxt = jmsCtxt;
             closeNow.set(true);
-            ctxt.close();
+            if (ctxt != null) {
+                ctxt.close();
+            }
         }
         catch (JMSRuntimeException jmse) {
             ;
@@ -375,6 +382,11 @@ public class JMSReader {
                 reason = mqe.getReason();
                 break;
             }
+            else if (t instanceof JMSException) {
+                JMSException jmse = (JMSException)t;
+                log.error("JMS exception: error code {}", jmse.getErrorCode());
+            }
+
             t = t.getCause();
         }
 
@@ -394,7 +406,7 @@ public class JMSReader {
                 isRetriable = true;
                 break;
 
-            // These reason codes indicate that the connect is still OK, but just retrying later
+            // These reason codes indicate that the connection is still OK, but just retrying later
             // will probably recover - possibly with administrative action on the queue manager
             case MQConstants.MQRC_GET_INHIBITED:
                 isRetriable = true;
@@ -403,6 +415,13 @@ public class JMSReader {
         }
 
         if (mustClose) {
+            // Delay so that repeated reconnect loops don't run too fast
+            try {
+                Thread.sleep(RECONNECT_DELAY_MILLIS_MAX);
+            }
+            catch (InterruptedException ie) {
+                ;
+            }
             closeInternal();
         }
 
