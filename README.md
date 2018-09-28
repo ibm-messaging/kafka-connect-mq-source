@@ -53,13 +53,13 @@ Kafka Connect is very flexible but it's important to understand the way that it 
 
 This is rather complicated and it's likely that a future update of the connector will simplify matters.
 
-Each message in Kafka Connect is associated with a representation of the message format known as a *schema*. Each Kafka message actually has two parts, key and value, and each part has its own schema. The MQ source connector does not currently use message keys, but some of the configuration options use the word *Value* because they refer to the Kafka message value.
+Each message in Kafka Connect is associated with a representation of the message format known as a *schema*. Each Kafka message actually has two parts, key and value, and each part has its own schema. The MQ source connector does not currently make much use of message keys, but some of the configuration options use the word *Value* because they refer to the Kafka message value.
 
 When the MQ source connector reads a message from MQ, it chooses a schema to represent the message format and creates an internal object called a *record* containing the message value. This conversion is performed using a *record builder*.  Each record is then processed using a *converter* which creates the message that's published on a Kafka topic.
 
 There are two record builders supplied with the connector, although you can write your own. The basic rule is that if you just want the message to be passed along to Kafka unchanged, the default record builder is probably the best choice. If the incoming data is in JSON format and you want to use a schema based on its structure, use the JSON record builder.
 
-There are three converters build into Apache Kafka and another which is part of the Confluent Platform. You need to make sure that the incoming message format, the setting of the *mq.message.body.jms* configuration, the record builder and converter are all compatible. By default, everything is just treated as bytes but if you want the connector to understand the message format and apply more sophisticated processing such as single-message transforms, you'll need a more complex configuration. The following table shows the basic options that work.
+There are three converters built into Apache Kafka. You need to make sure that the incoming message format, the setting of the *mq.message.body.jms* configuration, the record builder and converter are all compatible. By default, everything is just treated as bytes but if you want the connector to understand the message format and apply more sophisticated processing such as single-message transforms, you'll need a more complex configuration. The following table shows the basic options that work.
 
 | Record builder class                                                | Incoming MQ message    | mq.message.body.jms | Converter class                                        | Outgoing Kafka message  |
 | ------------------------------------------------------------------- | ---------------------- | ------------------- | ------------------------------------------------------ | ----------------------- |
@@ -67,7 +67,6 @@ There are three converters build into Apache Kafka and another which is part of 
 | com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder | JMS BytesMessage       | true                | org.apache.kafka.connect.converters.ByteArrayConverter | **Binary data**         |
 | com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder | JMS TextMessage        | true                | org.apache.kafka.connect.storage.StringConverter       | **String data**         |
 | com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder    | JSON, may have schema  | Not used            | org.apache.kafka.connect.json.JsonConverter            | **JSON, no schema**     |
-| com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder    | JSON, may have schema  | Not used            | io.confluent.connect.avro.AvroConverter                | **Binary-encoded Avro** |
 
 There's no single configuration that will always be right, but here are some high-level suggestions.
 
@@ -110,8 +109,6 @@ You must then choose a converter than can handle the value schema and class. The
 | org.apache.kafka.connect.storage.StringConverter       | Works, not useful   | **String data**   | Works, not useful          |
 | org.apache.kafka.connect.json.JsonConverter            | Base-64 JSON String | JSON String       | **JSON data**              |
 
-In addition, there is another converter for the Avro format that is part of the Confluent Platform. This has not been tested with the MQ source connector at this time.
-
 ### Key support and partitioning
 By default, the connector does not use keys for the Kafka messages it publishes. It can be configured to use the JMS message headers to set the key of the Kafka records. You could use this, for example, to use the MQMD correlation identifier as the partitioning key when the messages are published to Kafka. There are three valid values for the `mq.record.builder.key.header` that controls this behavior.
 
@@ -127,12 +124,12 @@ In MQ, the message ID and correlation ID are both 24-byte arrays. As strings, th
 ## Security
 The connector supports authentication with user name and password and also connections secured with TLS using a server-side certificate and mutual authentication with client-side certificates.
 
-### Setting up TLS using a server-side certificate
+### Setting up MQ connectivity using TLS with a server-side certificate
 To enable use of TLS, set the configuration `mq.ssl.cipher.suite` to the name of the cipher suite which matches the CipherSpec in the SSLCIPH attribute of the MQ server-connection channel. Use the table of supported cipher suites for MQ 9.1 [here] ((https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.dev.doc/q113220_.htm) as a reference. Note that the names of the CipherSpecs as used in the MQ configuration are not necessarily the same as the cipher suite names that the connector uses. The connector uses the JMS interface so it follows the Java conventions.
 
 You will need to put the public part of the queue manager's certificate in the JSSE truststore used by the Kafka Connect worker that you're using to run the connector. If you need to specify extra arguments to the worker's JVM, you can use the EXTRA_ARGS environment variable.
 
-### Setting up TLS for mutual authentication
+### Setting up MQ connectivity using TLS for mutual authentication
 You will need to put the public part of the client's certificate in the queue manager's key repository. You will also need to configure the worker's JVM with the location and password for the keystore containing the client's certificate.
 
 ### Troubleshooting
@@ -148,7 +145,7 @@ If messages are being received faster than they can be committed, the connector 
 
 
 ## Configuration
-The configuration options for the MQ Source Connector are as follows:
+The configuration options for the Kafka Connect source connector for IBM MQ are as follows:
 
 | Name                         | Description                                                 | Type    | Default       | Valid values                                            |
 | ---------------------------- | ----------------------------------------------------------- | ------- | ------------- | ------------------------------------------------------- |
@@ -164,12 +161,6 @@ The configuration options for the MQ Source Connector are as follows:
 | mq.ssl.cipher.suite          | The name of the cipher suite for TLS (SSL) connection       | string  |               | Blank or valid cipher suite                             |
 | mq.ssl.peer.name             | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern                                     |
 | topic                        | The name of the target Kafka topic                          | string  |               | Topic name                                              |
-
-
-## Future enhancements
-The connector is intentionally basic. The idea is to enhance it over time with additional features to make it more capable. Some possible future enhancements are:
-* JMX metrics
-* Separate TLS configuration for the connector so that keystore location and so on can be specified as configurations
 
 
 ## Support
