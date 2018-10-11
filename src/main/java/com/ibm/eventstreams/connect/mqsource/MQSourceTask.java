@@ -31,7 +31,7 @@ public class MQSourceTask extends SourceTask {
     private static final Logger log = LoggerFactory.getLogger(MQSourceTask.class);
 
     private static int BATCH_SIZE = 100;
-    private static int MAXUMSGS = 10000;
+    private static int MAXUMSGS = 10000; // What does this stand for, better name?
     private static int MAXUMSGS_DELAY_MS = 500;
 
     private JMSReader reader;
@@ -89,7 +89,7 @@ public class MQSourceTask extends SourceTask {
             SourceRecord src;
             do {
                 // For the first message in the batch, wait a while if no message
-                src = reader.receive(messageCount == 0 ? true : false);
+                src = reader.receive(messageCount == 0);
                 if (src != null) {
                     msgs.add(src);
                     messageCount++;

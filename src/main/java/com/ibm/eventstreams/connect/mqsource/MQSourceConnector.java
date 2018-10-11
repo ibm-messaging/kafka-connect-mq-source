@@ -59,6 +59,10 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_MQ_PASSWORD = "The password for authenticating with the queue manager.";
     public static final String CONFIG_DISPLAY_MQ_PASSWORD = "Password";
 
+    public static final String CONFIG_NAME_MQ_CCDT_URL = "mq.ccdt.url"; 
+    public static final String CONFIG_DOCUMENTATION_MQ_CCDT_URL = "The CCDT URL to use to establish a connection to the queue manager.";
+    public static final String CONFIG_DISPLAY_MQ_CCDT_URL = "CCDT URL";
+
     public static final String CONFIG_NAME_MQ_RECORD_BUILDER = "mq.record.builder";
     public static final String CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER = "The class used to build the Kafka Connect records.";
     public static final String CONFIG_DISPLAY_MQ_RECORD_BUILDER = "Record builder";
@@ -181,6 +185,10 @@ public class MQSourceConnector extends SourceConnector {
         config.define(CONFIG_NAME_MQ_PASSWORD, Type.PASSWORD, null, Importance.MEDIUM,
                       CONFIG_DOCUMENTATION_MQ_PASSWORD, CONFIG_GROUP_MQ, 6, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_PASSWORD);
+
+        config.define(CONFIG_NAME_MQ_CCDT_URL, Type.STRING, null, Importance.MEDIUM,
+                      CONFIG_DOCUMENTATION_MQ_CCDT_URL, CONFIG_GROUP_MQ, 6, Width.MEDIUM,
+                      CONFIG_DISPLAY_MQ_CCDT_URL);
 
         config.define(CONFIG_NAME_MQ_RECORD_BUILDER, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
                       CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER, CONFIG_GROUP_MQ, 7, Width.LONG,
