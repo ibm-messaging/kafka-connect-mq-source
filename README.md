@@ -155,6 +155,7 @@ The configuration options for the Kafka Connect source connector for IBM MQ are 
 | mq.queue                     | The name of the source MQ queue                             | string  |               | MQ queue name                                           |
 | mq.user.name                 | The user name for authenticating with the queue manager     | string  |               | User name                                               |
 | mq.password                  | The password for authenticating with the queue manager      | string  |               | Password                                                |
+| mq.ccdt.url                  | The URL for the CCDT file containing MQ connection details  | string  |               | URL for obtaining a CCDT file                           |
 | mq.record.builder            | The class used to build the Kafka Connect record            | string  |               | Class implementing RecordBuilder                        |
 | mq.message.body.jms          | Whether to interpret the message body as a JMS message type | boolean | false         |                                                         |
 | mq.record.builder.key.header | The JMS message header to use as the Kafka record key       | string  |               | JMSMessageID, JMSCorrelationID, JMSCorrelationIDAsBytes |
@@ -162,6 +163,22 @@ The configuration options for the Kafka Connect source connector for IBM MQ are 
 | mq.ssl.peer.name             | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern                                     |
 | topic                        | The name of the target Kafka topic                          | string  |               | Topic name                                              |
 
+### Using a CCDT file
+Some of the connection details for MQ can be provided in a [CCDT file](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.0.0/com.ibm.mq.con.doc/q016730_.htm) by setting `mq.ccdt.url` in the Kafka Connect source connector configuration file. If this is set the following configuration options are no longer required: `mq.connection.name.list`, `mq.channel.name`.
+
+### Externalizing secrets
+[KIP 297](https://cwiki.apache.org/confluence/display/KAFKA/KIP-297%3A+Externalizing+Secrets+for+Connect+Configurations) introduced a mechanism to externalize secrets to be used as configuration for Kafka connectors. If using this mechanism the desired config provider must be configured in the Worker configuration file:
+
+```
+# Additional properties for the worker configuration to enable use of ConfigProviders
+# multiple comma-separated provider types can be specified here
+# config.providers=file
+# config.providers=file,other-provider
+# config.providers.file.class=org.apache.kafka.common.config.provider.FileConfigProvider
+# Other ConfigProvider implementations might require parameters passed in to configure() as follows:
+# config.providers.other-provider.param.foo=value1
+# config.providers.other-provider.param.bar=value2
+```
 
 ## Support
 A commercially supported version of this connector is available for customers with a support entitlement for [IBM Event Streams](https://developer.ibm.com/messaging/event-streams/).

@@ -166,11 +166,11 @@ public class MQSourceConnector extends SourceConnector {
                       CONFIG_DOCUMENTATION_MQ_QUEUE_MANAGER, CONFIG_GROUP_MQ, 1, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_QUEUE_MANAGER);
 
-        config.define(CONFIG_NAME_MQ_CONNECTION_NAME_LIST, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
+        config.define(CONFIG_NAME_MQ_CONNECTION_NAME_LIST, Type.STRING, null, Importance.MEDIUM,
                       CONFIG_DOCUMENTATION_MQ_CONNNECTION_NAME_LIST, CONFIG_GROUP_MQ, 2, Width.LONG,
                       CONFIG_DISPLAY_MQ_CONNECTION_NAME_LIST);
 
-        config.define(CONFIG_NAME_MQ_CHANNEL_NAME, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
+        config.define(CONFIG_NAME_MQ_CHANNEL_NAME, Type.STRING, null, Importance.MEDIUM,
                       CONFIG_DOCUMENTATION_MQ_CHANNEL_NAME, CONFIG_GROUP_MQ, 3, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_CHANNEL_NAME);
 
