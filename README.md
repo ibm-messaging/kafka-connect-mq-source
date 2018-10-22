@@ -164,20 +164,44 @@ The configuration options for the Kafka Connect source connector for IBM MQ are 
 | topic                        | The name of the target Kafka topic                          | string  |               | Topic name                                              |
 
 ### Using a CCDT file
-Some of the connection details for MQ can be provided in a [CCDT file](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.0.0/com.ibm.mq.con.doc/q016730_.htm) by setting `mq.ccdt.url` in the Kafka Connect source connector configuration file. If this is set the following configuration options are no longer required: `mq.connection.name.list`, `mq.channel.name`.
+Some of the connection details for MQ can be provided in a [CCDT file](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.0.0/com.ibm.mq.con.doc/q016730_.htm) by setting `mq.ccdt.url` in the Kafka Connect source connector configuration file. If using a CCDT file the `mq.connection.name.list` and `mq.channel.name` configuration options are not required.
 
 ### Externalizing secrets
-[KIP 297](https://cwiki.apache.org/confluence/display/KAFKA/KIP-297%3A+Externalizing+Secrets+for+Connect+Configurations) introduced a mechanism to externalize secrets to be used as configuration for Kafka connectors. If using this mechanism the desired config provider must be configured in the Worker configuration file:
+[KIP 297](https://cwiki.apache.org/confluence/display/KAFKA/KIP-297%3A+Externalizing+Secrets+for+Connect+Configurations) introduced a mechanism to externalize secrets to be used as configuration for Kafka connectors.
+
+#### Example: externalizing secrets with FileConfigProvider
+
+Given a file `secrets.properties` with the contents:
+```
+secret-key=password
+```
+
+Update the worker configuration file to specify the FileConfigProvider which is included by default:
 
 ```
 # Additional properties for the worker configuration to enable use of ConfigProviders
 # multiple comma-separated provider types can be specified here
-# config.providers=file
-# config.providers=file,other-provider
-# config.providers.file.class=org.apache.kafka.common.config.provider.FileConfigProvider
+config.providers=file
+config.providers.file.class=org.apache.kafka.common.config.provider.FileConfigProvider
+```
+
+Update the connector configuration file to reference `secret-key` in the file:
+
+```
+mq.password=${file:mq-secret.properties:secret-key}
+```
+
+#### Using custom Config Providers
+
+Custom config providers can also be enabled in the worker configuration file:
+```
+# Additional properties for the worker configuration to enable use of ConfigProviders
+# multiple comma-separated provider types can be specified here
+config.providers=file,other-provider
+config.providers.file.class=org.apache.kafka.common.config.provider.FileConfigProvider
 # Other ConfigProvider implementations might require parameters passed in to configure() as follows:
-# config.providers.other-provider.param.foo=value1
-# config.providers.other-provider.param.bar=value2
+config.providers.other-provider.param.foo=value1
+config.providers.other-provider.param.bar=value2
 ```
 
 ## Support

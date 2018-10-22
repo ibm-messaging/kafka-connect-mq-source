@@ -31,8 +31,8 @@ public class MQSourceTask extends SourceTask {
     private static final Logger log = LoggerFactory.getLogger(MQSourceTask.class);
 
     private static int BATCH_SIZE = 100;
-    private static int MAXUMSGS = 10000; // What does this stand for, better name?
-    private static int MAXUMSGS_DELAY_MS = 500;
+    private static int MAX_UNCOMMITTED_MSGS = 10000;
+    private static int MAX_UNCOMMITTED_MSGS_DELAY_MS = 500;
 
     private JMSReader reader;
     private AtomicInteger uncommittedMessages = new AtomicInteger(0);
@@ -81,9 +81,9 @@ public class MQSourceTask extends SourceTask {
 
         final List<SourceRecord> msgs = new ArrayList<>();
         int messageCount = 0;
-        int uncom = this.uncommittedMessages.get();
+        int uncommittedMessagesInt = this.uncommittedMessages.get();
 
-        if (uncom < MAXUMSGS) {
+        if (uncommittedMessagesInt < MAX_UNCOMMITTED_MSGS) {
             log.info("Polling for records");
 
             SourceRecord src;
@@ -93,15 +93,15 @@ public class MQSourceTask extends SourceTask {
                 if (src != null) {
                     msgs.add(src);
                     messageCount++;
-                    uncom = this.uncommittedMessages.incrementAndGet();
+                    uncommittedMessagesInt = this.uncommittedMessages.incrementAndGet();
                 }
-            } while ((src != null) && (messageCount < BATCH_SIZE) && (uncom < MAXUMSGS));
+            } while ((src != null) && (messageCount < BATCH_SIZE) && (uncommittedMessagesInt < MAX_UNCOMMITTED_MSGS));
 
             log.debug("Poll returning {} records", messageCount);
         }
         else {
             log.info("Uncommitted message limit reached");
-            Thread.sleep(MAXUMSGS_DELAY_MS);
+            Thread.sleep(MAX_UNCOMMITTED_MSGS_DELAY_MS);
         }
 
         log.trace("[{}]  Exit {}.poll, retval={}", Thread.currentThread().getId(), this.getClass().getName(), messageCount);

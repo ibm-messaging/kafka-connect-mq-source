@@ -100,6 +100,7 @@ public class JMSReader {
             mqConnFactory = new MQConnectionFactory();
             mqConnFactory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
             mqConnFactory.setQueueManager(queueManager);
+            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, true);
 
             if (ccdtUrl != null) {
                 URL ccdtUrlObject;
@@ -113,7 +114,6 @@ public class JMSReader {
             } else {
                 mqConnFactory.setConnectionNameList(connectionNameList);
                 mqConnFactory.setChannel(channelName);
-                // mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, true);
             }
 
             queue = new MQQueue(queueName);
