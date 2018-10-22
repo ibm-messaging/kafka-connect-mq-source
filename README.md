@@ -204,6 +204,13 @@ config.providers.other-provider.param.foo=value1
 config.providers.other-provider.param.bar=value2
 ```
 
+## Troubleshooting
+
+### Unable to connect to Kafka
+
+You may receive an `org.apache.kafka.common.errors.SslAuthenticationException: SSL handshake failed` error when trying to run the MQ Source Connector using SSL to connect to your Kafka cluster. In the case that the error is caused by the following exception: `Caused by: java.security.cert.CertificateException: No subject alternative DNS name matching XXXXX found.`, Java may be replacing the IP address of your cluster with the corresponding hostname in your `/etc/hosts` file. For example, to push Docker images to your ICP cluster, you may add an entry in this file which corresponds to the IP of your cluster e.g. `123.456.78.90    mycluster.icp`. To fix this, you can comment out this line in your `/etc/hosts` file.
+
+
 ## Support
 A commercially supported version of this connector is available for customers with a support entitlement for [IBM Event Streams](https://developer.ibm.com/messaging/event-streams/).
 
