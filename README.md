@@ -3,6 +3,19 @@ kafka-connect-mq-source is a [Kafka Connect](http://kafka.apache.org/documentati
 
 The connector is supplied as source code which you can easily build into a JAR file.
 
+## Contents
+
+ - [Building the connector](#building-the-connector)
+ - [Running the connector](#running-the-connector)
+ - [Data formats](#data-formats)
+ - [Security](#security)
+ - [Performance and syncpoint limit](#performance-and-syncpoint-limit)
+ - [Configuration](#configuration)
+ - [Troubleshooting](#troubleshooting)
+ - [Support](#support)
+ - [Issues and contributions](#issues-and-contributions)
+ - [License](#license)
+
 
 ## Building the connector
 To build the connector, you must have the following installed:
@@ -29,6 +42,9 @@ Once built, the output is a single JAR called `target/kafka-connect-mq-source-1.
 
 
 ## Running the connector
+
+**NOTE:** For a more detailed guide to running the connector see the [IBM Event Streams documentation](https://ibm.github.io/event-streams/connecting/mq/).
+
 To run the connector, you must have:
 * The JAR from building the connector
 * A properties file containing the configuration for the connector
@@ -39,14 +55,13 @@ The connector can be run in a Kafka Connect worker in either standalone (single 
 
 You need two configuration files, one for the configuration that applies to all of the connectors such as the Kafka bootstrap servers, and another for the configuration specific to the MQ source connector such as the connection information for your queue manager. For the former, the Kafka distribution includes a file called `connect-standalone.properties` that you can use as a starting point. For the latter, you can use `config/mq-source.properties` in this repository.
 
-The connector connects to MQ using a client connection. You must provide the name of the queue manager, the connection name (one or more host/port pairs) and the channel name. In addition, you can provide a user name and password if the queue manager is configured to require them for client connections. If you look at the supplied `config/mq-sink.properties`, you'll see how to specify the configuration required.
+The connector connects to MQ using a client connection. You must provide the name of the queue manager, the connection name (one or more host/port pairs) and the channel name. In addition, you can provide a user name and password if the queue manager is configured to require them for client connections. If you look at the supplied `config/mq-source.properties`, you'll see how to specify the configuration required.
 
 To run the connector in standalone mode from the directory into which you installed Apache Kafka, you use a command like this:
 
 ``` shell
 bin/connect-standalone.sh connect-standalone.properties mq-source.properties
 ```
-
 
 ## Data formats
 Kafka Connect is very flexible but it's important to understand the way that it processes messages to end up with a reliable system. When the connector encounters a message that it cannot process, it stops rather than throwing the message away. Therefore, you need to make sure that the configuration you use can handle the messages the connector will process.
@@ -132,7 +147,7 @@ You will need to put the public part of the queue manager's certificate in the J
 ### Setting up MQ connectivity using TLS for mutual authentication
 You will need to put the public part of the client's certificate in the queue manager's key repository. You will also need to configure the worker's JVM with the location and password for the keystore containing the client's certificate.
 
-### Troubleshooting
+### Security troubleshooting
 For troubleshooting, or to better understand the handshake performed by the IBM MQ Java client application in combination with your specific JSSE provider, you can enable debugging by setting `javax.net.debug=ssl` in the JVM environment.
 
 
