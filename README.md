@@ -46,7 +46,7 @@ Once built, the output is a single JAR called `target/kafka-connect-mq-source-<v
 ## Running the connector
 
 For step-by-step instructions, see the following guides for running the connector:
- - connecting to Apache Kafka [running locally](UsingMQWithKafkaConnect.md)
+ - connecting to Apache Kafka [running locally](UsingMQwithKafkaConnect.md)
  - connecting to an installation of [IBM Event Streams](https://ibm.github.io/event-streams/connecting/mq/source)
 
 To run the connector, you must have:
