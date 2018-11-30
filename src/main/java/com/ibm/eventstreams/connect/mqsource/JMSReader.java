@@ -84,6 +84,7 @@ public class JMSReader {
         log.trace("[{}] Entry {}.configure, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
 
         String queueManager = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE_MANAGER);
+        String connectionMode = props.get(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_MODE);
         String connectionNameList = props.get(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_NAME_LIST);
         String channelName = props.get(MQSourceConnector.CONFIG_NAME_MQ_CHANNEL_NAME);
         String queueName = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE);
@@ -96,24 +97,50 @@ public class JMSReader {
         String sslPeerName = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_PEER_NAME);
         String topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
 
+        int transportType = WMQConstants.WMQ_CM_CLIENT;
+        if (connectionMode != null) {
+            if (connectionMode.equals(MQSourceConnector.CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT)) {
+                transportType = WMQConstants.WMQ_CM_CLIENT;
+            } 
+            else if (connectionMode.equals(MQSourceConnector.CONFIG_VALUE_MQ_CONNECTION_MODE_BINDINGS)) {
+                transportType = WMQConstants.WMQ_CM_BINDINGS;
+            } 
+            else {
+                log.error("Unsupported MQ connection mode {}", connectionMode);
+                throw new ConnectException("Unsupported MQ connection mode");
+            }               
+        }
+
         try {
             mqConnFactory = new MQConnectionFactory();
-            mqConnFactory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
+            mqConnFactory.setTransportType(transportType);
             mqConnFactory.setQueueManager(queueManager);
             mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, true);
 
-            if (ccdtUrl != null) {
-                URL ccdtUrlObject;
-                try {
-                    ccdtUrlObject = new URL(ccdtUrl);
-                } catch (MalformedURLException e) {
-                    log.error("MalformedURLException exception {}", e);
-                    throw new ConnectException("CCDT file url invalid.");
+            if (transportType == WMQConstants.WMQ_CM_CLIENT) {
+                if (ccdtUrl != null) {
+                    URL ccdtUrlObject;
+                    try {
+                        ccdtUrlObject = new URL(ccdtUrl);
+                    }
+                    catch (MalformedURLException e) {
+                        log.error("MalformedURLException exception {}", e);
+                        throw new ConnectException("CCDT file url invalid", e);
+                    }
+                    mqConnFactory.setCCDTURL(ccdtUrlObject);
+                } 
+                else {
+                    mqConnFactory.setConnectionNameList(connectionNameList);
+                    mqConnFactory.setChannel(channelName);
                 }
-                mqConnFactory.setCCDTURL(ccdtUrlObject);
-            } else {
-                mqConnFactory.setConnectionNameList(connectionNameList);
-                mqConnFactory.setChannel(channelName);
+
+                if (sslCipherSuite != null) {
+                    mqConnFactory.setSSLCipherSuite(sslCipherSuite);
+                    if (sslPeerName != null)
+                    {
+                        mqConnFactory.setSSLPeerName(sslPeerName);
+                    }
+                }
             }
 
             queue = new MQQueue(queueName);
@@ -127,14 +154,6 @@ public class JMSReader {
                 if (Boolean.parseBoolean(mbj)) {
                     this.messageBodyJms = true;
                     queue.setMessageBodyStyle(WMQConstants.WMQ_MESSAGE_BODY_JMS);
-                }
-            }
-
-            if (sslCipherSuite != null) {
-                mqConnFactory.setSSLCipherSuite(sslCipherSuite);
-                if (sslPeerName != null)
-                {
-                    mqConnFactory.setSSLPeerName(sslPeerName);
                 }
             }
 

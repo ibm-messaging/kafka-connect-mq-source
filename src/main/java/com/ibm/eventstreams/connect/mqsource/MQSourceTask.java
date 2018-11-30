@@ -57,7 +57,13 @@ public class MQSourceTask extends SourceTask {
         log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
 
         for (final Entry<String, String> entry: props.entrySet()) {
-            log.debug("Task props entry {} : {}", entry.getKey(), entry.getValue());
+            String value;
+            if (entry.getKey().toLowerCase().contains("password")) {
+                value = "[hidden]";
+            } else {
+                value = entry.getValue();
+            }
+            log.debug("Task props entry {} : {}", entry.getKey(), value);
         }
 
         // Construct a reader to interface with MQ
