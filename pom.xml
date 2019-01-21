@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- * Copyright 2017, 2018 IBM Corporation
+ * Copyright 2017, 2018, 2019 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
   <groupId>com.ibm.eventstreams.connect</groupId>
   <artifactId>kafka-connect-mq-source</artifactId>
   <packaging>jar</packaging>
-  <version>1.0.1</version>
+  <version>1.0.2-beta</version>
   <name>kafka-connect-mq-source</name>
     <organization>
     <name>IBM Corporation</name>
@@ -63,7 +63,7 @@
     <dependency>
       <groupId>com.ibm.mq</groupId>
       <artifactId>com.ibm.mq.allclient</artifactId>
-      <version>9.1.0.0</version>
+      <version>9.1.1.0</version>
     </dependency>
 
     <dependency>
@@ -78,18 +78,6 @@
       <version>1.7.25</version>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcprov-jdk15on</artifactId>
-      <version>1.60</version>
-    </dependency>
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-jdk15on</artifactId>
-      <version>1.60</version>
-    </dependency>
-
   </dependencies>
 
   <build>

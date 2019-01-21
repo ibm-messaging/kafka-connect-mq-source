@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2018 IBM Corporation
+ * Copyright 2017, 2018, 2019 IBM Corporation
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -302,16 +302,8 @@ public class JMSReader {
     public void close() {
         log.trace("[{}] Entry {}.close", Thread.currentThread().getId(), this.getClass().getName());
 
-        try {
-            JMSContext ctxt = jmsCtxt;
-            closeNow.set(true);
-            if (ctxt != null) {
-                ctxt.close();
-            }
-        }
-        catch (JMSRuntimeException jmse) {
-            ;
-        }
+        closeNow.set(true);
+        closeInternal();
 
         log.trace("[{}]  Exit {}.close", Thread.currentThread().getId(), this.getClass().getName());
     }
