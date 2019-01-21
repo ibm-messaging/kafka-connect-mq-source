@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2018 IBM Corporation
+ * Copyright 2017, 2018, 2019 IBM Corporation
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.connect.source.SourceRecord;
@@ -30,12 +32,13 @@ import org.slf4j.LoggerFactory;
 public class MQSourceTask extends SourceTask {
     private static final Logger log = LoggerFactory.getLogger(MQSourceTask.class);
 
-    private static int BATCH_SIZE = 100;
-    private static int MAX_UNCOMMITTED_MSGS = 10000;
-    private static int MAX_UNCOMMITTED_MSGS_DELAY_MS = 500;
+    private static int BATCH_SIZE = 250;                            // The maximum number of records returned per call to poll()
+    private CountDownLatch batchCompleteSignal = null;              // Used to signal completion of a batch
+    private AtomicInteger pollCycle = new AtomicInteger(1);         // Incremented each time poll() is called
+    private int lastCommitPollCycle = 0;                            // The value of pollCycle the last time commit() was called
+    private AtomicBoolean stopNow = new AtomicBoolean();            // Whether stop has been requested
 
     private JMSReader reader;
-    private AtomicInteger uncommittedMessages = new AtomicInteger(0);
 
     public MQSourceTask() {
     }
@@ -87,11 +90,24 @@ public class MQSourceTask extends SourceTask {
 
         final List<SourceRecord> msgs = new ArrayList<>();
         int messageCount = 0;
-        int uncommittedMessagesInt = this.uncommittedMessages.get();
 
-        if (uncommittedMessagesInt < MAX_UNCOMMITTED_MSGS) {
+        // Resolve any in-flight transaction, committing unless there has been an error between
+        // receiving the message from MQ and converting it
+        if (batchCompleteSignal != null) {
+            log.debug("Awaiting batch completion signal");
+            batchCompleteSignal.await();
+
+            log.debug("Committing records");
+            reader.commit();
+        }
+
+        // Increment the counter for the number of times poll is called so we can ensure we don't get stuck waiting for
+        // commitRecord callbacks to trigger the batch complete signal
+        int currentPollCycle = pollCycle.incrementAndGet();
+        log.debug("Starting poll cycle {}", currentPollCycle);
+
+        if (!stopNow.get()) {
             log.info("Polling for records");
-
             SourceRecord src;
             do {
                 // For the first message in the batch, wait a while if no message
@@ -99,23 +115,26 @@ public class MQSourceTask extends SourceTask {
                 if (src != null) {
                     msgs.add(src);
                     messageCount++;
-                    uncommittedMessagesInt = this.uncommittedMessages.incrementAndGet();
                 }
-            } while ((src != null) && (messageCount < BATCH_SIZE) && (uncommittedMessagesInt < MAX_UNCOMMITTED_MSGS));
+            } while ((src != null) && (messageCount < BATCH_SIZE) && !stopNow.get());
+        }
 
-            log.debug("Poll returning {} records", messageCount);
+        synchronized(this) {
+            if (messageCount > 0) {
+                batchCompleteSignal = new CountDownLatch(messageCount);
+            }
+            else {
+                batchCompleteSignal = null;
+            }
         }
-        else {
-            log.info("Uncommitted message limit reached");
-            Thread.sleep(MAX_UNCOMMITTED_MSGS_DELAY_MS);
-        }
+
+        log.debug("Poll returning {} records", messageCount);
 
         log.trace("[{}]  Exit {}.poll, retval={}", Thread.currentThread().getId(), this.getClass().getName(), messageCount);
         return msgs;
     }
 
-
-    /**
+   /**
      * <p>
      * Commit the offsets, up to the offsets that have been returned by {@link #poll()}. This
      * method should block until the commit is complete.
@@ -129,9 +148,49 @@ public class MQSourceTask extends SourceTask {
     public void commit() throws InterruptedException {
         log.trace("[{}] Entry {}.commit", Thread.currentThread().getId(), this.getClass().getName());
 
-        log.debug("Committing records");
-        reader.commit();
-        this.uncommittedMessages.set(0);
+        // This callback is simply used to ensure that the mechanism to use commitRecord callbacks
+        // to check that all messages in a batch are complete is not getting stuck. If this callback
+        // is being called, it means that Kafka Connect believes that all outstanding messages have
+        // been completed. That should mean that commitRecord has been called for all of them too.
+        // However, if too few calls to commitRecord are received, the connector could wait indefinitely.
+        // If this commit callback is called twice without the poll cycle increasing, trigger the
+        // batch complete signal directly.
+        int currentPollCycle = pollCycle.get();
+        log.debug("Commit starting in poll cycle {}", currentPollCycle);
+        boolean willShutdown = false;
+
+        if (lastCommitPollCycle == currentPollCycle)
+        {
+            synchronized (this) {
+                if (batchCompleteSignal != null) {
+                    log.debug("Bumping batch complete signal by {}", batchCompleteSignal.getCount());
+
+                    // This means we're waiting for the signal in the poll() method and it's been
+                    // waiting for at least two calls to this commit callback. It's stuck.
+                    while (batchCompleteSignal.getCount() > 0) {
+                        batchCompleteSignal.countDown();
+                    }
+                }
+                else if (stopNow.get()) {
+                    log.debug("Shutting down with empty batch after delay");
+                    willShutdown = true;
+                }
+            }
+        }
+        else {
+            lastCommitPollCycle = currentPollCycle;
+
+            synchronized (this) {
+                if ((batchCompleteSignal == null) && stopNow.get()) {
+                    log.debug("Shutting down with empty batch");
+                    willShutdown = true;
+                }
+            }
+        }
+
+        if (willShutdown) {
+            shutdown();
+        }
 
         log.trace("[{}]  Exit {}.commit", Thread.currentThread().getId(), this.getClass().getName());
     }
@@ -149,10 +208,59 @@ public class MQSourceTask extends SourceTask {
     @Override public void stop() {
         log.trace("[{}] Entry {}.stop", Thread.currentThread().getId(), this.getClass().getName());
 
+        stopNow.set(true);
+
+        boolean willShutdown = false;
+
+        synchronized(this) {
+            if (batchCompleteSignal == null) {
+                willShutdown = true;
+            }
+        }
+        
+        if (willShutdown) {
+            shutdown();
+        }
+
+        log.trace("[{}]  Exit {}.stop", Thread.currentThread().getId(), this.getClass().getName());
+    }
+
+    /**
+     * <p>
+     * Commit an individual {@link SourceRecord} when the callback from the producer client is received, or if a record is filtered by a transformation.
+     * </p>
+     * <p>
+     * SourceTasks are not required to implement this functionality; Kafka Connect will record offsets
+     * automatically. This hook is provided for systems that also need to store offsets internally
+     * in their own system.
+     * </p>
+     *
+     * @param record {@link SourceRecord} that was successfully sent via the producer.
+     * @throws InterruptedException
+     */
+    @Override public void commitRecord(SourceRecord record) throws InterruptedException {
+        log.trace("[{}] Entry {}.commitRecord, record={}", Thread.currentThread().getId(), this.getClass().getName(), record);
+
+        synchronized (this) {
+            batchCompleteSignal.countDown();
+        }
+
+        log.trace("[{}]  Exit {}.commitRecord", Thread.currentThread().getId(), this.getClass().getName());
+    }
+
+    /**
+     * <p>
+     * Shuts down the task, releasing any resource held by the task.
+     * </p>
+     */
+    private void shutdown() {
+        log.trace("[{}] Entry {}.shutdown", Thread.currentThread().getId(), this.getClass().getName());
+
+        // Close the connection to MQ to clean up
         if (reader != null) {
             reader.close();
         }
 
-        log.trace("[{}]  Exit {}.stop", Thread.currentThread().getId(), this.getClass().getName());
+        log.trace("[{}]  Exit {}.shutdown", Thread.currentThread().getId(), this.getClass().getName());
     }
 }
