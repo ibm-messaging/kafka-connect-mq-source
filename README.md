@@ -155,14 +155,6 @@ You will need to put the public part of the client's certificate in the queue ma
 For troubleshooting, or to better understand the handshake performed by the IBM MQ Java client application in combination with your specific JSSE provider, you can enable debugging by setting `javax.net.debug=ssl` in the JVM environment.
 
 
-## Performance and syncpoint limit
-The connector uses a transacted JMS session to receive messages from MQ in syncpoint and periodically commits the in-flight transaction. This has the effect of batching messages together for improved efficiency. However, the frequency of committing transactions is controlled by the Kafka Connect framework rather than the connector. The connector is only able to receive up to the queue manager's maximum uncommitted message limit (typically 10000 messages) before committing.
-
-By default, Kafka Connect only commits every 60 seconds (10 seconds for the standalone worker), meaning that each task is limited to a rate of about 166 messages per second. You can increase the frequency of committing by using the `offset.flush.interval.ms` configuration in the worker configuration file. For example, if you set `offset.flush.interval.ms=5000`, the connector commits every 5 seconds increasing the maximum rate per task to about 2000 messages per second.
-
-If messages are being received faster than they can be committed, the connector prints a message `Uncommitted message limit reached` and sleeps for a short delay. You should use this as an indication to set the `offset.flush.interval.ms` to a lower value, or increase the number of tasks.
-
-
 ## Configuration
 The configuration options for the Kafka Connect source connector for IBM MQ are as follows:
 
@@ -181,10 +173,11 @@ The configuration options for the Kafka Connect source connector for IBM MQ are 
 | mq.record.builder.key.header | The JMS message header to use as the Kafka record key       | string  |               | JMSMessageID, JMSCorrelationID, JMSCorrelationIDAsBytes |
 | mq.ssl.cipher.suite          | The name of the cipher suite for TLS (SSL) connection       | string  |               | Blank or valid cipher suite                             |
 | mq.ssl.peer.name             | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern                                     |
+| mq.batch.size                | The maximum number of messages in a batch (unit of work)    | integer | 250           | 1 or greater                                            |
 | topic                        | The name of the target Kafka topic                          | string  |               | Topic name                                              |
 
 ### Using a CCDT file
-Some of the connection details for MQ can be provided in a [CCDT file](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.con.doc/q016730_.htm) by setting `mq.ccdt.url` in the Kafka Connect source connector configuration file. If using a CCDT file the `mq.connection.name.list` and `mq.channel.name` configuration options are not required.
+Some of the connection details for MQ can be provided in a [CCDT file](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.con.doc/q016730_.htm) by setting `mq.ccdt.url` in the MQ source connector configuration file. If using a CCDT file the `mq.connection.name.list` and `mq.channel.name` configuration options are not required.
 
 ### Externalizing secrets
 [KIP 297](https://cwiki.apache.org/confluence/display/KAFKA/KIP-297%3A+Externalizing+Secrets+for+Connect+Configurations) introduced a mechanism to externalize secrets to be used as configuration for Kafka connectors.
@@ -215,7 +208,7 @@ mq.password=${file:mq-secret.properties:secret-key}
 
 ### Unable to connect to Kafka
 
-You may receive an `org.apache.kafka.common.errors.SslAuthenticationException: SSL handshake failed` error when trying to run the MQ Source Connector using SSL to connect to your Kafka cluster. In the case that the error is caused by the following exception: `Caused by: java.security.cert.CertificateException: No subject alternative DNS name matching XXXXX found.`, Java may be replacing the IP address of your cluster with the corresponding hostname in your `/etc/hosts` file. For example, to push Docker images to a custom Docker repository, you may add an entry in this file which corresponds to the IP of your repository e.g. `123.456.78.90    mycluster.icp`. To fix this, you can comment out this line in your `/etc/hosts` file.
+You may receive an `org.apache.kafka.common.errors.SslAuthenticationException: SSL handshake failed` error when trying to run the MQ source connector using SSL to connect to your Kafka cluster. In the case that the error is caused by the following exception: `Caused by: java.security.cert.CertificateException: No subject alternative DNS name matching XXXXX found.`, Java may be replacing the IP address of your cluster with the corresponding hostname in your `/etc/hosts` file. For example, to push Docker images to a custom Docker repository, you may add an entry in this file which corresponds to the IP of your repository e.g. `123.456.78.90    mycluster.icp`. To fix this, you can comment out this line in your `/etc/hosts` file.
 
 
 ## Support
@@ -227,7 +220,7 @@ For issues relating specifically to this connector, please use the [GitHub issue
 
 
 ## License
-Copyright 2017, 2018 IBM Corporation
+Copyright 2017, 2018, 2019 IBM Corporation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

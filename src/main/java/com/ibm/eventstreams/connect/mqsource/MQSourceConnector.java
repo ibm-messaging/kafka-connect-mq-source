@@ -92,11 +92,17 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_MQ_SSL_PEER_NAME = "The distinguished name pattern of the TLS (SSL) peer.";
     public static final String CONFIG_DISPLAY_MQ_SSL_PEER_NAME = "SSL peer name";
 
+    public static final String CONFIG_NAME_MQ_BATCH_SIZE = "mq.batch.size";
+    public static final String CONFIG_DOCUMENTATION_MQ_BATCH_SIZE = "The maximum number of messages in a batch. A batch uses a single unit of work.";
+    public static final String CONFIG_DISPLAY_MQ_BATCH_SIZE = "Batch size";
+    public static final int CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT = 250;
+    public static final int CONFIG_VALUE_MQ_BATCH_SIZE_MINIMUM = 1;
+
     public static final String CONFIG_NAME_TOPIC = "topic"; 
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
-    public static String VERSION = "1.0.2-beta";
+    public static String VERSION = "1.0.2";
 
     private Map<String, String> configProps;
 
@@ -228,6 +234,11 @@ public class MQSourceConnector extends SourceConnector {
         config.define(CONFIG_NAME_MQ_SSL_PEER_NAME, Type.STRING, null, Importance.MEDIUM,
                       CONFIG_DOCUMENTATION_MQ_SSL_PEER_NAME, CONFIG_GROUP_MQ, 13, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_SSL_PEER_NAME);
+
+        config.define(CONFIG_NAME_MQ_BATCH_SIZE, Type.INT, CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT,
+                      ConfigDef.Range.atLeast(CONFIG_VALUE_MQ_BATCH_SIZE_MINIMUM), Importance.LOW,
+                      CONFIG_DOCUMENTATION_MQ_BATCH_SIZE, CONFIG_GROUP_MQ, 14, Width.MEDIUM,
+                      CONFIG_DISPLAY_MQ_BATCH_SIZE);
 
         config.define(CONFIG_NAME_TOPIC, Type.STRING, null, Importance.HIGH,
                       CONFIG_DOCUMENTATION_TOPIC, null, 0, Width.MEDIUM,

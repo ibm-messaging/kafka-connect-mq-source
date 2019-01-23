@@ -32,10 +32,12 @@ import org.slf4j.LoggerFactory;
 public class MQSourceTask extends SourceTask {
     private static final Logger log = LoggerFactory.getLogger(MQSourceTask.class);
 
-    private static int BATCH_SIZE = 250;                            // The maximum number of records returned per call to poll()
+    // The maximum number of records returned per call to poll()
+    private int batchSize = MQSourceConnector.CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT;
     private CountDownLatch batchCompleteSignal = null;              // Used to signal completion of a batch
     private AtomicInteger pollCycle = new AtomicInteger(1);         // Incremented each time poll() is called
     private int lastCommitPollCycle = 0;                            // The value of pollCycle the last time commit() was called
+    private AtomicBoolean receivingMessages = new AtomicBoolean();  // Whether currently receiving messages
     private AtomicBoolean stopNow = new AtomicBoolean();            // Whether stop has been requested
 
     private JMSReader reader;
@@ -67,6 +69,11 @@ public class MQSourceTask extends SourceTask {
                 value = entry.getValue();
             }
             log.debug("Task props entry {} : {}", entry.getKey(), value);
+        }
+
+        String strBatchSize = props.get(MQSourceConnector.CONFIG_NAME_MQ_BATCH_SIZE);
+        if (strBatchSize != null) {
+            batchSize = Integer.parseInt(strBatchSize);
         }
 
         // Construct a reader to interface with MQ
@@ -106,22 +113,40 @@ public class MQSourceTask extends SourceTask {
         int currentPollCycle = pollCycle.incrementAndGet();
         log.debug("Starting poll cycle {}", currentPollCycle);
 
-        if (!stopNow.get()) {
-            log.info("Polling for records");
-            SourceRecord src;
-            do {
-                // For the first message in the batch, wait a while if no message
-                src = reader.receive(messageCount == 0);
-                if (src != null) {
-                    msgs.add(src);
-                    messageCount++;
-                }
-            } while ((src != null) && (messageCount < BATCH_SIZE) && !stopNow.get());
+        try {
+            receivingMessages.set(true);
+
+            if (!stopNow.get()) {
+                log.info("Polling for records");
+                SourceRecord src;
+                do {
+                    // For the first message in the batch, wait a while if no message
+                    src = reader.receive(messageCount == 0);
+                    if (src != null) {
+                        msgs.add(src);
+                        messageCount++;
+                    }
+                } while ((src != null) && (messageCount < batchSize) && !stopNow.get());
+            }
+            else {
+                log.info("Stopping polling for records");
+            }
+        }
+        finally {
+            receivingMessages.set(false);
         }
 
         synchronized(this) {
             if (messageCount > 0) {
-                batchCompleteSignal = new CountDownLatch(messageCount);
+                if (!stopNow.get()) {
+                    batchCompleteSignal = new CountDownLatch(messageCount);
+                }
+                else {
+                    // Discard this batch - we've rolled back when the connection to MQ was closed in stop()
+                    log.debug("Discarding a batch of {} records as task is stopping", messageCount);
+                    msgs.clear();
+                    batchCompleteSignal = null;
+                }
             }
             else {
                 batchCompleteSignal = null;
@@ -157,7 +182,6 @@ public class MQSourceTask extends SourceTask {
         // batch complete signal directly.
         int currentPollCycle = pollCycle.get();
         log.debug("Commit starting in poll cycle {}", currentPollCycle);
-        boolean willShutdown = false;
 
         if (lastCommitPollCycle == currentPollCycle)
         {
@@ -171,25 +195,10 @@ public class MQSourceTask extends SourceTask {
                         batchCompleteSignal.countDown();
                     }
                 }
-                else if (stopNow.get()) {
-                    log.debug("Shutting down with empty batch after delay");
-                    willShutdown = true;
-                }
             }
         }
         else {
             lastCommitPollCycle = currentPollCycle;
-
-            synchronized (this) {
-                if ((batchCompleteSignal == null) && stopNow.get()) {
-                    log.debug("Shutting down with empty batch");
-                    willShutdown = true;
-                }
-            }
-        }
-
-        if (willShutdown) {
-            shutdown();
         }
 
         log.trace("[{}]  Exit {}.commit", Thread.currentThread().getId(), this.getClass().getName());
@@ -210,16 +219,20 @@ public class MQSourceTask extends SourceTask {
 
         stopNow.set(true);
 
-        boolean willShutdown = false;
+        boolean willClose = false;
 
         synchronized(this) {
-            if (batchCompleteSignal == null) {
-                willShutdown = true;
+            if (receivingMessages.get()) {
+                log.debug("Will close connection");
+                willClose = true;
             }
         }
         
-        if (willShutdown) {
-            shutdown();
+        if (willClose) {
+            // Close the connection to MQ to clean up
+            if (reader != null) {
+                reader.close();
+            }
         }
 
         log.trace("[{}]  Exit {}.stop", Thread.currentThread().getId(), this.getClass().getName());
@@ -246,21 +259,5 @@ public class MQSourceTask extends SourceTask {
         }
 
         log.trace("[{}]  Exit {}.commitRecord", Thread.currentThread().getId(), this.getClass().getName());
-    }
-
-    /**
-     * <p>
-     * Shuts down the task, releasing any resource held by the task.
-     * </p>
-     */
-    private void shutdown() {
-        log.trace("[{}] Entry {}.shutdown", Thread.currentThread().getId(), this.getClass().getName());
-
-        // Close the connection to MQ to clean up
-        if (reader != null) {
-            reader.close();
-        }
-
-        log.trace("[{}]  Exit {}.shutdown", Thread.currentThread().getId(), this.getClass().getName());
     }
 }
