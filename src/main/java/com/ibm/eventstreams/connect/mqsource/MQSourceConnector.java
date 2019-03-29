@@ -1,24 +1,19 @@
 /**
  * Copyright 2017, 2018, 2019 IBM Corporation
- * 
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.ibm.eventstreams.connect.mqsource;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
@@ -26,9 +21,13 @@ import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.source.SourceConnector;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class MQSourceConnector extends SourceConnector {
     private static final Logger log = LoggerFactory.getLogger(MQSourceConnector.class);
@@ -61,11 +60,11 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_MQ_USER_NAME = "The user name for authenticating with the queue manager.";
     public static final String CONFIG_DISPLAY_MQ_USER_NAME = "User name";
 
-    public static final String CONFIG_NAME_MQ_PASSWORD = "mq.password"; 
+    public static final String CONFIG_NAME_MQ_PASSWORD = "mq.password";
     public static final String CONFIG_DOCUMENTATION_MQ_PASSWORD = "The password for authenticating with the queue manager.";
     public static final String CONFIG_DISPLAY_MQ_PASSWORD = "Password";
 
-    public static final String CONFIG_NAME_MQ_CCDT_URL = "mq.ccdt.url"; 
+    public static final String CONFIG_NAME_MQ_CCDT_URL = "mq.ccdt.url";
     public static final String CONFIG_DOCUMENTATION_MQ_CCDT_URL = "The CCDT URL to use to establish a connection to the queue manager.";
     public static final String CONFIG_DISPLAY_MQ_CCDT_URL = "CCDT URL";
 
@@ -73,7 +72,7 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER = "The class used to build the Kafka Connect records.";
     public static final String CONFIG_DISPLAY_MQ_RECORD_BUILDER = "Record builder";
 
-    public static final String CONFIG_NAME_MQ_MESSAGE_BODY_JMS = "mq.message.body.jms"; 
+    public static final String CONFIG_NAME_MQ_MESSAGE_BODY_JMS = "mq.message.body.jms";
     public static final String CONFIG_DOCUMENTATION_MQ_MESSAGE_BODY_JMS = "Whether to interpret the message body as a JMS message type.";
     public static final String CONFIG_DISPLAY_MQ_MESSAGE_BODY_JMS = "Message body as JMS";
 
@@ -84,11 +83,11 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONID = "JMSCorrelationID";
     public static final String CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONIDASBYTES = "JMSCorrelationIDAsBytes";
 
-    public static final String CONFIG_NAME_MQ_SSL_CIPHER_SUITE = "mq.ssl.cipher.suite"; 
+    public static final String CONFIG_NAME_MQ_SSL_CIPHER_SUITE = "mq.ssl.cipher.suite";
     public static final String CONFIG_DOCUMENTATION_MQ_SSL_CIPHER_SUITE = "The name of the cipher suite for the TLS (SSL) connection.";
     public static final String CONFIG_DISPLAY_MQ_SSL_CIPHER_SUITE = "SSL cipher suite";
 
-    public static final String CONFIG_NAME_MQ_SSL_PEER_NAME = "mq.ssl.peer.name"; 
+    public static final String CONFIG_NAME_MQ_SSL_PEER_NAME = "mq.ssl.peer.name";
     public static final String CONFIG_DOCUMENTATION_MQ_SSL_PEER_NAME = "The distinguished name pattern of the TLS (SSL) peer.";
     public static final String CONFIG_DISPLAY_MQ_SSL_PEER_NAME = "SSL peer name";
 
@@ -98,9 +97,14 @@ public class MQSourceConnector extends SourceConnector {
     public static final int CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT = 250;
     public static final int CONFIG_VALUE_MQ_BATCH_SIZE_MINIMUM = 1;
 
-    public static final String CONFIG_NAME_TOPIC = "topic"; 
+    public static final String CONFIG_NAME_TOPIC = "topic";
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
+
+    //PROPERTY SCHEMA REGISTRY URLS FOR AVRO CONVERSIONS
+    public static final String CONFIG_SCHEMA_REGISTRY_URLS = "value.converter.schema.registry.url";
+    public static final String CONFIG_DOCUMENTATION_SCHEMA_REGISTRY_URLS = "Schema Registry URLs used for AVRO schemas.";
+    public static final String CONFIG_DISPLAY_SCHEMA_REGISTRY_URLS = "Schema Registry URLs";
 
     public static String VERSION = "1.0.2";
 
@@ -111,7 +115,8 @@ public class MQSourceConnector extends SourceConnector {
      *
      * @return the version, formatted as a String
      */
-    @Override public String version() {
+    @Override
+    public String version() {
         return VERSION;
     }
 
@@ -121,11 +126,12 @@ public class MQSourceConnector extends SourceConnector {
      *
      * @param props configuration settings
      */
-    @Override public void start(Map<String, String> props) {
+    @Override
+    public void start(Map<String, String> props) {
         log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
 
         configProps = props;
-        for (final Entry<String, String> entry: props.entrySet()) {
+        for (final Entry<String, String> entry : props.entrySet()) {
             String value;
             if (entry.getKey().toLowerCase().contains("password")) {
                 value = "[hidden]";
@@ -141,9 +147,10 @@ public class MQSourceConnector extends SourceConnector {
     /**
      * Returns the Task implementation for this Connector.
      */
-    @Override public Class<? extends Task> taskClass() {
+    @Override
+    public Class<? extends Task> taskClass() {
         return MQSourceTask.class;
-    }   
+    }
 
     /**
      * Returns a set of configurations for Tasks based on the current configuration,
@@ -152,12 +159,12 @@ public class MQSourceConnector extends SourceConnector {
      * @param maxTasks maximum number of configurations to generate
      * @return configurations for Tasks
      */
-    @Override public List<Map<String, String>> taskConfigs(int maxTasks) {
+    @Override
+    public List<Map<String, String>> taskConfigs(int maxTasks) {
         log.trace("[{}] Entry {}.taskConfigs, maxTasks={}", Thread.currentThread().getId(), this.getClass().getName(), maxTasks);
 
         List<Map<String, String>> taskConfigs = new ArrayList<>();
-        for (int i = 0; i < maxTasks; i++)
-        {
+        for (int i = 0; i < maxTasks; i++) {
             taskConfigs.add(configProps);
         }
 
@@ -168,7 +175,8 @@ public class MQSourceConnector extends SourceConnector {
     /**
      * Stop this connector.
      */
-    @Override public void stop() {
+    @Override
+    public void stop() {
         log.trace("[{}] Entry {}.stop", Thread.currentThread().getId(), this.getClass().getName());
         log.trace("[{}]  Exit {}.stop", Thread.currentThread().getId(), this.getClass().getName());
     }
@@ -177,73 +185,78 @@ public class MQSourceConnector extends SourceConnector {
      * Define the configuration for the connector.
      * @return The ConfigDef for this connector.
      */
-    @Override public ConfigDef config() {
+    @Override
+    public ConfigDef config() {
         ConfigDef config = new ConfigDef();
 
         config.define(CONFIG_NAME_MQ_QUEUE_MANAGER, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
-                      CONFIG_DOCUMENTATION_MQ_QUEUE_MANAGER, CONFIG_GROUP_MQ, 1, Width.MEDIUM,
-                      CONFIG_DISPLAY_MQ_QUEUE_MANAGER);
+                CONFIG_DOCUMENTATION_MQ_QUEUE_MANAGER, CONFIG_GROUP_MQ, 1, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_QUEUE_MANAGER);
 
-        config.define(CONFIG_NAME_MQ_CONNECTION_MODE, Type.STRING, CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT, 
-                      ConfigDef.ValidString.in(CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT,
-                                               CONFIG_VALUE_MQ_CONNECTION_MODE_BINDINGS),
-                      Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_CONNECTION_MODE, CONFIG_GROUP_MQ, 2, Width.SHORT,
-                      CONFIG_DISPLAY_MQ_CONNECTION_MODE);
+        config.define(CONFIG_NAME_MQ_CONNECTION_MODE, Type.STRING, CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT,
+                ConfigDef.ValidString.in(CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT,
+                        CONFIG_VALUE_MQ_CONNECTION_MODE_BINDINGS),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_CONNECTION_MODE, CONFIG_GROUP_MQ, 2, Width.SHORT,
+                CONFIG_DISPLAY_MQ_CONNECTION_MODE);
 
         config.define(CONFIG_NAME_MQ_CONNECTION_NAME_LIST, Type.STRING, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_CONNNECTION_NAME_LIST, CONFIG_GROUP_MQ, 3, Width.LONG,
-                      CONFIG_DISPLAY_MQ_CONNECTION_NAME_LIST);
+                CONFIG_DOCUMENTATION_MQ_CONNNECTION_NAME_LIST, CONFIG_GROUP_MQ, 3, Width.LONG,
+                CONFIG_DISPLAY_MQ_CONNECTION_NAME_LIST);
 
         config.define(CONFIG_NAME_MQ_CHANNEL_NAME, Type.STRING, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_CHANNEL_NAME, CONFIG_GROUP_MQ, 4, Width.MEDIUM,
-                      CONFIG_DISPLAY_MQ_CHANNEL_NAME);
+                CONFIG_DOCUMENTATION_MQ_CHANNEL_NAME, CONFIG_GROUP_MQ, 4, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_CHANNEL_NAME);
 
         config.define(CONFIG_NAME_MQ_CCDT_URL, Type.STRING, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_CCDT_URL, CONFIG_GROUP_MQ, 5, Width.MEDIUM,
-                      CONFIG_DISPLAY_MQ_CCDT_URL);
+                CONFIG_DOCUMENTATION_MQ_CCDT_URL, CONFIG_GROUP_MQ, 5, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_CCDT_URL);
 
         config.define(CONFIG_NAME_MQ_QUEUE, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
-                      CONFIG_DOCUMENTATION_MQ_QUEUE, CONFIG_GROUP_MQ, 6, Width.LONG,
-                      CONFIG_DISPLAY_MQ_QUEUE);
+                CONFIG_DOCUMENTATION_MQ_QUEUE, CONFIG_GROUP_MQ, 6, Width.LONG,
+                CONFIG_DISPLAY_MQ_QUEUE);
 
         config.define(CONFIG_NAME_MQ_USER_NAME, Type.STRING, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_USER_NAME, CONFIG_GROUP_MQ, 7, Width.MEDIUM,
-                      CONFIG_DISPLAY_MQ_USER_NAME);
+                CONFIG_DOCUMENTATION_MQ_USER_NAME, CONFIG_GROUP_MQ, 7, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_USER_NAME);
 
         config.define(CONFIG_NAME_MQ_PASSWORD, Type.PASSWORD, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_PASSWORD, CONFIG_GROUP_MQ, 8, Width.MEDIUM,
-                      CONFIG_DISPLAY_MQ_PASSWORD);
+                CONFIG_DOCUMENTATION_MQ_PASSWORD, CONFIG_GROUP_MQ, 8, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_PASSWORD);
 
         config.define(CONFIG_NAME_MQ_RECORD_BUILDER, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
-                      CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER, CONFIG_GROUP_MQ, 9, Width.LONG,
-                      CONFIG_DISPLAY_MQ_RECORD_BUILDER);
+                CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER, CONFIG_GROUP_MQ, 9, Width.LONG,
+                CONFIG_DISPLAY_MQ_RECORD_BUILDER);
 
         config.define(CONFIG_NAME_MQ_MESSAGE_BODY_JMS, Type.BOOLEAN, Boolean.FALSE, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_MESSAGE_BODY_JMS, CONFIG_GROUP_MQ, 10, Width.SHORT,
-                      CONFIG_DISPLAY_MQ_MESSAGE_BODY_JMS);
+                CONFIG_DOCUMENTATION_MQ_MESSAGE_BODY_JMS, CONFIG_GROUP_MQ, 10, Width.SHORT,
+                CONFIG_DISPLAY_MQ_MESSAGE_BODY_JMS);
 
         config.define(CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER, Type.STRING, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_KEY_HEADER, CONFIG_GROUP_MQ, 11, Width.MEDIUM,
-                      CONFIG_DISPLAY_MQ_RECORD_BUILDER_KEY_HEADER);
+                CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_KEY_HEADER, CONFIG_GROUP_MQ, 11, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_RECORD_BUILDER_KEY_HEADER);
 
         config.define(CONFIG_NAME_MQ_SSL_CIPHER_SUITE, Type.STRING, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_SSL_CIPHER_SUITE, CONFIG_GROUP_MQ, 12, Width.MEDIUM,
-                      CONFIG_DISPLAY_MQ_SSL_CIPHER_SUITE);
+                CONFIG_DOCUMENTATION_MQ_SSL_CIPHER_SUITE, CONFIG_GROUP_MQ, 12, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_SSL_CIPHER_SUITE);
 
         config.define(CONFIG_NAME_MQ_SSL_PEER_NAME, Type.STRING, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_SSL_PEER_NAME, CONFIG_GROUP_MQ, 13, Width.MEDIUM,
-                      CONFIG_DISPLAY_MQ_SSL_PEER_NAME);
+                CONFIG_DOCUMENTATION_MQ_SSL_PEER_NAME, CONFIG_GROUP_MQ, 13, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_SSL_PEER_NAME);
 
         config.define(CONFIG_NAME_MQ_BATCH_SIZE, Type.INT, CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT,
-                      ConfigDef.Range.atLeast(CONFIG_VALUE_MQ_BATCH_SIZE_MINIMUM), Importance.LOW,
-                      CONFIG_DOCUMENTATION_MQ_BATCH_SIZE, CONFIG_GROUP_MQ, 14, Width.MEDIUM,
-                      CONFIG_DISPLAY_MQ_BATCH_SIZE);
+                ConfigDef.Range.atLeast(CONFIG_VALUE_MQ_BATCH_SIZE_MINIMUM), Importance.LOW,
+                CONFIG_DOCUMENTATION_MQ_BATCH_SIZE, CONFIG_GROUP_MQ, 14, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_BATCH_SIZE);
 
         config.define(CONFIG_NAME_TOPIC, Type.STRING, null, Importance.HIGH,
-                      CONFIG_DOCUMENTATION_TOPIC, null, 0, Width.MEDIUM,
-                      CONFIG_DISPLAY_TOPIC);
+                CONFIG_DOCUMENTATION_TOPIC, null, 0, Width.MEDIUM,
+                CONFIG_DISPLAY_TOPIC);
 
+        //CONFIG FOR SCHEMA REGISTRY URLS ABOUT AVRO CONVERSIONS
+        config.define(CONFIG_SCHEMA_REGISTRY_URLS, Type.LIST, null, Importance.LOW,
+                CONFIG_DOCUMENTATION_SCHEMA_REGISTRY_URLS, null, 0, Width.LONG,
+                CONFIG_DISPLAY_SCHEMA_REGISTRY_URLS);
         return config;
     }
 }
