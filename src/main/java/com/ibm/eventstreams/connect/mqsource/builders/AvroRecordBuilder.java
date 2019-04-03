@@ -20,6 +20,7 @@ import io.confluent.connect.avro.AvroConverter;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.json.JsonConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,9 +44,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class AvroRecordBuilder extends BaseRecordBuilder {
     private static final Logger log = LoggerFactory.getLogger(AvroRecordBuilder.class);
-    private static final Supplier<RuntimeException> SCHEMA_REGISTRY_MISSING_MESSAGE = () -> new ConnectException("Schema registry url missing. Please provide it.");
+    private static final Supplier<RuntimeException> SCHEMA_REGISTRY_MISSING_MESSAGE = () -> new ConnectException("Schema Registry URL is missing. Please provide it.");
 
     public AvroConverter converter;
+    public JsonConverter jsonConverter;
 
     public AvroRecordBuilder() {
         log.info("Building records using com.ibm.eventstreams.connect.mqsource.builders.AvroConverter");
@@ -54,13 +56,16 @@ public class AvroRecordBuilder extends BaseRecordBuilder {
     @Override
     public void configure(Map<String, String> props) {
         final String urls = props.get(MQSourceConnector.CONFIG_SCHEMA_REGISTRY_URLS);
+        log.info("SIMOOOOOOONNNNNNN Schema registry is " + urls);
         final List<String> urlList = Optional.ofNullable(urls)
                 .filter(Objects::nonNull)
-                .filter(String::isEmpty)
+                .filter(s -> !s.isEmpty())
                 .map(optUrl -> urls.split(","))
                 .map(Arrays::asList)
                 .orElseThrow(SCHEMA_REGISTRY_MISSING_MESSAGE);
+        log.info("SIMOOOOOOONNNNNNN LIST URL ARE -----------> " + urlList);
         converter = new AvroConverter(new CachedSchemaRegistryClient(urlList, 100));
+        converter.configure(props,false);
         super.configure(props);
     }
 
@@ -82,12 +87,13 @@ public class AvroRecordBuilder extends BaseRecordBuilder {
             payload = message.getBody(byte[].class);
         } else if (message instanceof TextMessage) {
             String s = message.getBody(String.class);
+            log.info("MESSAGE RECEIVED ---------> " + s);
             payload = s.getBytes(UTF_8);
         } else {
             log.error("Unsupported JMS message type {}", message.getClass());
             throw new ConnectException("Unsupported JMS message type");
         }
-
+        log.info(" PAYLOAD ------------> " + new String(payload));
         return converter.toConnectData(topic, payload);
     }
 }

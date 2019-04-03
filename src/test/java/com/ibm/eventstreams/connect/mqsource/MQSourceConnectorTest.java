@@ -19,6 +19,11 @@ import org.apache.kafka.connect.connector.Connector;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+import java.util.stream.Collectors;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -31,8 +36,12 @@ public class MQSourceConnectorTest {
     }
 
     @Test
-    public void testConnectorType() {
+    public void testConnectorType() throws IOException {
         Connector connector = new MQSourceConnector();
         assertTrue(SourceConnector.class.isAssignableFrom(connector.getClass()));
+        final InputStream resourceAsStream = connector.getClass().getClassLoader().getResourceAsStream("conf.properties");
+        final Properties prop = new Properties();
+        prop.load(resourceAsStream);
+        connector.start(prop.entrySet().stream().collect(Collectors.toMap(e -> (String)e.getKey(), e -> (String)e.getValue())));
     }
 }
