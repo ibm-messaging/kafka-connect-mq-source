@@ -56,14 +56,11 @@ public class AvroRecordBuilder extends BaseRecordBuilder {
     @Override
     public void configure(Map<String, String> props) {
         final String urls = props.get(MQSourceConnector.CONFIG_SCHEMA_REGISTRY_URLS);
-        log.info("SIMOOOOOOONNNNNNN Schema registry is " + urls);
         final List<String> urlList = Optional.ofNullable(urls)
-                .filter(Objects::nonNull)
                 .filter(s -> !s.isEmpty())
                 .map(optUrl -> urls.split(","))
                 .map(Arrays::asList)
                 .orElseThrow(SCHEMA_REGISTRY_MISSING_MESSAGE);
-        log.info("SIMOOOOOOONNNNNNN LIST URL ARE -----------> " + urlList);
         converter = new AvroConverter(new CachedSchemaRegistryClient(urlList, 100));
         converter.configure(props,false);
         super.configure(props);
@@ -84,6 +81,7 @@ public class AvroRecordBuilder extends BaseRecordBuilder {
         byte[] payload;
 
         if (message instanceof BytesMessage) {
+            log.info("I am in bytes");
             payload = message.getBody(byte[].class);
         } else if (message instanceof TextMessage) {
             String s = message.getBody(String.class);

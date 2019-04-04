@@ -2,10 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="2fc844e1-3f13-4e17-a7ba-c45b1b0cb148" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/main/resources/conf.properties" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/ibm/eventstreams/connect/mqsource/builders/AvroRecordBuilder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ibm/eventstreams/connect/mqsource/builders/AvroRecordBuilder.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/com/ibm/eventstreams/connect/mqsource/MQSourceConnectorTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/com/ibm/eventstreams/connect/mqsource/MQSourceConnectorTest.java" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/target/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -48,13 +46,15 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="java" value="1414" />
+          <entry key="java" value="1434" />
+          <entry key="txt" value="26" />
           <entry key="xml" value="32" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="JAVA" value="1414" />
+          <entry key="JAVA" value="1434" />
+          <entry key="PLAIN_TEXT" value="26" />
           <entry key="XML" value="32" />
         </counts>
       </usages-collector>
@@ -65,8 +65,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/main/java/com/ibm/eventstreams/connect/mqsource/builders/AvroRecordBuilder.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="345">
-              <caret line="74" column="73" lean-forward="true" selection-start-line="74" selection-start-column="73" selection-end-line="74" selection-end-column="73" />
+            <state relative-caret-position="456">
+              <caret line="89" column="41" selection-start-line="89" selection-start-column="41" selection-end-line="89" selection-end-column="41" />
               <folding>
                 <element signature="n#!!doc" expanded="true" />
                 <element signature="imports" expanded="true" />
@@ -151,7 +151,7 @@
       <select />
     </treeState>
   </component>
-  <component name="ProjectFrameBounds" fullScreen="true">
+  <component name="ProjectFrameBounds" extendedState="6" fullScreen="true">
     <option name="width" value="1440" />
     <option name="height" value="900" />
   </component>
@@ -212,7 +212,7 @@
   </component>
   <component name="PropertiesComponent">
     <property name="SearchEverywhereHistoryKey" value="&#9;FILE&#9;file:///Users/scalabrese/IdeaProjects/kafka-connect-mq-source/src/main/java/com/ibm/eventstreams/connect/mqsource/builders/AvroRecordBuilder.java" />
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1554305556509" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1554368407748" />
   </component>
   <component name="RecentsManager">
     <key name="CopyClassDialog.RECENTS_KEY">
@@ -325,6 +325,14 @@
       <option name="presentableId" value="Default" />
       <updated>1553768928478</updated>
     </task>
+    <task id="LOCAL-00001" summary="TODO solve Magic byte">
+      <created>1554305979363</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1554305979364</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TestHistory">
@@ -336,11 +344,11 @@
     </history-entry>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="0" width="1440" height="900" extended-state="0" />
+    <frame x="0" y="0" width="1440" height="900" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49896908" visible="true" weight="0.21244635" />
-      <window_info active="true" id="Structure" order="1" sideWeight="0.5010309" side_tool="true" visible="true" weight="0.21244635" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.4990758" visible="true" weight="0.21244635" />
+      <window_info id="Structure" order="1" sideWeight="0.5009242" side_tool="true" visible="true" weight="0.21244635" />
       <window_info id="Image Layers" order="2" />
       <window_info id="Designer" order="3" />
       <window_info id="UI Designer" order="4" />
@@ -349,11 +357,11 @@
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
       <window_info anchor="bottom" id="Run" order="2" />
-      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.49928468" visible="true" weight="0.39900866" />
+      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.49928468" weight="0.39900866" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
-      <window_info anchor="bottom" id="Terminal" order="7" weight="0.32961586" />
+      <window_info active="true" anchor="bottom" id="Terminal" order="7" visible="true" weight="0.32961586" />
       <window_info anchor="bottom" id="Event Log" order="8" sideWeight="0.5007153" side_tool="true" weight="0.3952912" />
       <window_info anchor="bottom" id="Version Control" order="9" />
       <window_info anchor="bottom" id="Messages" order="10" />
@@ -370,15 +378,13 @@
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
   </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="TODO solve Magic byte" />
+    <option name="LAST_COMMIT_MESSAGE" value="TODO solve Magic byte" />
+  </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/com/ibm/eventstreams/connect/mqsource/builders/AvroRecordBuilder.java</url>
-          <line>85</line>
-          <properties />
-          <option name="timeStamp" value="2" />
-        </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/main/java/com/ibm/eventstreams/connect/mqsource/builders/AvroRecordBuilder.java</url>
           <line>57</line>
@@ -581,8 +587,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/com/ibm/eventstreams/connect/mqsource/builders/AvroRecordBuilder.java">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="345">
-          <caret line="74" column="73" lean-forward="true" selection-start-line="74" selection-start-column="73" selection-end-line="74" selection-end-column="73" />
+        <state relative-caret-position="456">
+          <caret line="89" column="41" selection-start-line="89" selection-start-column="41" selection-end-line="89" selection-end-column="41" />
           <folding>
             <element signature="n#!!doc" expanded="true" />
             <element signature="imports" expanded="true" />
