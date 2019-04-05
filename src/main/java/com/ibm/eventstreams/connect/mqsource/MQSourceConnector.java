@@ -102,11 +102,11 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
     //PROPERTY SCHEMA REGISTRY URLS FOR AVRO CONVERSIONS
-    public static final String CONFIG_SCHEMA_REGISTRY_URLS = "value.converter.schema.registry.url";
+    public static final String CONFIG_SCHEMA_REGISTRY_URLS = "schema.registry.url";
     public static final String CONFIG_DOCUMENTATION_SCHEMA_REGISTRY_URLS = "Schema Registry URLs used for AVRO schemas.";
     public static final String CONFIG_DISPLAY_SCHEMA_REGISTRY_URLS = "Schema Registry URLs";
 
-    public static String VERSION = "1.0.2";
+    public static String VERSION = "1.0.3";
 
     private Map<String, String> configProps;
 
