@@ -64,7 +64,7 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
      * 
      * @throws JMSException      Message could not be converted
      */
-    @Override SchemaAndValue getValue(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException {
+    @Override public SchemaAndValue getValue(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException {
         byte[] payload;
 
         if (message instanceof BytesMessage) {
