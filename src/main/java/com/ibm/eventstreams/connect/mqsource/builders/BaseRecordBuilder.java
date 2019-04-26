@@ -85,7 +85,7 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
      * 
      * @throws JMSException      Message could not be converted
      */
-    SchemaAndValue getKey(JMSContext context, String topic, Message message) throws JMSException {
+    public SchemaAndValue getKey(JMSContext context, String topic, Message message) throws JMSException {
         Schema keySchema = null;
         Object key = null;
         String keystr;
@@ -134,7 +134,7 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
      * 
      * @throws JMSException      Message could not be converted
      */
-    abstract SchemaAndValue getValue(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException;
+    public abstract SchemaAndValue getValue(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException;
 
    /**
      * Convert a message into a Kafka Connect SourceRecord.
