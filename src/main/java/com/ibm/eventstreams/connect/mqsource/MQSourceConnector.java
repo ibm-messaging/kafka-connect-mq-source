@@ -77,6 +77,10 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_MQ_MESSAGE_BODY_JMS = "Whether to interpret the message body as a JMS message type.";
     public static final String CONFIG_DISPLAY_MQ_MESSAGE_BODY_JMS = "Message body as JMS";
 
+    public static final String CONFIG_NAME_MQ_MESSAGE_HEADERS_MQMD = "mq.message.headers.mqmd";
+    public static final String CONFIG_DOCUMENTATION_MQ_MESSAGE_HEADERS_MQMD = "Whether to expose MQMD headers on the message object.";
+    public static final String CONFIG_DISPLAY_MQ_MESSAGE_HEADERS_MQMD = "Enable MQMD headers";
+
     public static final String CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER = "mq.record.builder.key.header";
     public static final String CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_KEY_HEADER = "The JMS message header to use as the Kafka record key.";
     public static final String CONFIG_DISPLAY_MQ_RECORD_BUILDER_KEY_HEADER = "Record builder key header";
@@ -239,6 +243,10 @@ public class MQSourceConnector extends SourceConnector {
                       ConfigDef.Range.atLeast(CONFIG_VALUE_MQ_BATCH_SIZE_MINIMUM), Importance.LOW,
                       CONFIG_DOCUMENTATION_MQ_BATCH_SIZE, CONFIG_GROUP_MQ, 14, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_BATCH_SIZE);
+
+        config.define(CONFIG_NAME_MQ_MESSAGE_HEADERS_MQMD, Type.BOOLEAN, Boolean.FALSE, Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_MESSAGE_HEADERS_MQMD, CONFIG_GROUP_MQ, 15, Width.SHORT,
+                CONFIG_DISPLAY_MQ_MESSAGE_HEADERS_MQMD);
 
         config.define(CONFIG_NAME_TOPIC, Type.STRING, null, Importance.HIGH,
                       CONFIG_DOCUMENTATION_TOPIC, null, 0, Width.MEDIUM,

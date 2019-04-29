@@ -93,6 +93,7 @@ public class JMSReader {
         String ccdtUrl = props.get(MQSourceConnector.CONFIG_NAME_MQ_CCDT_URL);
         String builderClass = props.get(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER);
         String mbj = props.get(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS);
+        String mqmdHeaders = props.get(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_HEADERS_MQMD);
         String sslCipherSuite = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_CIPHER_SUITE);
         String sslPeerName = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_PEER_NAME);
         String topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
@@ -154,6 +155,12 @@ public class JMSReader {
                 if (Boolean.parseBoolean(mbj)) {
                     this.messageBodyJms = true;
                     queue.setMessageBodyStyle(WMQConstants.WMQ_MESSAGE_BODY_JMS);
+                }
+            }
+
+            if (mqmdHeaders != null) {
+                if (Boolean.parseBoolean(mqmdHeaders)) {
+                    queue.setBooleanProperty(WMQConstants.WMQ_MQMD_READ_ENABLED, true);
                 }
             }
 
