@@ -9,6 +9,8 @@ The connector is supplied as source code which you can easily build into a JAR f
 
  - [Building the connector](#building-the-connector)
  - [Running the connector](#running-the-connector)
+ - [Running the connector with Docker](#running-with-docker)
+ - [Deploying the connector to Kubernetes](#deploying-to-kubernetes)
  - [Data formats](#data-formats)
  - [Security](#security)
  - [Performance and syncpoint limit](#performance-and-syncpoint-limit)
@@ -67,6 +69,43 @@ To run the connector in standalone mode from the directory into which you instal
 bin/connect-standalone.sh connect-standalone.properties mq-source.properties
 ```
 
+## Running with Docker
+
+This repository includes a Dockerfile to run Kafka Connect in distributed mode. It also adds in the MQ Source Connector as an available connector plugin. It uses the default connect-distributed.properties and connect-log4j.properties files.
+
+1. `mvn clean package`
+1. `docker build -t kafkaconnect-with-mq-source:0.0.1 .`
+1. `docker run -p 8083:8083 kafkaconnect-with-mq-source:0.0.1`
+
+**NOTE:** To provide custom properties files create a folder called `config` containing the `connect-distributed.properties` and `connect-log4j.properties` files and use a Docker volume to make them available when running the container:
+`docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect:0.0.1`
+
+## Deploying to Kubernetes
+
+This repository includes a Kubernetes yaml file called `kafka-connect.yaml`. This will create a deployment to run Kafka Connect in distributed mode and a service to access the deployment.
+
+The deployment assumes the existence of a Secret called `connect-distributed-config` and a ConfigMap called `connect-log4j-config`. These can be created using the default files in your Kafka install, however it is easier to edit them later if comments and whitespaces are trimmed before creation.
+
+### Creating Kafka Connect configuration Secret and ConfigMap
+
+Create Secret for Kafka Connect configuration:
+1. `cp kafka/config/connect-distributed.properties connect-distributed.properties.orig`
+1. `sed '/^#/d;/^[[:space:]]*$/d' < connect-distributed.properties.orig > connect-distributed.properties`
+1. `kubectl -n <namespace> create secret connect-distributed-config --from-file=connect-distributed.properties`
+
+Create ConfigMap for Kafka Connect Log4j configuration:
+1. `cp kafka/config/connect-log4j.properties connect-log4j.properties.orig`
+1. `sed '/^#/d;/^[[:space:]]*$/d' < connect-log4j.properties.orig > connect-log4j.properties`
+1. `kubectl -n <namespace> create configmap connect-log4j-config --from-file=connect-log4j.properties`
+
+### Creating Kafka Connect deployment and service in Kubernetes
+
+**NOTE:** Remember to [build the Docker image](#running-with-docker) and push it to your Kubernetes image repository. You might need to update the image name in the `kafka-connect.yaml` file.
+
+1. Update the namespace in `kafka-connect.yaml`
+1. `kubectl -n <namespace> apply -f kafka-connect.yaml`
+1. `curl <serviceIP>:<servicePort>/connector-plugins` to see the MQ Source connector available to use
+
 ## Data formats
 Kafka Connect is very flexible but it's important to understand the way that it processes messages to end up with a reliable system. When the connector encounters a message that it cannot process, it stops rather than throwing the message away. Therefore, you need to make sure that the configuration you use can handle the messages the connector will process.
 
@@ -78,7 +117,7 @@ When the MQ source connector reads a message from MQ, it chooses a schema to rep
 
 There are two record builders supplied with the connector, although you can write your own. The basic rule is that if you just want the message to be passed along to Kafka unchanged, the default record builder is probably the best choice. If the incoming data is in JSON format and you want to use a schema based on its structure, use the JSON record builder.
 
-There are three converters built into Apache Kafka. You need to make sure that the incoming message format, the setting of the *mq.message.body.jms* configuration, the record builder and converter are all compatible. By default, everything is just treated as bytes but if you want the connector to understand the message format and apply more sophisticated processing such as single-message transforms, you'll need a more complex configuration. The following table shows the basic options that work.
+There are three converters built into Apache Kafka. You need to make sure that the incoming message format, the setting of the `mq.message.body.jms` configuration, the record builder and converter are all compatible. By default, everything is just treated as bytes but if you want the connector to understand the message format and apply more sophisticated processing such as single-message transforms, you'll need a more complex configuration. The following table shows the basic options that work.
 
 | Record builder class                                                | Incoming MQ message    | mq.message.body.jms | Converter class                                        | Outgoing Kafka message  |
 | ------------------------------------------------------------------- | ---------------------- | ------------------- | ------------------------------------------------------ | ----------------------- |
@@ -129,15 +168,19 @@ You must then choose a converter than can handle the value schema and class. The
 | org.apache.kafka.connect.json.JsonConverter            | Base-64 JSON String | JSON String       | **JSON data**              |
 
 ### Key support and partitioning
-By default, the connector does not use keys for the Kafka messages it publishes. It can be configured to use the JMS message headers to set the key of the Kafka records. You could use this, for example, to use the MQMD correlation identifier as the partitioning key when the messages are published to Kafka. There are three valid values for the `mq.record.builder.key.header` that controls this behavior.
+By default, the connector does not use keys for the Kafka messages it publishes. It can be configured to use the JMS message headers to set the key of the Kafka records. You could use this, for example, to use the MQMD correlation identifier as the partitioning key when the messages are published to Kafka. There are four valid values for the `mq.record.builder.key.header` that controls this behavior.
 
 | mq.record.builder.key.header | Key schema      | Key class | Recommended value for key.converter                    |
 | ---------------------------- |---------------- | --------- | ------------------------------------------------------ |
 | JMSMessageID                 | OPTIONAL_STRING | String    | org.apache.kafka.connect.storage.StringConverter       |
 | JMSCorrelationID             | OPTIONAL_STRING | String    | org.apache.kafka.connect.storage.StringConverter       |
 | JMSCorrelationIDAsBytes      | OPTIONAL_BYTES  | byte[]    | org.apache.kafka.connect.converters.ByteArrayConverter |
+| JMSDestination               | OPTIONAL_STRING | String    | org.apache.kafka.connect.storage.StringConverter       |
 
 In MQ, the message ID and correlation ID are both 24-byte arrays. As strings, the connector represents them using a sequence of 48 hexadecimal characters.
+
+### Accessing MQMD fields
+If you write your own RecordBuilder, you can access the MQMD fields of the MQ messages as JMS message properties. By default, only a subset of the MQMD fields are available, but you can get access to all of them by setting the configuration `mq.message.mqmd.read`. For more information, see [JMS message object properties](https://www.ibm.com/support/knowledgecenter/SSFKSJ_9.1.0/com.ibm.mq.dev.doc/q032350_.htm) in the MQ documentation.
 
 
 ## Security
@@ -170,10 +213,11 @@ The configuration options for the Kafka Connect source connector for IBM MQ are 
 | mq.ccdt.url                  | The URL for the CCDT file containing MQ connection details  | string  |               | URL for obtaining a CCDT file                           |
 | mq.record.builder            | The class used to build the Kafka Connect record            | string  |               | Class implementing RecordBuilder                        |
 | mq.message.body.jms          | Whether to interpret the message body as a JMS message type | boolean | false         |                                                         |
-| mq.record.builder.key.header | The JMS message header to use as the Kafka record key       | string  |               | JMSMessageID, JMSCorrelationID, JMSCorrelationIDAsBytes |
+| mq.record.builder.key.header | The JMS message header to use as the Kafka record key       | string  |               | JMSMessageID, JMSCorrelationID, JMSCorrelationIDAsBytes, JMSDestination |
 | mq.ssl.cipher.suite          | The name of the cipher suite for TLS (SSL) connection       | string  |               | Blank or valid cipher suite                             |
 | mq.ssl.peer.name             | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern                                     |
 | mq.batch.size                | The maximum number of messages in a batch (unit of work)    | integer | 250           | 1 or greater                                            |
+| mq.message.mqmd.read         | Whether to enable reading of all MQMD fields                | boolean | false         |                                                         |
 | topic                        | The name of the target Kafka topic                          | string  |               | Topic name                                              |
 
 ### Using a CCDT file
@@ -203,6 +247,10 @@ Update the connector configuration file to reference `secret-key` in the file:
 ```
 mq.password=${file:mq-secret.properties:secret-key}
 ```
+
+##### Using FileConfigProvider in Kubernetes
+
+To use a file for the `mq.password` in Kubernetes, you create a Secret using the file as described in [the Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod).
 
 ## Troubleshooting
 

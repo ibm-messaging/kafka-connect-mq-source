@@ -1,0 +1,78 @@
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafkaconnect-deploy
+  labels: 
+    app: kafkaconnect-with-mq-source
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafkaconnect-with-mq-source
+  template:
+    metadata:
+      namespace: <namespace>
+      labels:
+        app: kafkaconnect-with-mq-source
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 5000
+      containers:
+        - name: kafkaconnect-container
+          image: kafkaconnect-with-mq-source:0.0.1
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8083
+              httpHeaders:
+                - name: Accept
+                  value: '*/*'
+            failureThreshold: 2
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8083
+              httpHeaders:
+                - name: Accept
+                  value: '*/*'
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          ports:
+          - containerPort: 8083
+          volumeMounts: 
+          - name: connect-config
+            mountPath: /opt/kafka/config/connect-distributed.properties
+            subPath: connect-distributed.properties
+          - name: connect-log4j
+            mountPath: /opt/kafka/config/connect-log4j.properties
+            subPath: connect-log4j.properties
+      volumes:
+      - name: connect-config
+        secret:
+          secretName: connect-distributed-config
+      - name: connect-log4j
+        configMap:
+          name: connect-log4j-config
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafkaconnect-service
+  labels:
+    app: kafkaconnect-service
+spec:
+  type: NodePort
+  ports:
+    - name: kafkaconnect
+      protocol: TCP
+      port: 8083
+  selector:
+      app: kafkaconnect-with-mq-source
