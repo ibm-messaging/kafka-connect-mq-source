@@ -83,6 +83,7 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSMESSAGEID = "JMSMessageID";
     public static final String CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONID = "JMSCorrelationID";
     public static final String CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONIDASBYTES = "JMSCorrelationIDAsBytes";
+    public static final String CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION = "JMSDestination";
 
     public static final String CONFIG_NAME_MQ_SSL_CIPHER_SUITE = "mq.ssl.cipher.suite"; 
     public static final String CONFIG_DOCUMENTATION_MQ_SSL_CIPHER_SUITE = "The name of the cipher suite for the TLS (SSL) connection.";
@@ -98,11 +99,15 @@ public class MQSourceConnector extends SourceConnector {
     public static final int CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT = 250;
     public static final int CONFIG_VALUE_MQ_BATCH_SIZE_MINIMUM = 1;
 
+    public static final String CONFIG_NAME_MQ_MESSAGE_MQMD_READ = "mq.message.mqmd.read";
+    public static final String CONFIG_DOCUMENTATION_MQ_MESSAGE_MQMD_READ = "Whether to enable reading of all MQMD fields.";
+    public static final String CONFIG_DISPLAY_MQ_MESSAGE_MQMD_READ = "Enable reading of MQMD fields";
+
     public static final String CONFIG_NAME_TOPIC = "topic"; 
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
-    public static String VERSION = "1.0.2";
+    public static String VERSION = "1.1.0";
 
     private Map<String, String> configProps;
 
@@ -240,7 +245,11 @@ public class MQSourceConnector extends SourceConnector {
                       CONFIG_DOCUMENTATION_MQ_BATCH_SIZE, CONFIG_GROUP_MQ, 14, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_BATCH_SIZE);
 
-        config.define(CONFIG_NAME_TOPIC, Type.STRING, null, Importance.HIGH,
+        config.define(CONFIG_NAME_MQ_MESSAGE_MQMD_READ, Type.BOOLEAN, Boolean.FALSE, Importance.LOW,
+                      CONFIG_DOCUMENTATION_MQ_MESSAGE_MQMD_READ, CONFIG_GROUP_MQ, 15, Width.SHORT,
+                      CONFIG_DISPLAY_MQ_MESSAGE_MQMD_READ);
+                  
+        config.define(CONFIG_NAME_TOPIC, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
                       CONFIG_DOCUMENTATION_TOPIC, null, 0, Width.MEDIUM,
                       CONFIG_DISPLAY_TOPIC);
 

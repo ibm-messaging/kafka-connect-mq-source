@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 public abstract class BaseRecordBuilder implements RecordBuilder {
     private static final Logger log = LoggerFactory.getLogger(BaseRecordBuilder.class);
 
-    public enum KeyHeader {NONE, MESSAGE_ID, CORRELATION_ID, CORRELATION_ID_AS_BYTES};
+    public enum KeyHeader {NONE, MESSAGE_ID, CORRELATION_ID, CORRELATION_ID_AS_BYTES, DESTINATION};
     protected KeyHeader keyheader = KeyHeader.NONE;
 
     /**
@@ -64,8 +64,11 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
                 keyheader = KeyHeader.CORRELATION_ID_AS_BYTES;
                 log.debug("Setting Kafka record key from JMSCorrelationIDAsBytes header field");
             }
-            else
-            {
+            else if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION)) {
+                keyheader = KeyHeader.DESTINATION;
+                log.debug("Setting Kafka record key from JMSDestination header field");
+            }
+            else {
                 log.error("Unsupported MQ record builder key header value {}", kh);
                 throw new ConnectException("Unsupported MQ record builder key header value");
             }
@@ -114,6 +117,10 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             case CORRELATION_ID_AS_BYTES:
                 keySchema = Schema.OPTIONAL_BYTES_SCHEMA;
                 key = message.getJMSCorrelationIDAsBytes();
+                break;
+            case DESTINATION:
+                keySchema = Schema.OPTIONAL_STRING_SCHEMA;
+                key = message.getJMSDestination().toString();
                 break;
             default:
                 break;
