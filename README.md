@@ -13,7 +13,6 @@ The connector is supplied as source code which you can easily build into a JAR f
  - [Deploying the connector to Kubernetes](#deploying-to-kubernetes)
  - [Data formats](#data-formats)
  - [Security](#security)
- - [Performance and syncpoint limit](#performance-and-syncpoint-limit)
  - [Configuration](#configuration)
  - [Troubleshooting](#troubleshooting)
  - [Support](#support)
