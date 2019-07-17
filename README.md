@@ -59,6 +59,8 @@ To run the connector, you must have:
 
 The connector can be run in a Kafka Connect worker in either standalone (single process) or distributed mode. It's a good idea to start in standalone mode.
 
+### Running in standalone mode
+
 You need two configuration files, one for the configuration that applies to all of the connectors such as the Kafka bootstrap servers, and another for the configuration specific to the MQ source connector such as the connection information for your queue manager. For the former, the Kafka distribution includes a file called `connect-standalone.properties` that you can use as a starting point. For the latter, you can use `config/mq-source.properties` in this repository.
 
 The connector connects to MQ using either a client or a bindings connection. For a client connection, you must provide the name of the queue manager, the connection name (one or more host/port pairs) and the channel name. In addition, you can provide a user name and password if the queue manager is configured to require them for client connections. If you look at the supplied `config/mq-source.properties`, you'll see how to specify the configuration required. For a bindings connection, you must provide provide the name of the queue manager and also run the Kafka Connect worker on the same system as the queue manager.
@@ -69,9 +71,20 @@ To run the connector in standalone mode from the directory into which you instal
 bin/connect-standalone.sh connect-standalone.properties mq-source.properties
 ```
 
+### Running in distributed mode
+
+You need an instance of Kafka Connect running in distributed mode. The Kafka distribution includes a file called `connect-distributed.properties` that you can use as a starting point, or follow [Running with Docker](#running-with-docker) or [Deploying to Kubernetes](#deploying-to-kubernetes)
+
+To start the MQ connector, you can use `config/mq-source.json` in this repository after replacing all placeholders and use a command like this:
+
+```shell
+curl -X POST -H "Content-Type: application/json" http://localhost:8083/connectors \
+  --data "@./config/mq-source.json"
+```
+
 ## Running with Docker
 
-This repository includes a Dockerfile to run Kafka Connect in distributed mode. It also adds in the MQ Source Connector as an available connector plugin. It uses the default connect-distributed.properties and connect-log4j.properties files.
+This repository includes a Dockerfile to run Kafka Connect in distributed mode. It also adds in the MQ Source Connector as an available connector plugin. It uses the default `connect-distributed.properties` and `connect-log4j.properties` files.
 
 1. `mvn clean package`
 1. `docker build -t kafkaconnect-with-mq-source:0.0.1 .`

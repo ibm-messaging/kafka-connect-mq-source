@@ -1,0 +1,16 @@
+{
+    "name": "mq-source",
+    "config":{
+        "connector.class": "com.ibm.eventstreams.connect.mqsource.MQSourceConnector",
+        "tasks.max": "1",
+        "topic": "<TOPIC>",
+        
+        "value.converter": "org.apache.kafka.connect.converters.ByteArrayConverter",
+
+        "mq.queue.manager": "<QUEUE_MANAGER>",
+        "mq.connection.name.list": "<CONNECTION_NAME_LIST>",
+        "mq.channel.name": "<CHANNEL_NAME>",
+        "mq.queue": "<QUEUE>",
+        "mq.record.builder": "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder"
+    }
+}
