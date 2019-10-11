@@ -352,7 +352,8 @@ public class JMSReader {
                 Thread.sleep(reconnectDelayMillis);
             }
             catch (InterruptedException ie) {
-                ;
+                log.error("Thread.sleep failed in connectInternal()", jmse);
+                Thread.currentThread().interrupt();
             }
 
             if (reconnectDelayMillis < RECONNECT_DELAY_MILLIS_MAX)
@@ -386,7 +387,7 @@ public class JMSReader {
             }
         }
         catch (JMSRuntimeException jmse) {
-            ;
+            log.error("CloseInternal failed", jmse);
         }
         finally
         {
@@ -454,7 +455,7 @@ public class JMSReader {
                 Thread.sleep(RECONNECT_DELAY_MILLIS_MAX);
             }
             catch (InterruptedException ie) {
-                ;
+                log.error("HandleException failed", ie);
             }
             closeInternal();
         }
