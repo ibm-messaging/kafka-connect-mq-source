@@ -61,9 +61,13 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_MQ_USER_NAME = "The user name for authenticating with the queue manager.";
     public static final String CONFIG_DISPLAY_MQ_USER_NAME = "User name";
 
-    public static final String CONFIG_NAME_MQ_PASSWORD = "mq.password"; 
+    public static final String CONFIG_NAME_MQ_PASSWORD = "mq.password";
     public static final String CONFIG_DOCUMENTATION_MQ_PASSWORD = "The password for authenticating with the queue manager.";
     public static final String CONFIG_DISPLAY_MQ_PASSWORD = "Password";
+
+    public static final String CONFIG_NAME_MQ_CSP = "mq.csp";
+    public static final String CONFIG_DOCUMENTATION_MQ_CSP = "useMQCSPauthentication.";
+    public static final String CONFIG_DISPLAY_MQ_CSP = "useMQCSPauthentication";
 
     public static final String CONFIG_NAME_MQ_CCDT_URL = "mq.ccdt.url"; 
     public static final String CONFIG_DOCUMENTATION_MQ_CCDT_URL = "The CCDT URL to use to establish a connection to the queue manager.";
@@ -213,12 +217,16 @@ public class MQSourceConnector extends SourceConnector {
                       CONFIG_DISPLAY_MQ_QUEUE);
 
         config.define(CONFIG_NAME_MQ_USER_NAME, Type.STRING, null, Importance.MEDIUM,
-                      CONFIG_DOCUMENTATION_MQ_USER_NAME, CONFIG_GROUP_MQ, 7, Width.MEDIUM,
-                      CONFIG_DISPLAY_MQ_USER_NAME);
+                      CONFIG_DOCUMENTATION_MQ_CSP, CONFIG_GROUP_MQ, 7, Width.MEDIUM,
+                      CONFIG_DISPLAY_MQ_CSP);
 
         config.define(CONFIG_NAME_MQ_PASSWORD, Type.PASSWORD, null, Importance.MEDIUM,
                       CONFIG_DOCUMENTATION_MQ_PASSWORD, CONFIG_GROUP_MQ, 8, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_PASSWORD);
+
+        config.define(CONFIG_NAME_MQ_CSP, Type.STRING, true, Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_USER_NAME, CONFIG_GROUP_MQ, 7, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_USER_NAME);
 
         config.define(CONFIG_NAME_MQ_RECORD_BUILDER, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
                       CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER, CONFIG_GROUP_MQ, 9, Width.LONG,
