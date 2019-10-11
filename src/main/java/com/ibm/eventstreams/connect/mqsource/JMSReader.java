@@ -1,6 +1,6 @@
 /**
  * Copyright 2017, 2018, 2019 IBM Corporation
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -60,7 +60,7 @@ public class JMSReader {
     private MQQueue queue;
 
     private RecordBuilder builder;
-    
+
     private boolean connected = false;                              // Whether connected to MQ
     private boolean inflight = false;                               // Whether messages in-flight in current transaction
     private boolean inperil = false;                                // Whether current transaction must be forced to roll back
@@ -75,7 +75,7 @@ public class JMSReader {
 
     /**
      * Configure this class.
-     * 
+     *
      * @param props initial configuration
      *
      * @throws ConnectException   Operation failed and connector should stop.
@@ -103,27 +103,21 @@ public class JMSReader {
         if (connectionMode != null) {
             if (connectionMode.equals(MQSourceConnector.CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT)) {
                 transportType = WMQConstants.WMQ_CM_CLIENT;
-            } 
+            }
             else if (connectionMode.equals(MQSourceConnector.CONFIG_VALUE_MQ_CONNECTION_MODE_BINDINGS)) {
                 transportType = WMQConstants.WMQ_CM_BINDINGS;
-            } 
+            }
             else {
                 log.error("Unsupported MQ connection mode {}", connectionMode);
                 throw new ConnectException("Unsupported MQ connection mode");
-            }               
-        }
-
-        boolean cspFlag = true;
-
-        if (csp != null || !"".equals(csp)) {
-            cspFlag = Boolean.parseBoolean(csp);
+            }
         }
 
         try {
             mqConnFactory = new MQConnectionFactory();
             mqConnFactory.setTransportType(transportType);
             mqConnFactory.setQueueManager(queueManager);
-            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, cspFlag);
+            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, Boolean.parseBoolean(csp));
 
             if (transportType == WMQConstants.WMQ_CM_CLIENT) {
                 if (ccdtUrl != null) {
@@ -132,11 +126,11 @@ public class JMSReader {
                         ccdtUrlObject = new URL(ccdtUrl);
                     }
                     catch (MalformedURLException e) {
-                        log.error("MalformedURLException exception {}", e);
+                        log.error("MalformedURLException exception", e);
                         throw new ConnectException("CCDT file url invalid", e);
                     }
                     mqConnFactory.setCCDTURL(ccdtUrlObject);
-                } 
+                }
                 else {
                     mqConnFactory.setConnectionNameList(connectionNameList);
                     mqConnFactory.setChannel(channelName);
@@ -152,10 +146,10 @@ public class JMSReader {
             }
 
             queue = new MQQueue(queueName);
-            
+
             this.userName = userName;
             this.password = password;
-    
+
             this.messageBodyJms = false;
             queue.setMessageBodyStyle(WMQConstants.WMQ_MESSAGE_BODY_MQ);
             if (mbj != null) {
@@ -203,11 +197,11 @@ public class JMSReader {
             }
             else {
                 jmsCtxt = mqConnFactory.createContext(JMSContext.SESSION_TRANSACTED);
-            }            
+            }
 
             jmsCons = jmsCtxt.createConsumer(queue);
             connected = true;
-        
+
             log.info("Connection to MQ established");
         }
         catch (JMSRuntimeException jmse) {
@@ -259,7 +253,7 @@ public class JMSReader {
                 // to commit once we've passed it on to Kafka. Temporarily mark the transaction as "in-peril"
                 // so that any exception thrown will result in the transaction rolling back instead of committing.
                 inperil = true;
-                
+
                 sr = builder.toSourceRecord(jmsCtxt, topic, messageBodyJms, m);
                 inperil = false;
             }
@@ -344,12 +338,12 @@ public class JMSReader {
             }
             else {
                 jmsCtxt = mqConnFactory.createContext(JMSContext.SESSION_TRANSACTED);
-            }            
+            }
 
             jmsCons = jmsCtxt.createConsumer(queue);
             reconnectDelayMillis = RECONNECT_DELAY_MILLIS_MIN;
             connected = true;
-        
+
             log.info("Connection to MQ established");
         }
         catch (JMSRuntimeException jmse) {
