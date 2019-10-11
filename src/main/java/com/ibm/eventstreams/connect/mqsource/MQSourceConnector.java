@@ -61,9 +61,13 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_MQ_USER_NAME = "The user name for authenticating with the queue manager.";
     public static final String CONFIG_DISPLAY_MQ_USER_NAME = "User name";
 
-    public static final String CONFIG_NAME_MQ_PASSWORD = "mq.password"; 
+    public static final String CONFIG_NAME_MQ_PASSWORD = "mq.password";
     public static final String CONFIG_DOCUMENTATION_MQ_PASSWORD = "The password for authenticating with the queue manager.";
     public static final String CONFIG_DISPLAY_MQ_PASSWORD = "Password";
+
+    public static final String CONFIG_NAME_MQ_CSP = "mq.csp";
+    public static final String CONFIG_DOCUMENTATION_MQ_CSP = "useMQCSPauthentication.";
+    public static final String CONFIG_DISPLAY_MQ_CSP = "useMQCSPauthentication";
 
     public static final String CONFIG_NAME_MQ_CCDT_URL = "mq.ccdt.url"; 
     public static final String CONFIG_DOCUMENTATION_MQ_CCDT_URL = "The CCDT URL to use to establish a connection to the queue manager.";

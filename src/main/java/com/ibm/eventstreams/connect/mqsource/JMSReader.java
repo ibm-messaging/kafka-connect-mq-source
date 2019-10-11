@@ -97,6 +97,7 @@ public class JMSReader {
         String sslCipherSuite = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_CIPHER_SUITE);
         String sslPeerName = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_PEER_NAME);
         String topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
+        String csp = props.get(MQSourceConnector.CONFIG_NAME_MQ_CSP);
 
         int transportType = WMQConstants.WMQ_CM_CLIENT;
         if (connectionMode != null) {
@@ -112,11 +113,17 @@ public class JMSReader {
             }               
         }
 
+        boolean cspFlag = true;
+
+        if (csp != null || !"".equals(csp)) {
+            cspFlag = Boolean.parseBoolean(csp);
+        }
+
         try {
             mqConnFactory = new MQConnectionFactory();
             mqConnFactory.setTransportType(transportType);
             mqConnFactory.setQueueManager(queueManager);
-            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, true);
+            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, cspFlag);
 
             if (transportType == WMQConstants.WMQ_CM_CLIENT) {
                 if (ccdtUrl != null) {
