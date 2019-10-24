@@ -260,7 +260,7 @@ public class MQSourceConnector extends SourceConnector {
                       CONFIG_DOCUMENTATION_MQ_SSL_KEYSTORE_LOCATION, CONFIG_GROUP_MQ, 14, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_SSL_KEYSTORE_LOCATION);
 
-        config.define(CONFIG_NAME_MQ_SSL_KEYSTORE_PASSWORD, Type.STRING, null, Importance.MEDIUM,
+        config.define(CONFIG_NAME_MQ_SSL_KEYSTORE_PASSWORD, Type.PASSWORD, null, Importance.MEDIUM,
                       CONFIG_DOCUMENTATION_MQ_SSL_KEYSTORE_PASSWORD, CONFIG_GROUP_MQ, 15, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_SSL_KEYSTORE_PASSWORD);
 
@@ -268,7 +268,7 @@ public class MQSourceConnector extends SourceConnector {
                       CONFIG_DOCUMENTATION_MQ_SSL_TRUSTSTORE_LOCATION, CONFIG_GROUP_MQ, 16, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_SSL_TRUSTSTORE_LOCATION);
 
-        config.define(CONFIG_NAME_MQ_SSL_TRUSTSTORE_PASSWORD, Type.STRING, null, Importance.MEDIUM,
+        config.define(CONFIG_NAME_MQ_SSL_TRUSTSTORE_PASSWORD, Type.PASSWORD, null, Importance.MEDIUM,
                       CONFIG_DOCUMENTATION_MQ_SSL_TRUSTSTORE_PASSWORD, CONFIG_GROUP_MQ, 17, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_SSL_TRUSTSTORE_PASSWORD);
 
