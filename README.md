@@ -76,7 +76,7 @@ You need an instance of Kafka Connect running in distributed mode. The Kafka dis
 
 To start the MQ connector, you can use `config/mq-source.json` in this repository after replacing all placeholders and use a command like this:
 
-```shell
+``` shell
 curl -X POST -H "Content-Type: application/json" http://localhost:8083/connectors \
   --data "@./config/mq-source.json"
 ```
@@ -103,7 +103,7 @@ The deployment assumes the existence of a Secret called `connect-distributed-con
 Create Secret for Kafka Connect configuration:
 1. `cp kafka/config/connect-distributed.properties connect-distributed.properties.orig`
 1. `sed '/^#/d;/^[[:space:]]*$/d' < connect-distributed.properties.orig > connect-distributed.properties`
-1. `kubectl -n <namespace> create secret connect-distributed-config --from-file=connect-distributed.properties`
+1. `kubectl -n <namespace> create secret generic connect-distributed-config --from-file=connect-distributed.properties`
 
 Create ConfigMap for Kafka Connect Log4j configuration:
 1. `cp kafka/config/connect-log4j.properties connect-log4j.properties.orig`

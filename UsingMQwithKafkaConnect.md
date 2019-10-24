@@ -33,60 +33,59 @@ It is assumed that you have installed MQ, you're logged in as a user authorized 
     crtmqm -p 1414 MYQM
     ```
 
-1. Start the queue manager:
+2. Start the queue manager:
     ``` shell
     strmqm MYQM
     ```
 
-1. Start the `runmqsc` tool to configure the queue manager:
+3. Start the `runmqsc` tool to configure the queue manager:
     ``` shell
     runmqsc MYQM
     ```
 
-1. In `runmqsc`, create a server-connection channel:
+4. In `runmqsc`, create a server-connection channel:
     ```
     DEFINE CHANNEL(MYSVRCONN) CHLTYPE(SVRCONN)
     ```
 
-1. Set the channel authentication rules to accept connections requiring userid and password:
+5. Set the channel authentication rules to accept connections requiring userid and password:
     ```
     SET CHLAUTH(MYSVRCONN) TYPE(BLOCKUSER) USERLIST('nobody')
     SET CHLAUTH('*') TYPE(ADDRESSMAP) ADDRESS('*') USERSRC(NOACCESS)
     SET CHLAUTH(MYSVRCONN) TYPE(ADDRESSMAP) ADDRESS('*') USERSRC(CHANNEL) CHCKCLNT(REQUIRED)
     ```
 
-1. Set the identity of the client connections based on the supplied context, the user ID:
+6. Set the identity of the client connections based on the supplied context, the user ID:
     ```
     ALTER AUTHINFO(SYSTEM.DEFAULT.AUTHINFO.IDPWOS) AUTHTYPE(IDPWOS) ADOPTCTX(YES)
     ```
 
-1. Refresh the connection authentication information:
+7. Refresh the connection authentication information:
     ```
     REFRESH SECURITY TYPE(CONNAUTH)
     ```
 
-1. Create a queue for the connector to use:
+8. Create a queue for the connector to use:
     ```
     DEFINE QLOCAL(MYQSOURCE)
     ```
 
-1. Authorize `alice` to connect to and inquire the queue manager:
+9. Authorize `alice` to connect to and inquire the queue manager:
     ```
     SET AUTHREC OBJTYPE(QMGR) PRINCIPAL('alice') AUTHADD(CONNECT,INQ)
     ```
 
-1. Finally authorize `alice` to use the queue:
+10. Finally authorize `alice` to use the queue:
     ```
     SET AUTHREC PROFILE(MYQSOURCE) OBJTYPE(QUEUE) PRINCIPAL('alice') AUTHADD(ALLMQI)
     ```
 
-1. End `runmqsc`:
+11. End `runmqsc`:
     ```
     END
     ```
 
 The queue manager is now ready to accept connection from Kafka Connect connectors.
-
 
 ### Set up Apache Kafka
 These instructions assume you have Apache Kafka downloaded and running locally. See the [Apache Kafka quickstart guide](https://kafka.apache.org/quickstart) for more details.
@@ -96,11 +95,11 @@ These instructions assume you have Apache Kafka downloaded and running locally. 
     bin/zookeeper-server-start.sh config/zookeeper.properties
     ```
 
-1. In another terminal, start a Kafka server:
+2. In another terminal, start a Kafka server:
     ``` shell
     bin/kafka-server-start.sh config/server.properties
     ```
-1. Create a topic called `TSOURCE` for the connector to send events to:
+3. Create a topic called `TSOURCE` for the connector to send events to:
     ``` shell
     bin/kafka-topics.sh --zookeeper localhost:2181  --create --topic TSOURCE --partitions 1 --replication-factor 1
     ```
@@ -133,18 +132,18 @@ Configure and run the connector:
     cp config/mq-source.properties ~
     ```
 
-1. Edit the following properties in the `~/mq-source.properties` file to match the configuration so far:
-    ```
-    mq.queue.manager=MYQM
-    mq.connection.name.list=localhost(1414)
-    mq.channel.name=MYSVRCONN
-    mq.queue=MYQSOURCE
-    mq.user.name=alice
-    mq.password=passw0rd
-    topic=TSOURCE
-    ```
+2. Edit the following properties in the `~/mq-source.properties` file to match the configuration so far:
+   ```
+   topic=TSOURCE
+   mq.queue.manager=MYQM
+   mq.connection.name.list=localhost(1414)
+   mq.channel.name=MYSVRCONN
+   mq.queue=MYQSOURCE
+   mq.user.name=alice
+   mq.password=passw0rd
+   ```
 
-1. Change directory to the Kafka root directory. Start the connector worker replacing `<connector-root-directory>` and `<version>` with your directory and the connector version:
+3. Change directory to the Kafka root directory. Start the connector worker replacing `<connector-root-directory>` and `<version>` with your directory and the connector version:
     ``` shell
     CLASSPATH=<connector-root-directory>/target/kafka-connect-mq-source-<version>-jar-with-dependencies.jar bin/connect-standalone.sh config/connect-standalone.properties ~/mq-source.properties
     ```
