@@ -213,24 +213,28 @@ For troubleshooting, or to better understand the handshake performed by the IBM 
 ## Configuration
 The configuration options for the Kafka Connect source connector for IBM MQ are as follows:
 
-| Name                         | Description                                                 | Type    | Default       | Valid values                                            |
-| ---------------------------- | ----------------------------------------------------------- | ------- | ------------- | ------------------------------------------------------- |
-| mq.queue.manager             | The name of the MQ queue manager                            | string  |               | MQ queue manager name                                   |
-| mq.connection.mode           | The connection mode - bindings or client                    | string  | client        | client, bindings                                        |
-| mq.connection.name.list      | List of connection names for queue manager                  | string  |               | host(port)[,host(port),...]                             |
-| mq.channel.name              | The name of the server-connection channel                   | string  |               | MQ channel name                                         |
-| mq.queue                     | The name of the source MQ queue                             | string  |               | MQ queue name                                           |
-| mq.user.name                 | The user name for authenticating with the queue manager     | string  |               | User name                                               |
-| mq.password                  | The password for authenticating with the queue manager      | string  |               | Password                                                |
-| mq.ccdt.url                  | The URL for the CCDT file containing MQ connection details  | string  |               | URL for obtaining a CCDT file                           |
-| mq.record.builder            | The class used to build the Kafka Connect record            | string  |               | Class implementing RecordBuilder                        |
-| mq.message.body.jms          | Whether to interpret the message body as a JMS message type | boolean | false         |                                                         |
-| mq.record.builder.key.header | The JMS message header to use as the Kafka record key       | string  |               | JMSMessageID, JMSCorrelationID, JMSCorrelationIDAsBytes, JMSDestination |
-| mq.ssl.cipher.suite          | The name of the cipher suite for TLS (SSL) connection       | string  |               | Blank or valid cipher suite                             |
-| mq.ssl.peer.name             | The distinguished name pattern of the TLS (SSL) peer        | string  |               | Blank or DN pattern                                     |
-| mq.batch.size                | The maximum number of messages in a batch (unit of work)    | integer | 250           | 1 or greater                                            |
-| mq.message.mqmd.read         | Whether to enable reading of all MQMD fields                | boolean | false         |                                                         |
-| topic                        | The name of the target Kafka topic                          | string  |               | Topic name                                              |
+| Name                         | Description                                                            | Type    | Default        | Valid values                                            |
+| ---------------------------- | ---------------------------------------------------------------------- | ------- | -------------- | ------------------------------------------------------- |
+| mq.queue.manager             | The name of the MQ queue manager                                       | string  |                | MQ queue manager name                                   |
+| mq.connection.mode           | The connection mode - bindings or client                               | string  | client         | client, bindings                                        |
+| mq.connection.name.list      | List of connection names for queue manager                             | string  |                | host(port)[,host(port),...]                             |
+| mq.channel.name              | The name of the server-connection channel                              | string  |                | MQ channel name                                         |
+| mq.queue                     | The name of the source MQ queue                                        | string  |                | MQ queue name                                           |
+| mq.user.name                 | The user name for authenticating with the queue manager                | string  |                | User name                                               |
+| mq.password                  | The password for authenticating with the queue manager                 | string  |                | Password                                                |
+| mq.ccdt.url                  | The URL for the CCDT file containing MQ connection details             | string  |                | URL for obtaining a CCDT file                           |
+| mq.record.builder            | The class used to build the Kafka Connect record                       | string  |                | Class implementing RecordBuilder                        |
+| mq.message.body.jms          | Whether to interpret the message body as a JMS message type            | boolean | false          |                                                         |
+| mq.record.builder.key.header | The JMS message header to use as the Kafka record key                  | string  |                | JMSMessageID, JMSCorrelationID, JMSCorrelationIDAsBytes, JMSDestination |
+| mq.ssl.cipher.suite          | The name of the cipher suite for TLS (SSL) connection                  | string  |                | Blank or valid cipher suite                             |
+| mq.ssl.peer.name             | The distinguished name pattern of the TLS (SSL) peer                   | string  |                | Blank or DN pattern                                     |
+| mq.ssl.keystore.location     | The path to the JKS keystore to use for SSL (TLS) connections          | string  | JVM keystore   | Local path to a JKS file                                |
+| mq.ssl.keystore.password     | The password of the JKS keystore to use for SSL (TLS) connections      | string  |                |                                                         |
+| mq.ssl.truststore.location   | The path to the JKS truststore to use for SSL (TLS) connections        | string  | JVM truststore | Local path to a JKS file                                |
+| mq.ssl.truststore.password   | The password of the JKS truststore to use for SSL (TLS) connections    | string  |                |                                                         |
+| mq.batch.size                | The maximum number of messages in a batch (unit of work)               | integer | 250            | 1 or greater                                            |
+| mq.message.mqmd.read         | Whether to enable reading of all MQMD fields                           | boolean | false          |                                                         |
+| topic                        | The name of the target Kafka topic                                     | string  |                | Topic name                                              |
 
 ### Using a CCDT file
 Some of the connection details for MQ can be provided in a [CCDT file](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.con.doc/q016730_.htm) by setting `mq.ccdt.url` in the MQ source connector configuration file. If using a CCDT file the `mq.connection.name.list` and `mq.channel.name` configuration options are not required.
