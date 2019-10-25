@@ -1,6 +1,18 @@
+# Maven
 target/
+
+# macOS
 .DS_Store
+
+# Eclipse
 .classpath
 .settings/
 .project
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Visual Studio Code
 .vscode/
