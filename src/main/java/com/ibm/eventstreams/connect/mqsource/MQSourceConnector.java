@@ -66,8 +66,8 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DISPLAY_MQ_PASSWORD = "Password";
 
     public static final String CONFIG_NAME_MQ_CSP = "mq.csp";
-    public static final String CONFIG_DOCUMENTATION_MQ_CSP = "useMQCSPauthentication.";
-    public static final String CONFIG_DISPLAY_MQ_CSP = "useMQCSPauthentication";
+    public static final String CONFIG_DOCUMENTATION_MQ_CSP = "Use MQCSP Authentication.";
+    public static final String CONFIG_DISPLAY_MQ_CSP = "MQCSP authentication";
 
     public static final String CONFIG_NAME_MQ_CCDT_URL = "mq.ccdt.url"; 
     public static final String CONFIG_DOCUMENTATION_MQ_CCDT_URL = "The CCDT URL to use to establish a connection to the queue manager.";
@@ -224,10 +224,6 @@ public class MQSourceConnector extends SourceConnector {
                       CONFIG_DOCUMENTATION_MQ_PASSWORD, CONFIG_GROUP_MQ, 8, Width.MEDIUM,
                       CONFIG_DISPLAY_MQ_PASSWORD);
 
-        config.define(CONFIG_NAME_MQ_CSP, Type.STRING, true, Importance.MEDIUM,
-                CONFIG_DOCUMENTATION_MQ_USER_NAME, CONFIG_GROUP_MQ, 7, Width.MEDIUM,
-                CONFIG_DISPLAY_MQ_USER_NAME);
-
         config.define(CONFIG_NAME_MQ_RECORD_BUILDER, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
                       CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER, CONFIG_GROUP_MQ, 9, Width.LONG,
                       CONFIG_DISPLAY_MQ_RECORD_BUILDER);
@@ -256,6 +252,10 @@ public class MQSourceConnector extends SourceConnector {
         config.define(CONFIG_NAME_MQ_MESSAGE_MQMD_READ, Type.BOOLEAN, Boolean.FALSE, Importance.LOW,
                       CONFIG_DOCUMENTATION_MQ_MESSAGE_MQMD_READ, CONFIG_GROUP_MQ, 15, Width.SHORT,
                       CONFIG_DISPLAY_MQ_MESSAGE_MQMD_READ);
+
+        config.define(CONFIG_NAME_MQ_CSP, Type.STRING, true, Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_USER_NAME, CONFIG_GROUP_MQ, 16, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_USER_NAME);
                   
         config.define(CONFIG_NAME_TOPIC, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
                       CONFIG_DOCUMENTATION_TOPIC, null, 0, Width.MEDIUM,

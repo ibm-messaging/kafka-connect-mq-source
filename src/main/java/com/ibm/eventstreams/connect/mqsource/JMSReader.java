@@ -33,6 +33,7 @@ import javax.jms.JMSException;
 import javax.jms.JMSRuntimeException;
 import javax.jms.Message;
 
+import com.sun.xml.internal.ws.util.StringUtils;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -114,10 +115,15 @@ public class JMSReader {
         }
 
         try {
+
+            boolean cspFlag = true;
+            if (csp !=null && !"".equals(csp))
+                cspFlag = Boolean.parseBoolean(csp);
+
             mqConnFactory = new MQConnectionFactory();
             mqConnFactory.setTransportType(transportType);
             mqConnFactory.setQueueManager(queueManager);
-            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, Boolean.parseBoolean(csp));
+            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, cspFlag);
 
             if (transportType == WMQConstants.WMQ_CM_CLIENT) {
                 if (ccdtUrl != null) {
@@ -352,7 +358,7 @@ public class JMSReader {
                 Thread.sleep(reconnectDelayMillis);
             }
             catch (InterruptedException ie) {
-                log.error("Thread.sleep failed in connectInternal()", jmse);
+               ;
                 Thread.currentThread().interrupt();
             }
 
