@@ -17,6 +17,8 @@ package com.ibm.eventstreams.connect.mqsource.builders;
 
 import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
 
+import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Map;
 
 import javax.jms.JMSContext;
@@ -26,6 +28,9 @@ import javax.jms.Message;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.header.ConnectHeaders;
+import org.apache.kafka.connect.header.Header;
+import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.source.SourceRecord;
 
 import org.slf4j.Logger;
@@ -159,6 +164,36 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
         SchemaAndValue key = this.getKey(context, topic, message);
         SchemaAndValue value = this.getValue(context, topic, messageBodyJms, message);
 
-        return new SourceRecord(null, null, topic, key.schema(), key.value(), value.schema(), value.value());
+        //SourceRecord sourceRecord = new SourceRecord(null, null, topic, key.schema(), key.value(), value.schema(), value.value());
+        ConnectHeaders connectHeaders = convertJmsPropertiesToKafkaHeaders(messageBodyJms, message);
+        SourceRecord sourceRecord = new SourceRecord(null, null, topic, (Integer)null, key.schema(), key.value(), value.schema(), value.value(), message.getJMSTimestamp(), connectHeaders);
+
+        return sourceRecord;
+    }
+
+    public ConnectHeaders convertJmsPropertiesToKafkaHeaders(boolean messageBodyJms, Message message){
+
+        ConnectHeaders connectHeaders = new ConnectHeaders();
+
+        if (messageBodyJms==true) {
+
+            try {
+                Enumeration jmsPropertyNames = message.getPropertyNames();
+                while (jmsPropertyNames.hasMoreElements()) {
+                    Object jmsPropertyKey = jmsPropertyNames.nextElement();
+                    String jmsPropertyValue = message.getStringProperty(jmsPropertyKey.toString());
+                    connectHeaders.addString(jmsPropertyKey.toString(), jmsPropertyValue);
+
+                }
+            }
+            catch (JMSException e){
+                log.error("MQ/JMS message header could not be read", e);
+            }
+
+
+        }
+
+        return connectHeaders;
+
     }
 }
