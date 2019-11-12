@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Configuration status="WARN">
+    <Properties>
+        <Property name="LOG_PATTERN">
+            %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] [%c{1}] - %highlight{%level}{FATAL=bg_red, ERROR=red, WARN=yellow,
+            INFO=green, DEBUG=blue} - %msg%n
+        </Property>
+
+    </Properties>
+    <Appenders>
+        <RollingFile name="FileAppender" append="true"
+                     fileName="./kafka-connect-mq-source.log"
+                     filePattern="./kafka-connect-mq-source-{yyyy-MM-dd}-%i.log">
+            <PatternLayout>
+                <pattern>${LOG_PATTERN}</pattern><!--[%-5level]-->
+            </PatternLayout>
+            <Policies>
+                <!-- rollFileSize - the size a log file must before rolling it. -->
+                <SizeBasedTriggeringPolicy size="50MB"/>
+
+            </Policies>
+
+            <!-- rollFileCount - the number of rolled files to keep. -->
+            <DefaultRolloverStrategy max="10"/>
+        </RollingFile>
+        <Console name="ConsoleAppender" target="system_out" follow="true">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Logger name="com.ibm.eventstreams.connect.mqsource" level="debug" additivity="false">
+            <AppenderRef ref="FileAppender"/>
+            <AppenderRef ref="ConsoleAppender"/>
+        </Logger>
+        <!-- loggingLevelRoot -->
+        <Root level="warn">
+            <AppenderRef ref="ConsoleAppender"/>
+            <AppenderRef ref="FileAppender"/>
+        </Root>
+    </Loggers>
+</Configuration>

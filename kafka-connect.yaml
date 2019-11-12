@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kafkaconnect-deploy
-  labels: 
+  labels:
     app: kafkaconnect-with-mq-source
 spec:
   replicas: 1
@@ -44,21 +44,21 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 20
           ports:
-          - containerPort: 8083
-          volumeMounts: 
-          - name: connect-config
-            mountPath: /opt/kafka/config/connect-distributed.properties
-            subPath: connect-distributed.properties
-          - name: connect-log4j
-            mountPath: /opt/kafka/config/connect-log4j.properties
-            subPath: connect-log4j.properties
+            - containerPort: 8083
+          volumeMounts:
+            - name: connect-config
+              mountPath: /opt/kafka/config/connect-distributed.properties
+              subPath: connect-distributed.properties
+            - name: connect-log4j
+              mountPath: /opt/kafka/config/connect-log4j.properties
+              subPath: connect-log4j.properties
       volumes:
-      - name: connect-config
-        secret:
-          secretName: connect-distributed-config
-      - name: connect-log4j
-        configMap:
-          name: connect-log4j-config
+        - name: connect-config
+          secret:
+            secretName: connect-distributed-config
+        - name: connect-log4j
+          configMap:
+            name: connect-log4j-config
 
 ---
 # Service
@@ -75,4 +75,4 @@ spec:
       protocol: TCP
       port: 8083
   selector:
-      app: kafkaconnect-with-mq-source
+    app: kafkaconnect-with-mq-source
