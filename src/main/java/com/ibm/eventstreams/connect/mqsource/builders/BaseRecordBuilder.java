@@ -35,9 +35,7 @@ import java.util.Map;
 public abstract class BaseRecordBuilder implements RecordBuilder {
 	private static final Logger log = LoggerFactory.getLogger(BaseRecordBuilder.class);
 	protected KeyHeader keyheader = KeyHeader.NONE;
-
-	;
-	private Boolean copyJmsPropertiesFlag = false;
+	private Boolean copyJmsPropertiesFlag = MQSourceConnector.CONFIG_VALUE_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER_DEFAULT;
 	private JmsToKafkaHeaderConverter jmsToKafkaHeaderConverter;
 
 	/**
@@ -73,7 +71,7 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
 
 		String str = props.get(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
 		if (str != null && ("true".equalsIgnoreCase(str) || "false".equalsIgnoreCase(str))) {
-			copyJmsPropertiesFlag = Boolean.valueOf(str);
+			copyJmsPropertiesFlag = Boolean.parseBoolean(str);
 			jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
 		}
 
