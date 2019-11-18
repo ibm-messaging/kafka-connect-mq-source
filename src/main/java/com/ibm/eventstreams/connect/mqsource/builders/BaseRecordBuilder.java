@@ -70,10 +70,10 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
 		}
 
 		String str = props.get(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
-		if (str != null && ("true".equalsIgnoreCase(str) || "false".equalsIgnoreCase(str))) {
+
 			copyJmsPropertiesFlag = Boolean.parseBoolean(str);
 			jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
-		}
+
 
 		log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
 	}
@@ -160,9 +160,8 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
 		SchemaAndValue key = this.getKey(context, topic, message);
 		SchemaAndValue value = this.getValue(context, topic, messageBodyJms, message);
 
-		if (copyJmsPropertiesFlag)
-			return new SourceRecord(null, null, topic, (Integer) null, key.schema(), key.value(), value.schema(), value.value(), message.getJMSTimestamp(), jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(messageBodyJms, message));
-
+		if (copyJmsPropertiesFlag && messageBodyJms)
+			return new SourceRecord(null, null, topic, (Integer) null, key.schema(), key.value(), value.schema(), value.value(), message.getJMSTimestamp(), jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message));
 		else
 			return new SourceRecord(null, null, topic, key.schema(), key.value(), value.schema(), value.value());
 

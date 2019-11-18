@@ -21,14 +21,13 @@ public class JmsToKafkaHeaderConverter {
 	 * Copies the JMS properties to Kafka headers.
 	 *
 	 * @param message        JMS message.
-	 * @param messageBodyJms flag whether incoming message is treated as jms message.
+	 *
 	 * @return Kafka connect headers.
 	 */
-	public ConnectHeaders convertJmsPropertiesToKafkaHeaders(boolean messageBodyJms, Message message) {
+	public ConnectHeaders convertJmsPropertiesToKafkaHeaders(Message message) {
 
 		ConnectHeaders connectHeaders = new ConnectHeaders();
 
-		if (messageBodyJms) {
 
 
 			ArrayList jmsPropertyKeys = null;
@@ -46,8 +45,6 @@ public class JmsToKafkaHeaderConverter {
 				//Not failing the message processing if JMS properties cannot be read for some reason.
 				log.error("JMS message properties could not be read", e);
 			}
-
-		}
 
 		return connectHeaders;
 

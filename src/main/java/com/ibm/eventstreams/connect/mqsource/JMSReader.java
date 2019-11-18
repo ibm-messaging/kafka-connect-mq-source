@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ibm.eventstreams.connect.mqsource.processor;
+package com.ibm.eventstreams.connect.mqsource;
 
-import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
 import com.ibm.eventstreams.connect.mqsource.builders.RecordBuilder;
 import com.ibm.mq.MQException;
 import com.ibm.mq.constants.MQConstants;

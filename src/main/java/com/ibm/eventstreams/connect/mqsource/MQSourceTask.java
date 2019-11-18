@@ -15,7 +15,6 @@
  */
 package com.ibm.eventstreams.connect.mqsource;
 
-import com.ibm.eventstreams.connect.mqsource.processor.JMSReader;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.slf4j.Logger;
