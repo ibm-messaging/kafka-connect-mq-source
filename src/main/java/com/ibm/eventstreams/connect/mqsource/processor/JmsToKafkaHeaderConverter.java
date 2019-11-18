@@ -13,9 +13,10 @@ import java.util.Collections;
  * Single responsibility class to copy JMS properties to Kafka headers.
  *
  * */
+
 public class JmsToKafkaHeaderConverter {
 
-	private static final Logger log = LoggerFactory.getLogger(JmsToKafkaHeaderConverter.class);
+    private static final Logger log = LoggerFactory.getLogger(JmsToKafkaHeaderConverter.class);
 
 	/**
 	 * Copies the JMS properties to Kafka headers.
@@ -24,29 +25,27 @@ public class JmsToKafkaHeaderConverter {
 	 *
 	 * @return Kafka connect headers.
 	 */
-	public ConnectHeaders convertJmsPropertiesToKafkaHeaders(Message message) {
+    public ConnectHeaders convertJmsPropertiesToKafkaHeaders(Message message) {
 
-		ConnectHeaders connectHeaders = new ConnectHeaders();
+        ConnectHeaders connectHeaders = new ConnectHeaders();
 
+            ArrayList jmsPropertyKeys = null;
+            try {
+                jmsPropertyKeys = Collections.list(message.getPropertyNames());
+                jmsPropertyKeys.forEach(key -> {
+                try {
+                    connectHeaders.addString(key.toString(), message.getObjectProperty(key.toString()).toString());
+                } catch (JMSException e) {
+                //Not failing the message processing if JMS properties cannot be read for some reason.
+                    log.error("JMS message properties could not be read", e);
+                }
+                });
+            } catch (JMSException e) {
+                //Not failing the message processing if JMS properties cannot be read for some reason.
+                log.error("JMS message properties could not be read", e);
+            }
 
+            return connectHeaders;
 
-			ArrayList jmsPropertyKeys = null;
-			try {
-				jmsPropertyKeys = Collections.list(message.getPropertyNames());
-				jmsPropertyKeys.forEach(key -> {
-					try {
-						connectHeaders.addString(key.toString(), message.getObjectProperty(key.toString()).toString());
-					} catch (JMSException e) {
-						//Not failing the message processing if JMS properties cannot be read for some reason.
-						log.error("JMS message properties could not be read", e);
-					}
-				});
-			} catch (JMSException e) {
-				//Not failing the message processing if JMS properties cannot be read for some reason.
-				log.error("JMS message properties could not be read", e);
-			}
-
-		return connectHeaders;
-
-	}
+    }
 }

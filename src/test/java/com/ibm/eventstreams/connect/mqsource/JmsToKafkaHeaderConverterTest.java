@@ -21,31 +21,30 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class JmsToKafkaHeaderConverterTest {
 
-	@Mock
-	private TextMessage message;
-	@InjectMocks
-	private JmsToKafkaHeaderConverter jmsToKafkaHeaderConverter;
+    @Mock
+    private TextMessage message;
+    @InjectMocks
+    private JmsToKafkaHeaderConverter jmsToKafkaHeaderConverter;
 
-	@Test
-	public void convertJmsPropertiesToKafkaHeaders() throws JMSException {
+    @Test
+    public void convertJmsPropertiesToKafkaHeaders() throws JMSException {
 
-		boolean messageBodyJms = true;
-		List<String> keys = Arrays.asList("facilityCountryCode", "facilityNum");
+        List<String> keys = Arrays.asList("facilityCountryCode", "facilityNum");
 
-		Enumeration<String> keyEnumeration = Collections.enumeration(keys);
+        Enumeration<String> keyEnumeration = Collections.enumeration(keys);
 
-		//Arrange
-		when(message.getPropertyNames()).thenReturn(keyEnumeration);
-		when(message.getObjectProperty("facilityCountryCode")).thenReturn("US");
-		when(message.getObjectProperty("facilityNum")).thenReturn("12345");
+        //Arrange
+        when(message.getPropertyNames()).thenReturn(keyEnumeration);
+        when(message.getObjectProperty("facilityCountryCode")).thenReturn("US");
+        when(message.getObjectProperty("facilityNum")).thenReturn("12345");
 
-		//Act
-		ConnectHeaders actualConnectHeaders = jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(messageBodyJms, message);
-
-
-		//Verify
-		assertEquals("Both custom JMS properties were copied to kafka successfully.", 2, actualConnectHeaders.size());
+        //Act
+        ConnectHeaders actualConnectHeaders = jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message);
 
 
-	}
+        //Verify
+        assertEquals("Both custom JMS properties were copied to kafka successfully.", 2, actualConnectHeaders.size());
+
+
+    }
 }

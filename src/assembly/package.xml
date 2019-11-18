@@ -14,33 +14,33 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  -->
-<assembly xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
-          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.0.0
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.0.0
     http://maven.apache.org/xsd/assembly-2.0.0.xsd">
-    <id>jar-with-dependencies</id>
-    <formats>
-        <format>jar</format>
-    </formats>
-    <includeBaseDirectory>false</includeBaseDirectory>
-    <files>
-        <file>
-            <source>LICENSE</source>
-            <outputDirectory></outputDirectory>
-        </file>
-    </files>
-    <dependencySets>
-        <dependencySet>
-            <outputDirectory></outputDirectory>
-            <unpack>true</unpack>
-            <unpackOptions>
-                <excludes>
-                    <exclude>**/copyright-exclude</exclude>
-                    <exclude>META-INF/maven/**</exclude>
-                </excludes>
-            </unpackOptions>
-            <useTransitiveFiltering>true</useTransitiveFiltering>
-            <scope>runtime</scope>
-        </dependencySet>
-    </dependencySets>
+  <id>jar-with-dependencies</id>
+  <formats>
+    <format>jar</format>
+  </formats>
+  <includeBaseDirectory>false</includeBaseDirectory>
+  <files>
+    <file>
+      <source>LICENSE</source>
+      <outputDirectory></outputDirectory>
+    </file>
+  </files>
+  <dependencySets>
+    <dependencySet>
+      <outputDirectory></outputDirectory>
+      <unpack>true</unpack>
+      <unpackOptions>
+        <excludes>
+          <exclude>**/copyright-exclude</exclude>
+          <exclude>META-INF/maven/**</exclude>
+        </excludes>
+      </unpackOptions>
+      <useTransitiveFiltering>true</useTransitiveFiltering>
+      <scope>runtime</scope>
+    </dependencySet>
+  </dependencySets>
 </assembly>
