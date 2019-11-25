@@ -29,6 +29,7 @@ import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Builds Kafka Connect SourceRecords from messages.
@@ -40,7 +41,7 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
     protected KeyHeader keyheader = KeyHeader.NONE;
 
 
-	private Boolean copyJmsPropertiesFlag = Boolean.FALSE;
+	private boolean copyJmsPropertiesFlag = Boolean.FALSE;
 	private JmsToKafkaHeaderConverter jmsToKafkaHeaderConverter;
 
     /**
@@ -79,7 +80,10 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
 
 		String str = props.get(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
 
-		copyJmsPropertiesFlag = Boolean.parseBoolean(str);
+        if (Optional.of(str).isPresent()) {
+            copyJmsPropertiesFlag = Boolean.parseBoolean(str);
+        }
+
 		jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
 
 
