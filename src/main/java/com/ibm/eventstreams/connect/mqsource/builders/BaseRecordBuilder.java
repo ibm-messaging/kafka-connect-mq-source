@@ -78,13 +78,11 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             }
         }
 
-		String str = props.get(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
+        String str = props.get(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
 
-        if (Optional.of(str).isPresent()) {
-            copyJmsPropertiesFlag = Boolean.parseBoolean(str);
-        }
+        copyJmsPropertiesFlag = Boolean.parseBoolean(Optional.ofNullable(str).orElse("false"));
 
-		jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
+        jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
 
 
 		log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
