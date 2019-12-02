@@ -196,7 +196,7 @@ If you write your own RecordBuilder, you can access the MQMD fields of the MQ me
 
 
 ## Security
-The connector supports authentication with user name and password and also connections secured with TLS using a server-side certificate and mutual authentication with client-side certificates.
+The connector supports authentication with user name and password and also connections secured with TLS using a server-side certificate and mutual authentication with client-side certificates. You can also choose whether to use connection security parameters (MQCSP) depending on the security settings you're using in MQ.
 
 ### Setting up MQ connectivity using TLS with a server-side certificate
 To enable use of TLS, set the configuration `mq.ssl.cipher.suite` to the name of the cipher suite which matches the CipherSpec in the SSLCIPH attribute of the MQ server-connection channel. Use the table of supported cipher suites for MQ 9.1 [here](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.dev.doc/q113220_.htm) as a reference. Note that the names of the CipherSpecs as used in the MQ configuration are not necessarily the same as the cipher suite names that the connector uses. The connector uses the JMS interface so it follows the Java conventions.
@@ -234,7 +234,9 @@ The configuration options for the Kafka Connect source connector for IBM MQ are 
 | mq.ssl.truststore.password   | The password of the JKS truststore to use for SSL (TLS) connections    | string  |                |                                                         |
 | mq.batch.size                | The maximum number of messages in a batch (unit of work)               | integer | 250            | 1 or greater                                            |
 | mq.message.mqmd.read         | Whether to enable reading of all MQMD fields                           | boolean | false          |                                                         |
+| mq.user.authentication.mqcsp | Whether to use MQ connection security parameters (MQCSP)               | boolean | true           |                                                         |
 | topic                        | The name of the target Kafka topic                                     | string  |                | Topic name                                              |
+
 
 ### Using a CCDT file
 Some of the connection details for MQ can be provided in a [CCDT file](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.con.doc/q016730_.htm) by setting `mq.ccdt.url` in the MQ source connector configuration file. If using a CCDT file the `mq.connection.name.list` and `mq.channel.name` configuration options are not required.

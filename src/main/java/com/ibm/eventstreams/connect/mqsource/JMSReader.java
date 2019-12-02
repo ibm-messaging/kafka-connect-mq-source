@@ -107,6 +107,7 @@ public class JMSReader {
         String sslKeystorePassword = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_PASSWORD);
         String sslTruststoreLocation = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_LOCATION);
         String sslTruststorePassword = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_PASSWORD);
+        String useMQCSP = props.get(MQSourceConnector.CONFIG_NAME_MQ_USER_AUTHENTICATION_MQCSP);
         String topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
 
         int transportType = WMQConstants.WMQ_CM_CLIENT;
@@ -128,6 +129,9 @@ public class JMSReader {
             mqConnFactory.setTransportType(transportType);
             mqConnFactory.setQueueManager(queueManager);
             mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, true);
+            if (useMQCSP != null) {
+                mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, Boolean.parseBoolean(useMQCSP));
+            }
 
             if (transportType == WMQConstants.WMQ_CM_CLIENT) {
                 if (ccdtUrl != null) {
