@@ -226,6 +226,7 @@ The configuration options for the Kafka Connect source connector for IBM MQ are 
 | mq.record.builder            | The class used to build the Kafka Connect record                       | string  |                | Class implementing RecordBuilder                        |
 | mq.message.body.jms          | Whether to interpret the message body as a JMS message type            | boolean | false          |                                                         |
 | mq.record.builder.key.header | The JMS message header to use as the Kafka record key                  | string  |                | JMSMessageID, JMSCorrelationID, JMSCorrelationIDAsBytes, JMSDestination |
+| mq.jms.properties.copy.to.kafka.headers | Whether to copy JMS message properties to Kafka headers     | boolean | false          |                                                         |
 | mq.ssl.cipher.suite          | The name of the cipher suite for TLS (SSL) connection                  | string  |                | Blank or valid cipher suite                             |
 | mq.ssl.peer.name             | The distinguished name pattern of the TLS (SSL) peer                   | string  |                | Blank or DN pattern                                     |
 | mq.ssl.keystore.location     | The path to the JKS keystore to use for SSL (TLS) connections          | string  | JVM keystore   | Local path to a JKS file                                |
