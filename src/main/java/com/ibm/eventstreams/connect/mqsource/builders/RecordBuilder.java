@@ -30,7 +30,7 @@ import org.apache.kafka.connect.source.SourceRecord;
 public interface RecordBuilder {
     /**
      * Configure this class.
-     * 
+     *
      * @param props initial configuration
      *
      * @throws ConnectException   Operation failed and connector should stop.
@@ -39,14 +39,14 @@ public interface RecordBuilder {
 
     /**
      * Convert a message into a Kafka Connect SourceRecord.
-     * 
+     *
      * @param context            the JMS context to use for building messages
      * @param topic              the Kafka topic
      * @param messageBodyJms     whether to interpret MQ messages as JMS messages
      * @param message            the message
-     * 
+     *
      * @return the Kafka Connect SourceRecord
-     * 
+     *
      * @throws JMSException      Message could not be converted
      */
     SourceRecord toSourceRecord(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException;

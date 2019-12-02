@@ -1,6 +1,6 @@
 /**
  * Copyright 2017, 2018, 2019 IBM Corporation
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -227,7 +227,7 @@ public class MQSourceTask extends SourceTask {
                 willClose = true;
             }
         }
-        
+
         if (willClose) {
             // Close the connection to MQ to clean up
             if (reader != null) {

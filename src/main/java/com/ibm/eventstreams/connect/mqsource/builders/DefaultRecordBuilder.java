@@ -42,17 +42,17 @@ public class DefaultRecordBuilder extends BaseRecordBuilder {
     public DefaultRecordBuilder() {
         log.info("Building records using com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
     }
-    
+
     /**
      * Gets the value schema to use for the Kafka Connect SourceRecord.
-     * 
+     *
      * @param context            the JMS context to use for building messages
      * @param topic              the Kafka topic
      * @param messageBodyJms     whether to interpret MQ messages as JMS messages
      * @param message            the message
-     * 
+     *
      * @return the Kafka Connect SourceRecord's value
-     * 
+     *
      * @throws JMSException      Message could not be converted
      */
     @Override public SchemaAndValue getValue(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException {

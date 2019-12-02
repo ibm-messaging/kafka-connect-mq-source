@@ -39,11 +39,11 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
     private static final Logger log = LoggerFactory.getLogger(JsonRecordBuilder.class);
 
     private JsonConverter converter;
-    
+
     public JsonRecordBuilder() {
         log.info("Building records using com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
         converter = new JsonConverter();
-        
+
         // We just want the payload, not the schema in the output message
         HashMap<String, String> m = new HashMap<>();
         m.put("schemas.enable", "false");
@@ -51,17 +51,17 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
         // Convert the value, not the key (isKey == false)
         converter.configure(m, false);
     }
-    
+
     /**
      * Gets the value schema to use for the Kafka Connect SourceRecord.
-     * 
+     *
      * @param context            the JMS context to use for building messages
      * @param topic              the Kafka topic
      * @param messageBodyJms     whether to interpret MQ messages as JMS messages
      * @param message            the message
-     * 
+     *
      * @return the Kafka Connect SourceRecord's value
-     * 
+     *
      * @throws JMSException      Message could not be converted
      */
     @Override public SchemaAndValue getValue(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException {

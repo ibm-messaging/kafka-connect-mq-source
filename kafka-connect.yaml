@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kafkaconnect-deploy
-  labels: 
+  labels:
     app: kafkaconnect-with-mq-source
 spec:
   replicas: 1
@@ -45,7 +45,7 @@ spec:
             periodSeconds: 20
           ports:
           - containerPort: 8083
-          volumeMounts: 
+          volumeMounts:
           - name: connect-config
             mountPath: /opt/kafka/config/connect-distributed.properties
             subPath: connect-distributed.properties

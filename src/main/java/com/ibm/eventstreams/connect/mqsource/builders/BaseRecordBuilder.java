@@ -16,13 +16,7 @@
 package com.ibm.eventstreams.connect.mqsource.builders;
 
 import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
-
-import java.util.Map;
-
-import javax.jms.JMSContext;
-import javax.jms.JMSException;
-import javax.jms.Message;
-
+import com.ibm.eventstreams.connect.mqsource.processor.JmsToKafkaHeaderConverter;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -30,6 +24,12 @@ import org.apache.kafka.connect.source.SourceRecord;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.jms.JMSContext;
+import javax.jms.JMSException;
+import javax.jms.Message;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Builds Kafka Connect SourceRecords from messages.
@@ -40,9 +40,13 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
     public enum KeyHeader {NONE, MESSAGE_ID, CORRELATION_ID, CORRELATION_ID_AS_BYTES, DESTINATION};
     protected KeyHeader keyheader = KeyHeader.NONE;
 
+
+	private boolean copyJmsPropertiesFlag = Boolean.FALSE;
+	private JmsToKafkaHeaderConverter jmsToKafkaHeaderConverter;
+
     /**
      * Configure this class.
-     * 
+     *
      * @param props initial configuration
      *
      * @throws ConnectException   Operation failed and connector should stop.
@@ -74,18 +78,25 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             }
         }
 
-        log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
-    }
+        String str = props.get(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
+
+        copyJmsPropertiesFlag = Boolean.parseBoolean(Optional.ofNullable(str).orElse("false"));
+
+        jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
+
+
+		log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
+	}
 
     /**
      * Gets the key to use for the Kafka Connect SourceRecord.
-     * 
+     *
      * @param context            the JMS context to use for building messages
      * @param topic              the Kafka topic
      * @param message            the message
-     * 
+     *
      * @return the Kafka Connect SourceRecord's key
-     * 
+     *
      * @throws JMSException      Message could not be converted
      */
     public SchemaAndValue getKey(JMSContext context, String topic, Message message) throws JMSException {
@@ -131,34 +142,42 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
 
     /**
      * Gets the value to use for the Kafka Connect SourceRecord.
-     * 
+     *
      * @param context            the JMS context to use for building messages
      * @param topic              the Kafka topic
      * @param messageBodyJms     whether to interpret MQ messages as JMS messages
      * @param message            the message
-     * 
+     *
      * @return the Kafka Connect SourceRecord's value
-     * 
+     *
      * @throws JMSException      Message could not be converted
      */
     public abstract SchemaAndValue getValue(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException;
 
    /**
      * Convert a message into a Kafka Connect SourceRecord.
-     * 
+     *
      * @param context            the JMS context to use for building messages
      * @param topic              the Kafka topic
      * @param messageBodyJms     whether to interpret MQ messages as JMS messages
      * @param message            the message
-     * 
+     *
      * @return the Kafka Connect SourceRecord
-     * 
+     *
      * @throws JMSException      Message could not be converted
      */
     @Override public SourceRecord toSourceRecord(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException {
         SchemaAndValue key = this.getKey(context, topic, message);
         SchemaAndValue value = this.getValue(context, topic, messageBodyJms, message);
 
-        return new SourceRecord(null, null, topic, key.schema(), key.value(), value.schema(), value.value());
-    }
+		if (copyJmsPropertiesFlag && messageBodyJms)
+		    return new SourceRecord(null, null, topic, (Integer) null, key.schema(), key.value(), value.schema(), value.value(), message.getJMSTimestamp(), jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message));
+        else
+		    return new SourceRecord(null, null, topic, key.schema(), key.value(), value.schema(), value.value());
+
+
+	}
+
+
+
 }
