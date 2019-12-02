@@ -23,6 +23,8 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
+import java.util.List;
 
 /*
  * Single responsibility class to copy JMS properties to Kafka headers.
@@ -44,9 +46,13 @@ public class JmsToKafkaHeaderConverter {
 
         ConnectHeaders connectHeaders = new ConnectHeaders();
 
-            ArrayList jmsPropertyKeys = null;
+
             try {
-                jmsPropertyKeys = Collections.list(message.getPropertyNames());
+                @SuppressWarnings("unchecked")
+                //com.ibm.msg.client.jms.internal.JmsMessageImpl.getPropertyNames returns Enumeration<String>
+                Enumeration<String> propertyNames = (Enumeration<String>)message.getPropertyNames();
+                List<String> jmsPropertyKeys = Collections.list(propertyNames);
+
                 jmsPropertyKeys.forEach(key -> {
                 try {
                     connectHeaders.addString(key.toString(), message.getObjectProperty(key.toString()).toString());
