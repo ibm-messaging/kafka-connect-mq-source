@@ -1,4 +1,0 @@
-# Enables DCO bot, see https://github.com/probot/dco
-# for more details.
-require:
-  members: false
