@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2018, 2019 IBM Corporation
+ * Copyright 2017, 2020 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -131,7 +131,7 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
-    public static String VERSION = "1.2.0-SNAPSHOT";
+    public static String VERSION = "1.2.0";
 
     private Map<String, String> configProps;
 
