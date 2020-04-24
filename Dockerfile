@@ -1,4 +1,4 @@
-FROM ibmcom/eventstreams-kafka-ce-icp-linux-amd64:2019.2.1-3a2f93e as builder
+FROM cp.icr.io/cp/icp4i/es/eventstreams-kafka-icp-linux-amd64:2019.4.2-1ec6a54 as builder
 
 
 FROM ibmjava:8-jre
@@ -11,7 +11,7 @@ COPY --chown=esuser:esgroup --from=builder /opt/kafka/libs/ /opt/kafka/libs/
 COPY --chown=esuser:esgroup --from=builder /opt/kafka/config/connect-distributed.properties /opt/kafka/config/
 COPY --chown=esuser:esgroup --from=builder /opt/kafka/config/connect-log4j.properties /opt/kafka/config/
 RUN mkdir /opt/kafka/logs && chown esuser:esgroup /opt/kafka/logs
-COPY --chown=esuser:esgroup target/kafka-connect-mq-source-1.2.0-SNAPSHOT-jar-with-dependencies.jar /opt/kafka/libs/
+COPY --chown=esuser:esgroup target/kafka-connect-mq-source-1.2.0-jar-with-dependencies.jar /opt/kafka/libs/
 
 WORKDIR /opt/kafka
 
