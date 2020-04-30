@@ -1,5 +1,4 @@
-FROM cp.icr.io/cp/icp4i/es/eventstreams-kafka-icp-linux-amd64:2019.4.2-1ec6a54 as builder
-
+FROM strimzi/kafka:latest-kafka-2.5.0 as builder
 
 FROM ibmjava:8-jre
 
