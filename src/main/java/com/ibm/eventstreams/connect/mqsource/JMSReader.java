@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2018, 2019 IBM Corporation
+ * Copyright 2017, 2020 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.*;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.security.SecureRandom;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -36,8 +38,10 @@ import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.JMSRuntimeException;
 import javax.jms.Message;
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.kafka.connect.errors.ConnectException;
@@ -108,7 +112,12 @@ public class JMSReader {
         String sslTruststoreLocation = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_LOCATION);
         String sslTruststorePassword = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_PASSWORD);
         String useMQCSP = props.get(MQSourceConnector.CONFIG_NAME_MQ_USER_AUTHENTICATION_MQCSP);
+        String useIBMCipherMappings = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_USE_IBM_CIPHER_MAPPINGS);
         String topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
+
+        if (useIBMCipherMappings != null) {
+            System.setProperty("com.ibm.mq.cfg.useIBMCipherMappings", useIBMCipherMappings);
+        }
 
         int transportType = WMQConstants.WMQ_CM_CLIENT;
         if (connectionMode != null) {
@@ -489,23 +498,26 @@ public class JMSReader {
         log.trace("[{}] Entry {}.buildSslContext", Thread.currentThread().getId(), this.getClass().getName());
 
         try {
-            final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            KeyManager[] keyManagers = null;
+            TrustManager[] trustManagers = null;
 
             if (sslKeystoreLocation != null) {
+                KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                 kmf.init(loadKeyStore(sslKeystoreLocation, sslKeystorePassword), sslKeystorePassword.toCharArray());
+                keyManagers = kmf.getKeyManagers();
             }
 
             if (sslTruststoreLocation != null) {
+                TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init(loadKeyStore(sslTruststoreLocation, sslTruststorePassword));
+                trustManagers = tmf.getTrustManagers();
             }
 
             final SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), new SecureRandom());
+            sslContext.init(keyManagers, trustManagers, new SecureRandom());
 
             log.trace("[{}]  Exit {}.buildSslContext, retval={}", Thread.currentThread().getId(), this.getClass().getName(), sslContext);
             return sslContext;
-
         } catch (GeneralSecurityException e) {
             throw new ConnectException("Error creating SSLContext", e);
         }
@@ -520,7 +532,6 @@ public class JMSReader {
 
             log.trace("[{}]  Exit {}.loadKeyStore, retval={}", Thread.currentThread().getId(), this.getClass().getName(), ks);
             return ks;
-
         } catch (IOException e) {
             throw new ConnectException("Error reading keystore " + location, e);
         }
