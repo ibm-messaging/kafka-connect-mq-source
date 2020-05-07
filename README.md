@@ -90,7 +90,7 @@ This repository includes a Dockerfile to run Kafka Connect in distributed mode. 
 1. `docker run -p 8083:8083 kafkaconnect-with-mq-source:0.0.1`
 
 **NOTE:** To provide custom properties files create a folder called `config` containing the `connect-distributed.properties` and `connect-log4j.properties` files and use a Docker volume to make them available when running the container:
-`docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect:0.0.1`
+`docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect-with-mq-source:0.0.1`
 
 ## Deploying to Kubernetes
 
