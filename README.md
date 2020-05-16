@@ -83,7 +83,7 @@ curl -X POST -H "Content-Type: application/json" http://localhost:8083/connector
 
 ## Running with Docker
 
-This repository includes a Dockerfile to run Kafka Connect in distributed mode. It also adds in the MQ Source Connector as an available connector plugin. It uses the default `connect-distributed.properties` and `connect-log4j.properties` files.
+This repository includes a Dockerfile to run Kafka Connect in distributed mode. It also adds in the MQ source connector as an available connector plugin. It uses the default `connect-distributed.properties` and `connect-log4j.properties` files.
 
 1. `mvn clean package`
 1. `docker build -t kafkaconnect-with-mq-source:0.0.1 .`
@@ -116,7 +116,33 @@ Create ConfigMap for Kafka Connect Log4j configuration:
 
 1. Update the namespace in `kafka-connect.yaml`
 1. `kubectl -n <namespace> apply -f kafka-connect.yaml`
-1. `curl <serviceIP>:<servicePort>/connector-plugins` to see the MQ Source connector available to use
+1. `curl <serviceIP>:<servicePort>/connector-plugins` to see whether the MQ source connector is available to use
+
+### Deploying to OpenShift using Strimzi
+
+This repository includes a Kubernetes yaml file called `strimzi.kafkaconnect.yaml` for use with the [Strimzi](https://strimzi.io) operator. Strimzi provides a simplified way of running the Kafka Connect distributed worker, by defining either a KafkaConnect resource or a KafkaConnectS2I resource.
+
+The KafkaConnectS2I resource provides a nice way to have OpenShift do all the work of building the Docker images for you. This works particularly nicely combined with the KafkaConnector resource that represents an individual connector.
+
+The following instructions assume you are running on OpenShift and have Strimzi 0.16 or later installed.
+
+#### Start a Kafka Connect cluster using KafkaConnectS2I
+1. Create a file called `kafkaconnect.yaml` containing the definition of a KafkaConnectS2I resource. Configure it with information it needs to connect to your Kafka cluster. You must include the annotation `strimzi.io/use-connector-resources: "true"` to configure it to use KafkaConnector resources so you can avoid needing to call the Kafka Connect REST API directly.
+1. `oc apply -f kafkaconnect.yaml` to create the cluster, which usually takes several minutes.
+
+#### Add the MQ source connector to the cluster
+1. `mvn clean package` to build the connector JAR.
+1. `mkdir myplugins`
+1. `cp target/kafka-connect-mq-source-*-jar-with-dependencies.jar myplugins`
+1. `oc start-build <kafkaconnectClusterName>-connect --from-dir ./myplugins` to add the MQ source connector to the Kafka Connect distributed worker cluster. Wait for the build to complete, which usually takes a few minutes.
+1. `oc describe kafkaconnects2i <kafkaConnectClusterName>` to check that the MQ source connector is in the list of available connector plugins.
+
+#### Start an instance of the MQ source connector using KafkaConnector
+1. `cp deploy/strimzi.kafkaconnector.yaml kafkaconnector.yaml`
+1. Update the `kafkaconnector.yaml` file to replace all of the values in `<>`, adding any additional configuration properties.
+1. `oc apply -f kafkaconnector.yaml` to start the connector.
+1. `oc get kafkaconnector` to list the connectors. You can use `oc describe` to get more details on the connector, such as its status.
+
 
 ## Data formats
 Kafka Connect is very flexible but it's important to understand the way that it processes messages to end up with a reliable system. When the connector encounters a message that it cannot process, it stops rather than throwing the message away. Therefore, you need to make sure that the configuration you use can handle the messages the connector will process.
@@ -284,7 +310,7 @@ When configuring TLS connection to MQ, you may find that the queue manager rejec
 
 
 ## Support
-A commercially supported version of this connector is available for customers with a support entitlement for [IBM Event Streams](https://www.ibm.com/cloud/event-streams).
+A commercially supported version of this connector is available for customers with a support entitlement for [IBM Event Streams](https://www.ibm.com/cloud/event-streams) or [IBM Cloud Pak for Integration](https://www.ibm.com/cloud/cloud-pak-for-integration).
 
 
 ## Issues and contributions

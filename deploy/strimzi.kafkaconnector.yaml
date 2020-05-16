@@ -1,0 +1,18 @@
+apiVersion: kafka.strimzi.io/v1alpha1
+kind: KafkaConnector
+metadata:
+  name: mq-source
+  labels:
+    strimzi.io/cluster: <KafkaConnect_CLUSTER_NAME>
+spec:
+  class: com.ibm.eventstreams.connect.mqsource.MQSourceConnector
+  tasksMax: 1
+  config:
+    topic: <TOPIC>
+    mq.queue.manager: <QUEUE_MANAGER>
+    mq.connection.name.list: <CONNECTION_NAME_LIST>
+    mq.channel.name: <CHANNEL_NAME>
+    mq.queue: <QUEUE>
+    mq.record.builder: com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    value.converter: org.apache.kafka.connect.storage.StringConverter
