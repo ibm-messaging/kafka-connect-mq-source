@@ -127,7 +127,8 @@ The KafkaConnectS2I resource provides a nice way to have OpenShift do all the wo
 The following instructions assume you are running on OpenShift and have Strimzi 0.16 or later installed.
 
 #### Start a Kafka Connect cluster using KafkaConnectS2I
-1. Create a file called `kafka-connect-s2i.yaml` containing the definition of a KafkaConnectS2I resource. Configure it with the information it needs to connect to your Kafka cluster. You must include the annotation `strimzi.io/use-connector-resources: "true"` to configure it to use KafkaConnector resources so you can avoid needing to call the Kafka Connect REST API directly.
+1. Create a file called `kafka-connect-s2i.yaml` containing the definition of a KafkaConnectS2I resource. You can use the examples in the Strimzi project to get started.
+1. Configure it with the information it needs to connect to your Kafka cluster. You must include the annotation `strimzi.io/use-connector-resources: "true"` to configure it to use KafkaConnector resources so you can avoid needing to call the Kafka Connect REST API directly.
 1. `oc apply -f kafka-connect-s2i.yaml` to create the cluster, which usually takes several minutes.
 
 #### Add the MQ source connector to the cluster
