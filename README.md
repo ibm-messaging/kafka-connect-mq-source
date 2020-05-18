@@ -120,21 +120,21 @@ Create ConfigMap for Kafka Connect Log4j configuration:
 
 ### Deploying to OpenShift using Strimzi
 
-This repository includes a Kubernetes yaml file called `strimzi.kafkaconnect.yaml` for use with the [Strimzi](https://strimzi.io) operator. Strimzi provides a simplified way of running the Kafka Connect distributed worker, by defining either a KafkaConnect resource or a KafkaConnectS2I resource.
+This repository includes a Kubernetes yaml file called `strimzi.kafkaconnector.yaml` for use with the [Strimzi](https://strimzi.io) operator. Strimzi provides a simplified way of running the Kafka Connect distributed worker, by defining either a KafkaConnect resource or a KafkaConnectS2I resource.
 
 The KafkaConnectS2I resource provides a nice way to have OpenShift do all the work of building the Docker images for you. This works particularly nicely combined with the KafkaConnector resource that represents an individual connector.
 
 The following instructions assume you are running on OpenShift and have Strimzi 0.16 or later installed.
 
 #### Start a Kafka Connect cluster using KafkaConnectS2I
-1. Create a file called `kafkaconnect.yaml` containing the definition of a KafkaConnectS2I resource. Configure it with information it needs to connect to your Kafka cluster. You must include the annotation `strimzi.io/use-connector-resources: "true"` to configure it to use KafkaConnector resources so you can avoid needing to call the Kafka Connect REST API directly.
-1. `oc apply -f kafkaconnect.yaml` to create the cluster, which usually takes several minutes.
+1. Create a file called `kafka-connect-s2i.yaml` containing the definition of a KafkaConnectS2I resource. Configure it with the information it needs to connect to your Kafka cluster. You must include the annotation `strimzi.io/use-connector-resources: "true"` to configure it to use KafkaConnector resources so you can avoid needing to call the Kafka Connect REST API directly.
+1. `oc apply -f kafka-connect-s2i.yaml` to create the cluster, which usually takes several minutes.
 
 #### Add the MQ source connector to the cluster
 1. `mvn clean package` to build the connector JAR.
-1. `mkdir myplugins`
-1. `cp target/kafka-connect-mq-source-*-jar-with-dependencies.jar myplugins`
-1. `oc start-build <kafkaconnectClusterName>-connect --from-dir ./myplugins` to add the MQ source connector to the Kafka Connect distributed worker cluster. Wait for the build to complete, which usually takes a few minutes.
+1. `mkdir my-plugins`
+1. `cp target/kafka-connect-mq-source-*-jar-with-dependencies.jar my-plugins`
+1. `oc start-build <kafkaconnectClusterName>-connect --from-dir ./my-plugins` to add the MQ source connector to the Kafka Connect distributed worker cluster. Wait for the build to complete, which usually takes a few minutes.
 1. `oc describe kafkaconnects2i <kafkaConnectClusterName>` to check that the MQ source connector is in the list of available connector plugins.
 
 #### Start an instance of the MQ source connector using KafkaConnector
