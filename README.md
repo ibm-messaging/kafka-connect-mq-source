@@ -83,14 +83,25 @@ curl -X POST -H "Content-Type: application/json" http://localhost:8083/connector
 
 ## Running with Docker
 
-This repository includes a Dockerfile to run Kafka Connect in distributed mode. It also adds in the MQ source connector as an available connector plugin. It uses the default `connect-distributed.properties` and `connect-log4j.properties` files.
+This repository includes an example Dockerfile to run Kafka Connect in distributed mode. It also adds in the MQ source connector as an available connector plugin. It uses the default `connect-distributed.properties` and `connect-log4j.properties` files.
 
 1. `mvn clean package`
-1. `docker build -t kafkaconnect-with-mq-source:0.0.1 .`
-1. `docker run -p 8083:8083 kafkaconnect-with-mq-source:0.0.1`
+1. `docker build -t kafkaconnect-with-mq-source:1.3.0 .`
+1. `docker run -p 8083:8083 kafkaconnect-with-mq-source:1.3.0`
 
-**NOTE:** To provide custom properties files create a folder called `config` containing the `connect-distributed.properties` and `connect-log4j.properties` files and use a Docker volume to make them available when running the container:
-`docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect-with-mq-source:0.0.1`
+**NOTE:** To provide custom properties files create a folder called `config` containing the `connect-distributed.properties` and `connect-log4j.properties` files and use a Docker volume to make them available when running the container like this:
+
+``` shell
+docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect-with-mq-source:1.3.0
+```
+
+To start the MQ connector, you can use `config/mq-source.json` in this repository after replacing all placeholders and use a command like this:
+
+``` shell
+curl -X POST -H "Content-Type: application/json" http://localhost:8083/connectors \
+  --data "@./config/mq-source.json"
+```
+
 
 ## Deploying to Kubernetes
 
@@ -112,7 +123,7 @@ Create ConfigMap for Kafka Connect Log4j configuration:
 
 ### Creating Kafka Connect deployment and service in Kubernetes
 
-**NOTE:** Remember to [build the Docker image](#running-with-docker) and push it to your Kubernetes image repository. You might need to update the image name in the `kafka-connect.yaml` file.
+**NOTE:** You will need to [build the Docker image](#running-with-docker) and push it to your Kubernetes image repository. Remember that the supplied Dockerfile is just an example and you will have to modify it for your needs. You might need to update the image name in the `kafka-connect.yaml` file.
 
 1. Update the namespace in `kafka-connect.yaml`
 1. `kubectl -n <namespace> apply -f kafka-connect.yaml`
