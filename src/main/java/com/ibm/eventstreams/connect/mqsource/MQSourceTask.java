@@ -37,7 +37,6 @@ public class MQSourceTask extends SourceTask {
     private CountDownLatch batchCompleteSignal = null;              // Used to signal completion of a batch
     private AtomicInteger pollCycle = new AtomicInteger(1);         // Incremented each time poll() is called
     private int lastCommitPollCycle = 0;                            // The value of pollCycle the last time commit() was called
-    private AtomicBoolean receivingMessages = new AtomicBoolean();  // Whether currently receiving messages
     private AtomicBoolean stopNow = new AtomicBoolean();            // Whether stop has been requested
 
     private JMSReader reader;
@@ -114,8 +113,6 @@ public class MQSourceTask extends SourceTask {
         log.debug("Starting poll cycle {}", currentPollCycle);
 
         try {
-            receivingMessages.set(true);
-
             if (!stopNow.get()) {
                 log.info("Polling for records");
                 SourceRecord src;
@@ -133,7 +130,6 @@ public class MQSourceTask extends SourceTask {
             }
         }
         finally {
-            receivingMessages.set(false);
         }
 
         synchronized(this) {
@@ -219,16 +215,7 @@ public class MQSourceTask extends SourceTask {
 
         stopNow.set(true);
 
-        boolean willClose = false;
-
         synchronized(this) {
-            if (receivingMessages.get()) {
-                log.debug("Will close connection");
-                willClose = true;
-            }
-        }
-
-        if (willClose) {
             // Close the connection to MQ to clean up
             if (reader != null) {
                 reader.close();
