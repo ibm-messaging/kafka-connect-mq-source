@@ -185,7 +185,7 @@ value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 * Message format is MQSTR, pass string data as the Kafka message value
 ```
 mq.message.body.jms=true
-value.converter=org.apache.kafka.connect.converters.StringConverter
+value.converter=org.apache.kafka.connect.storage.StringConverter
 ```
 * Messages are JMS BytesMessage, pass byte array as the Kafka message value
 ```
