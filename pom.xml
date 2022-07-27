@@ -63,7 +63,7 @@
     <dependency>
       <groupId>com.ibm.mq</groupId>
       <artifactId>com.ibm.mq.allclient</artifactId>
-      <version>9.1.5.0</version>
+      <version>9.2.4.0</version>
     </dependency>
 
     <dependency>
