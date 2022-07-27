@@ -16,3 +16,7 @@ target/
 
 # Visual Studio Code
 .vscode/
+
+# Build script
+apache-maven-*
+maven.tar.gz
