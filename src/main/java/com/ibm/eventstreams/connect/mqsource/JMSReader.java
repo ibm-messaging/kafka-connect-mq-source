@@ -235,7 +235,7 @@ public class JMSReader {
         catch (JMSRuntimeException jmse) {
             log.info("Connection to MQ could not be established");
             log.error("JMS exception {}", jmse);
-            handleException(jmse);
+            throwRetriableOrConnectException(jmse);
         }
 
         log.trace("[{}]  Exit {}.connect", Thread.currentThread().getId(), this.getClass().getName());
@@ -288,7 +288,7 @@ public class JMSReader {
         }
         catch (JMSException | JMSRuntimeException exc) {
             log.error("JMS exception {}", exc);
-            handleException(exc);
+            throwRetriableOrConnectException(exc);
         }
         catch (ConnectException exc) {
             log.error("Connect exception {}", exc);
@@ -326,7 +326,7 @@ public class JMSReader {
         }
         catch (JMSRuntimeException jmse) {
             log.error("JMS exception {}", jmse);
-            handleException(jmse);
+            throwRetriableOrConnectException(jmse);
         }
 
         log.trace("[{}]  Exit {}.commit", Thread.currentThread().getId(), this.getClass().getName());
@@ -389,7 +389,7 @@ public class JMSReader {
             }
 
             log.error("JMS exception {}", jmse);
-            handleException(jmse);
+            throwRetriableOrConnectException(jmse);
             log.trace("[{}]  Exit {}.connectInternal, retval=false", Thread.currentThread().getId(), this.getClass().getName());
             return false;
         }
@@ -429,7 +429,7 @@ public class JMSReader {
      * Handles exceptions from MQ. Some JMS exceptions are treated as retriable meaning that the
      * connector can keep running and just trying again is likely to fix things.
      */
-    private void handleException(Throwable exc) {
+    private void throwRetriableOrConnectException(Throwable exc) {
         boolean isRetriable = false;
         boolean mustClose = true;
         int reason = -1;
