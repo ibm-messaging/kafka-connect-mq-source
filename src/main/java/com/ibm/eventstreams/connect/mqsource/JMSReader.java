@@ -429,7 +429,7 @@ public class JMSReader {
      * Handles exceptions from MQ. Some JMS exceptions are treated as retriable meaning that the
      * connector can keep running and just trying again is likely to fix things.
      */
-    private ConnectException handleException(Throwable exc) {
+    private void handleException(Throwable exc) {
         boolean isRetriable = false;
         boolean mustClose = true;
         int reason = -1;
@@ -488,10 +488,10 @@ public class JMSReader {
         }
 
         if (isRetriable) {
-            return new RetriableException(exc);
+            throw new RetriableException(exc);
         }
 
-        return new ConnectException(exc);
+        throw new ConnectException(exc);
     }
 
     private SSLContext buildSslContext(String sslKeystoreLocation, String sslKeystorePassword, String sslTruststoreLocation, String sslTruststorePassword) {
