@@ -15,6 +15,7 @@
  */
 package com.ibm.eventstreams.connect.mqsource;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
@@ -23,6 +24,7 @@ import javax.jms.Destination;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.Message;
+import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
 
@@ -142,5 +144,49 @@ public class AbstractJMSContextIT {
         }
 
         connection.close();
+    }
+
+
+    /**
+     * Gets all messages from the specified MQ queue. Used in tests to
+     *  verify what is left on the test queue
+     */
+    public List<Message> getAllMessagesFromQueue(String queueName) throws JMSException {
+        Connection connection = null;
+        Session session = null;
+        Destination destination = null;
+        MessageConsumer consumer = null;
+
+        JmsFactoryFactory ff = JmsFactoryFactory.getInstance(WMQConstants.WMQ_PROVIDER);
+
+        JmsConnectionFactory cf = ff.createConnectionFactory();
+        cf.setStringProperty(WMQConstants.WMQ_HOST_NAME, "localhost");
+        cf.setIntProperty(WMQConstants.WMQ_PORT, getMQPort());
+        cf.setStringProperty(WMQConstants.WMQ_CHANNEL, getChannelName());
+        cf.setIntProperty(WMQConstants.WMQ_CONNECTION_MODE, WMQConstants.WMQ_CM_CLIENT);
+        cf.setStringProperty(WMQConstants.WMQ_QUEUE_MANAGER, getQmgrName());
+        cf.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, false);
+
+        connection = cf.createConnection();
+        session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        destination = session.createQueue(queueName);
+        consumer = session.createConsumer(destination);
+
+        connection.start();
+
+        List<Message> messages = new ArrayList<>();
+        Message message;
+        do {
+            message = consumer.receiveNoWait();
+            if (message != null) {
+                messages.add(message);
+            }
+        }
+        while (message != null);
+
+        connection.close();
+
+        return messages;
     }
 }

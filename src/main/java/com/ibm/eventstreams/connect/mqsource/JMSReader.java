@@ -292,12 +292,30 @@ public class JMSReader {
         }
         catch (ConnectException exc) {
             log.error("Connect exception {}", exc);
+            attemptRollback();
             throw exc;
         }
 
         log.trace("[{}]  Exit {}.receive, retval={}", Thread.currentThread().getId(), this.getClass().getName(), sr);
         return sr;
     }
+
+
+    /**
+     * Returns messages got from the MQ queue. Called if the builder has failed to transform the
+     *  messages and return them to Connect for producing to Kafka.
+     */
+    private void attemptRollback() {
+        log.trace("[{}] Entry {}.attemptRollback", Thread.currentThread().getId(), this.getClass().getName());
+        try {
+            jmsCtxt.rollback();
+        }
+        catch (JMSRuntimeException jmsExc) {
+            log.error("rollback failed {}", jmsExc);
+        }
+        log.trace("[{}]  Exit {}.attemptRollback", Thread.currentThread().getId(), this.getClass().getName());
+    }
+
 
     /**
      * Commits the current transaction. If the current transaction contains a message that could not

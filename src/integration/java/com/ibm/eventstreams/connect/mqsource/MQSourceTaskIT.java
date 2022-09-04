@@ -19,6 +19,8 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,10 +28,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.jms.MapMessage;
 import javax.jms.Message;
+import javax.jms.MessageFormatException;
 import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.Test;
 
@@ -242,6 +247,57 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         newConnectTask.commit();
 
         newConnectTask.stop();
+    }
+
+
+
+    @Test
+    public void verifyMessageBatchRollback() throws Exception {
+        MQSourceTask newConnectTask = new MQSourceTask();
+
+        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.batch.size", "10");
+
+        newConnectTask.start(connectorConfigProps);
+
+        // Test overview:
+        //
+        // messages 01-15 - valid messages
+        // message  16    - a message that the builder can't process
+        // messages 17-30 - valid messages
+
+        List<Message> messages = new ArrayList<>();
+        for (int i = 1; i <= 15; i++) {
+            messages.add(getJmsContext().createTextMessage("message " + i));
+        }
+        MapMessage invalidMessage = getJmsContext().createMapMessage();
+        invalidMessage.setString("test", "builder cannot convert this");
+        messages.add(invalidMessage);
+        for (int i = 17; i <= 30; i++) {
+            messages.add(getJmsContext().createTextMessage("message " + i));
+        }
+        putAllMessagesToQueue(MQ_QUEUE, messages);
+
+        List<SourceRecord> kafkaMessages;
+
+        // first batch should successfully retrieve messages 01-10
+        kafkaMessages = newConnectTask.poll();
+        assertEquals(10, kafkaMessages.size());
+        newConnectTask.commit();
+        newConnectTask.commit();
+
+        // second batch (11-20) should fail because of message 16
+        ConnectException exc = assertThrows(ConnectException.class, () -> {
+            newConnectTask.poll();
+        });
+        assertTrue(exc.getMessage().equals("Unsupported JMS message type"));
+
+        // there should be 20 messages left on the MQ queue (messages 11-30)
+        newConnectTask.stop();
+        List<Message> remainingMQMessages = getAllMessagesFromQueue(MQ_QUEUE);
+        assertEquals(20, remainingMQMessages.size());
     }
 
 
