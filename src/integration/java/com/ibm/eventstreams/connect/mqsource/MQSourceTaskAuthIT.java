@@ -86,12 +86,15 @@ public class MQSourceTaskAuthIT {
         for (SourceRecord kafkaMessage : kafkaMessages) {
             assertNull(kafkaMessage.key());
             assertEquals(Schema.OPTIONAL_BYTES_SCHEMA, kafkaMessage.valueSchema());
+
+            newConnectTask.commitRecord(kafkaMessage);
         }
 
         assertArrayEquals("hello".getBytes(), (byte[]) kafkaMessages.get(0).value());
         assertArrayEquals("world".getBytes(), (byte[]) kafkaMessages.get(1).value());
 
-        newConnectTask.stop();
+        SourceTaskStopper stopper = new SourceTaskStopper(newConnectTask);
+        stopper.run();
     }
 
 
