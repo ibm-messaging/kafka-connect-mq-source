@@ -34,6 +34,9 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.After;
 import org.junit.Test;
 
+import com.ibm.eventstreams.connect.mqsource.utils.SourceTaskStopper;
+
+
 public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     private MQSourceTask connectTask = null;

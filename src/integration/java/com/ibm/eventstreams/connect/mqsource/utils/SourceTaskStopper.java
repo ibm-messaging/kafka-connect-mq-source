@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package com.ibm.eventstreams.connect.mqsource;
+package com.ibm.eventstreams.connect.mqsource.utils;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

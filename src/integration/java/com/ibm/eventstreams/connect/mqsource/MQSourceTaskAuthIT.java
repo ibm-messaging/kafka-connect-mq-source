@@ -18,6 +18,7 @@ package com.ibm.eventstreams.connect.mqsource;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,6 +34,8 @@ import org.junit.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.WaitingConsumer;
 
+import com.ibm.eventstreams.connect.mqsource.utils.MQQueueManagerAttrs;
+import com.ibm.eventstreams.connect.mqsource.utils.SourceTaskStopper;
 import com.ibm.mq.MQException;
 import com.ibm.mq.MQMessage;
 import com.ibm.mq.MQQueue;
@@ -45,21 +48,19 @@ public class MQSourceTaskAuthIT {
     private static final String QUEUE_NAME = "DEV.QUEUE.2";
     private static final String CHANNEL_NAME = "DEV.APP.SVRCONN";
     private static final String APP_PASSWORD = "MySuperSecretPassword";
+    private static final String ADMIN_PASSWORD = "MyAdminPassword";
 
 
     @ClassRule
     public static GenericContainer<?> MQ_CONTAINER = new GenericContainer<>("icr.io/ibm-messaging/mq:latest")
         .withEnv("LICENSE", "accept")
         .withEnv("MQ_QMGR_NAME", QMGR_NAME)
-        .withEnv("MQ_ENABLE_EMBEDDED_WEB_SERVER", "false")
         .withEnv("MQ_APP_PASSWORD", APP_PASSWORD)
-        .withExposedPorts(1414);
+        .withEnv("MQ_ADMIN_PASSWORD", ADMIN_PASSWORD)
+        .withExposedPorts(1414, 9443);
 
 
-    @Test
-    public void testAuthenticatedQueueManager() throws Exception {
-        waitForQueueManagerStartup();
-
+    private Map<String, String> getConnectorProps() {
         Map<String, String> connectorProps = new HashMap<>();
         connectorProps.put("mq.queue.manager", QMGR_NAME);
         connectorProps.put("mq.connection.mode", "client");
@@ -71,9 +72,15 @@ public class MQSourceTaskAuthIT {
         connectorProps.put("mq.password", APP_PASSWORD);
         connectorProps.put("mq.message.body.jms", "false");
         connectorProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        return connectorProps;
+    }
+
+    @Test
+    public void testAuthenticatedQueueManager() throws Exception {
+        waitForQueueManagerStartup();
 
         MQSourceTask newConnectTask = new MQSourceTask();
-        newConnectTask.start(connectorProps);
+        newConnectTask.start(getConnectorProps());
 
         MQMessage message1 = new MQMessage();
         message1.writeString("hello");
@@ -96,6 +103,41 @@ public class MQSourceTaskAuthIT {
         SourceTaskStopper stopper = new SourceTaskStopper(newConnectTask);
         stopper.run();
     }
+
+
+
+    @Test
+    public void verifyJmsConnClosed() throws Exception {
+
+        int restApiPortNumber = MQ_CONTAINER.getMappedPort(9443);
+
+        // count number of connections to the qmgr at the start
+        int numQmgrConnectionsBefore = MQQueueManagerAttrs.getNumConnections(QMGR_NAME, restApiPortNumber, ADMIN_PASSWORD);
+
+        // start the source connector so that it connects to the qmgr
+        MQSourceTask connectTask = new MQSourceTask();
+        connectTask.start(getConnectorProps());
+
+        // count number of connections to the qmgr now - it should have increased
+        int numQmgrConnectionsDuring = MQQueueManagerAttrs.getNumConnections(QMGR_NAME, restApiPortNumber, ADMIN_PASSWORD);
+
+        // stop the source connector so it disconnects from the qmgr
+        connectTask.stop();
+
+        // count number of connections to the qmgr now - it should have decreased
+        int numQmgrConnectionsAfter = MQQueueManagerAttrs.getNumConnections(QMGR_NAME, restApiPortNumber, ADMIN_PASSWORD);
+
+        // verify number of connections changed as expected
+        assertTrue("connections should have increased after starting the source task",
+                   numQmgrConnectionsDuring > numQmgrConnectionsBefore);
+        assertTrue("connections should have decreased after calling stop()",
+                   numQmgrConnectionsAfter < numQmgrConnectionsDuring);
+
+        // cleanup
+        SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
+        stopper.run();
+    }
+
 
 
     private void waitForQueueManagerStartup() throws TimeoutException {
