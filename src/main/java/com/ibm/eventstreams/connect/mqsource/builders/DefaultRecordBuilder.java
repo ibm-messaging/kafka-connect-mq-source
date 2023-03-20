@@ -60,15 +60,16 @@ public class DefaultRecordBuilder extends BaseRecordBuilder {
         Object value = null;
 
         // Interpreting the body as a JMS message type, we can accept BytesMessage and TextMessage only.
-        // We do not know the schema so do not specify one.
         if (messageBodyJms) {
             if (message instanceof BytesMessage) {
-                log.debug("Bytes message with no schema");
+                log.debug("Bytes message. Setting bytes schema");
                 value = message.getBody(byte[].class);
+                valueSchema = Schema.BYTES_SCHEMA;
             }
             else if (message instanceof TextMessage) {
-                log.debug("Text message with no schema");
+                log.debug("Text message. Setting string schema");
                 value = message.getBody(String.class);
+                valueSchema = Schema.STRING_SCHEMA;
             }
             else {
                 log.error("Unsupported JMS message type {}", message.getClass());
