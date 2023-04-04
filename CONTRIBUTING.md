@@ -11,7 +11,8 @@ To contribute code or documentation, please submit a [pull request](https://gith
 A good way to familiarize yourself with the codebase and contribution process is
 to look for and tackle low-hanging fruit in the [issue tracker](https://github.com/ibm-messaging/kafka-connect-mq-source/issues).
 
-## Create issues...
+## Create issues
+
 If you would like to implement a new feature, please [raise an issue](https://github.com/ibm-messaging/kafka-connect-mq-source/issues)
 before sending a pull request so the feature can be discussed before you start working on it.
 
@@ -19,7 +20,7 @@ before sending a pull request so the feature can be discussed before you start w
 requires extensive rework (by you or by us), sits in backlog for a long time, or
 cannot be accepted at all!
 
-### ...but check for existing issues first!
+### ...but check for existing issues first
 
 Please take a moment to check that an issue doesn't already exist documenting your bug report or improvement proposal. If it does, it never hurts to add a quick "+1" or "I have this problem too". This will help prioritize the most common problems and requests.
 
@@ -36,7 +37,7 @@ Each source file must include a license header for the Apache
 Software License 2.0.
 e.g.
 
-```
+```txt
 /**
  * Copyright <date>-<date> <holder>
  *
@@ -61,7 +62,8 @@ uses to manage code contributions.
 
 The rules are pretty simple: if you
 can certify the below (from [developercertificate.org](http://developercertificate.org/)):
-```
+
+```txt
 Developer Certificate of Origin
 Version 1.1
 
@@ -102,7 +104,7 @@ By making a contribution to this project, I certify that:
 
 then you just add a line to end of the git commit message:
 
-```
+```txt
 Signed-off-by: John Doe <john.doe@example.com>
 ```
 

@@ -1,4 +1,5 @@
 # Kafka Connect source connector for IBM MQ
+
 kafka-connect-mq-source is a [Kafka Connect](http://kafka.apache.org/documentation.html#connect) source connector for copying data from IBM MQ into Apache Kafka.
 
 The connector is supplied as source code which you can easily build into a JAR file.
@@ -7,54 +8,59 @@ The connector is supplied as source code which you can easily build into a JAR f
 
 ## Contents
 
- - [Building the connector](#building-the-connector)
- - [Running the connector](#running-the-connector)
- - [Running the connector with Docker](#running-with-docker)
- - [Deploying the connector to Kubernetes](#deploying-to-kubernetes)
- - [Data formats](#data-formats)
- - [Security](#security)
- - [Configuration](#configuration)
- - [Troubleshooting](#troubleshooting)
- - [Support](#support)
- - [Issues and contributions](#issues-and-contributions)
- - [License](#license)
-
+- [Building the connector](#building-the-connector)
+- [Running the connector](#running-the-connector)
+- [Running the connector with Docker](#running-with-docker)
+- [Deploying the connector to Kubernetes](#deploying-to-kubernetes)
+- [Data formats](#data-formats)
+- [Security](#security)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [Support](#support)
+- [Issues and contributions](#issues-and-contributions)
+- [License](#license)
 
 ## Building the connector
+
 To build the connector, you must have the following installed:
-* [git](https://git-scm.com/)
-* [Maven 3.0 or later](https://maven.apache.org)
-* Java 8 or later
+
+- [git](https://git-scm.com/)
+- [Maven 3.0 or later](https://maven.apache.org)
+- Java 8 or later
 
 Clone the repository with the following command:
+
 ```shell
 git clone https://github.com/ibm-messaging/kafka-connect-mq-source.git
 ```
 
 Change directory into the `kafka-connect-mq-source` directory:
+
 ```shell
 cd kafka-connect-mq-source
 ```
 
 Build the connector using Maven:
+
 ```shell
 mvn clean package
 ```
 
 Once built, the output is a single JAR called `target/kafka-connect-mq-source-<version>-jar-with-dependencies.jar` which contains all of the required dependencies.
 
-
 ## Running the connector
 
 For step-by-step instructions, see the following guides for running the connector:
- - connecting to Apache Kafka [running locally](UsingMQwithKafkaConnect.md)
- - connecting to an installation of [IBM Event Streams](https://ibm.github.io/event-streams/connecting/mq/source)
+
+- connecting to Apache Kafka [running locally](UsingMQwithKafkaConnect.md)
+- connecting to an installation of [IBM Event Streams](https://ibm.github.io/event-streams/connecting/mq/source)
 
 To run the connector, you must have:
-* The JAR from building the connector
-* A properties file containing the configuration for the connector
-* Apache Kafka 2.0.0 or later, either standalone or included as part of an offering such as IBM Event Streams
-* IBM MQ v8 or later, or the IBM MQ on Cloud service
+
+- The JAR from building the connector
+- A properties file containing the configuration for the connector
+- Apache Kafka 2.0.0 or later, either standalone or included as part of an offering such as IBM Event Streams
+- IBM MQ v8 or later, or the IBM MQ on Cloud service
 
 The connector can be run in a Kafka Connect worker in either standalone (single process) or distributed mode. It's a good idea to start in standalone mode.
 
@@ -102,7 +108,6 @@ curl -X POST -H "Content-Type: application/json" http://localhost:8083/connector
   --data "@./config/mq-source.json"
 ```
 
-
 ## Deploying to Kubernetes
 
 This repository includes a Kubernetes yaml file called `kafka-connect.yaml`. This will create a deployment to run Kafka Connect in distributed mode and a service to access the deployment.
@@ -112,11 +117,13 @@ The deployment assumes the existence of a Secret called `connect-distributed-con
 ### Creating Kafka Connect configuration Secret and ConfigMap
 
 Create Secret for Kafka Connect configuration:
+
 1. `cp kafka/config/connect-distributed.properties connect-distributed.properties.orig`
 1. `sed '/^#/d;/^[[:space:]]*$/d' < connect-distributed.properties.orig > connect-distributed.properties`
 1. `kubectl -n <namespace> create secret generic connect-distributed-config --from-file=connect-distributed.properties`
 
 Create ConfigMap for Kafka Connect Log4j configuration:
+
 1. `cp kafka/config/connect-log4j.properties connect-log4j.properties.orig`
 1. `sed '/^#/d;/^[[:space:]]*$/d' < connect-log4j.properties.orig > connect-log4j.properties`
 1. `kubectl -n <namespace> create configmap connect-log4j-config --from-file=connect-log4j.properties`
@@ -138,11 +145,13 @@ The KafkaConnectS2I resource provides a nice way to have OpenShift do all the wo
 The following instructions assume you are running on OpenShift and have Strimzi 0.16 or later installed.
 
 #### Start a Kafka Connect cluster using KafkaConnectS2I
+
 1. Create a file called `kafka-connect-s2i.yaml` containing the definition of a KafkaConnectS2I resource. You can use the examples in the Strimzi project to get started.
 1. Configure it with the information it needs to connect to your Kafka cluster. You must include the annotation `strimzi.io/use-connector-resources: "true"` to configure it to use KafkaConnector resources so you can avoid needing to call the Kafka Connect REST API directly.
 1. `oc apply -f kafka-connect-s2i.yaml` to create the cluster, which usually takes several minutes.
 
 #### Add the MQ source connector to the cluster
+
 1. `mvn clean package` to build the connector JAR.
 1. `mkdir my-plugins`
 1. `cp target/kafka-connect-mq-source-*-jar-with-dependencies.jar my-plugins`
@@ -150,13 +159,14 @@ The following instructions assume you are running on OpenShift and have Strimzi 
 1. `oc describe kafkaconnects2i <kafkaConnectClusterName>` to check that the MQ source connector is in the list of available connector plugins.
 
 #### Start an instance of the MQ source connector using KafkaConnector
+
 1. `cp deploy/strimzi.kafkaconnector.yaml kafkaconnector.yaml`
 1. Update the `kafkaconnector.yaml` file to replace all of the values in `<>`, adding any additional configuration properties.
 1. `oc apply -f kafkaconnector.yaml` to start the connector.
 1. `oc get kafkaconnector` to list the connectors. You can use `oc describe` to get more details on the connector, such as its status.
 
-
 ## Data formats
+
 Kafka Connect is very flexible but it's important to understand the way that it processes messages to end up with a reliable system. When the connector encounters a message that it cannot process, it stops rather than throwing the message away. Therefore, you need to make sure that the configuration you use can handle the messages the connector will process.
 
 This is rather complicated and it's likely that a future update of the connector will simplify matters.
@@ -178,27 +188,35 @@ There are three converters built into Apache Kafka. You need to make sure that t
 
 There's no single configuration that will always be right, but here are some high-level suggestions.
 
-* Pass unchanged binary (or string) data as the Kafka message value
-```
+- Pass unchanged binary (or string) data as the Kafka message value
+
+```java
 value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 ```
-* Message format is MQSTR, pass string data as the Kafka message value
-```
+
+- Message format is MQSTR, pass string data as the Kafka message value
+
+```java
 mq.message.body.jms=true
 value.converter=org.apache.kafka.connect.storage.StringConverter
 ```
-* Messages are JMS BytesMessage, pass byte array as the Kafka message value
-```
+
+- Messages are JMS BytesMessage, pass byte array as the Kafka message value
+
+```java
 mq.message.body.jms=true
 value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
 ```
-* Messages are JMS TextMessage, pass string data as the Kafka message value
-```
+
+- Messages are JMS TextMessage, pass string data as the Kafka message value
+
+```java
 mq.message.body.jms=true
 value.converter=org.apache.kafka.connect.storage.StringConverter
 ```
 
 ### The gory detail
+
 The messages received from MQ are processed by a record builder which builds a Kafka Connect record to represent the message. There are two record builders supplied with the MQ source connector. The connector has a configuration option *mq.message.body.jms* that controls whether it interprets the MQ messages as JMS messages or regular MQ messages.
 
 | Record builder class                                                | mq.message.body.jms | Incoming message body | Value schema       | Value class        |
@@ -218,6 +236,7 @@ You must then choose a converter than can handle the value schema and class. The
 | org.apache.kafka.connect.json.JsonConverter            | Base-64 JSON String | JSON String       | **JSON data**              |
 
 ### Key support and partitioning
+
 By default, the connector does not use keys for the Kafka messages it publishes. It can be configured to use the JMS message headers to set the key of the Kafka records. You could use this, for example, to use the MQMD correlation identifier as the partitioning key when the messages are published to Kafka. There are four valid values for the `mq.record.builder.key.header` that controls this behavior.
 
 | mq.record.builder.key.header | Key schema      | Key class | Recommended value for key.converter                    |
@@ -230,25 +249,29 @@ By default, the connector does not use keys for the Kafka messages it publishes.
 In MQ, the message ID and correlation ID are both 24-byte arrays. As strings, the connector represents them using a sequence of 48 hexadecimal characters.
 
 ### Accessing MQMD fields
+
 If you write your own RecordBuilder, you can access the MQMD fields of the MQ messages as JMS message properties. By default, only a subset of the MQMD fields are available, but you can get access to all of them by setting the configuration `mq.message.mqmd.read`. For more information, see [JMS message object properties](https://www.ibm.com/support/knowledgecenter/SSFKSJ_9.1.0/com.ibm.mq.dev.doc/q032350_.htm) in the MQ documentation.
 
-
 ## Security
+
 The connector supports authentication with user name and password and also connections secured with TLS using a server-side certificate and mutual authentication with client-side certificates. You can also choose whether to use connection security parameters (MQCSP) depending on the security settings you're using in MQ.
 
 ### Setting up MQ connectivity using TLS with a server-side certificate
+
 To enable use of TLS, set the configuration `mq.ssl.cipher.suite` to the name of the cipher suite which matches the CipherSpec in the SSLCIPH attribute of the MQ server-connection channel. Use the table of supported cipher suites for MQ 9.1 [here](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.dev.doc/q113220_.htm) as a reference. Note that the names of the CipherSpecs as used in the MQ configuration are not necessarily the same as the cipher suite names that the connector uses. The connector uses the JMS interface so it follows the Java conventions.
 
 You will need to put the public part of the queue manager's certificate in the JSSE truststore used by the Kafka Connect worker that you're using to run the connector. If you need to specify extra arguments to the worker's JVM, you can use the EXTRA_ARGS environment variable.
 
 ### Setting up MQ connectivity using TLS for mutual authentication
+
 You will need to put the public part of the client's certificate in the queue manager's key repository. You will also need to configure the worker's JVM with the location and password for the keystore containing the client's certificate. Alternatively, you can configure a separate keystore and truststore for the connector.
 
 ### Security troubleshooting
+
 For troubleshooting, or to better understand the handshake performed by the IBM MQ Java client application in combination with your specific JSSE provider, you can enable debugging by setting `javax.net.debug=ssl` in the JVM environment.
 
-
 ## Configuration
+
 The configuration options for the Kafka Connect source connector for IBM MQ are as follows:
 
 | Name                                    | Description                                                            | Type    | Default        | Valid values                                            |
@@ -277,23 +300,25 @@ The configuration options for the Kafka Connect source connector for IBM MQ are 
 | mq.batch.size                           | The maximum number of messages in a batch (unit of work)               | integer | 250            | 1 or greater                                            |
 | mq.message.mqmd.read                    | Whether to enable reading of all MQMD fields                           | boolean | false          |                                                         |
 
-
 ### Using a CCDT file
+
 Some of the connection details for MQ can be provided in a [CCDT file](https://www.ibm.com/support/knowledgecenter/en/SSFKSJ_9.1.0/com.ibm.mq.con.doc/q016730_.htm) by setting `mq.ccdt.url` in the MQ source connector configuration file. If using a CCDT file the `mq.connection.name.list` and `mq.channel.name` configuration options are not required.
 
 ### Externalizing secrets
+
 [KIP 297](https://cwiki.apache.org/confluence/display/KAFKA/KIP-297%3A+Externalizing+Secrets+for+Connect+Configurations) introduced a mechanism to externalize secrets to be used as configuration for Kafka connectors.
 
 #### Example: externalizing secrets with FileConfigProvider
 
 Given a file `mq-secrets.properties` with the contents:
-```
+
+```java
 secret-key=password
 ```
 
 Update the worker configuration file to specify the FileConfigProvider which is included by default:
 
-```
+```java
 # Additional properties for the worker configuration to enable use of ConfigProviders
 # multiple comma-separated provider types can be specified here
 config.providers=file
@@ -302,7 +327,7 @@ config.providers.file.class=org.apache.kafka.common.config.provider.FileConfigPr
 
 Update the connector configuration file to reference `secret-key` in the file:
 
-```
+```java
 mq.password=${file:mq-secret.properties:secret-key}
 ```
 
@@ -318,25 +343,25 @@ You may receive an `org.apache.kafka.common.errors.SslAuthenticationException: S
 
 ### Unsupported cipher suite
 
-When configuring TLS connection to MQ, you may find that the queue manager rejects the cipher suite, in spite of the name looking correct. There are two different naming conventions for cipher suites (https://www.ibm.com/support/knowledgecenter/SSFKSJ_9.1.0/com.ibm.mq.dev.doc/q113220_.htm). Setting the configuration option `mq.ssl.use.ibm.cipher.mappings=false` often resolves cipher suite problems.
-
+When configuring TLS connection to MQ, you may find that the queue manager rejects the cipher suite, in spite of the name looking correct. There are two different naming conventions for cipher suites (<https://www.ibm.com/support/knowledgecenter/SSFKSJ_9.1.0/com.ibm.mq.dev.doc/q113220_.htm>). Setting the configuration option `mq.ssl.use.ibm.cipher.mappings=false` often resolves cipher suite problems.
 
 ## Support
+
 A commercially supported version of this connector is available for customers with a support entitlement for [IBM Event Streams](https://www.ibm.com/cloud/event-streams) or [IBM Cloud Pak for Integration](https://www.ibm.com/cloud/cloud-pak-for-integration).
 
-
 ## Issues and contributions
+
 For issues relating specifically to this connector, please use the [GitHub issue tracker](https://github.com/ibm-messaging/kafka-connect-mq-source/issues). If you do want to submit a Pull Request related to this connector, please read the [contributing guide](CONTRIBUTING.md) first to understand how to sign your commits.
 
-
 ## License
+
 Copyright 2017, 2020 IBM Corporation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    (http://www.apache.org/licenses/LICENSE-2.0)
+<http://www.apache.org/licenses/LICENSE-2.0>
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
