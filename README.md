@@ -46,7 +46,7 @@ Build the connector using Maven:
 mvn clean package
 ```
 
-Once built, the output is a single JAR called `target/kafka-connect-mq-source-<version>-jar-with-dependencies.jar` which contains all of the required dependencies.
+Once built, the output is a single JAR called `target/kafka-connect-mq-source-<VERSION>-jar-with-dependencies.jar` which contains all of the required dependencies.
 
 ## Running the connector
 
@@ -59,8 +59,8 @@ To run the connector, you must have:
 
 - The JAR from building the connector
 - A properties file containing the configuration for the connector
-- Apache Kafka 2.0.0 or later, either standalone or included as part of an offering such as IBM Event Streams
-- IBM MQ v8 or later, or the IBM MQ on Cloud service
+- Apache Kafka 2.6.2 or later, either standalone or included as part of an offering such as IBM Event Streams
+- IBM MQ v9 or later, or the IBM MQ on Cloud service
 
 The connector can be run in a Kafka Connect worker in either standalone (single process) or distributed mode. It's a good idea to start in standalone mode.
 
@@ -92,13 +92,15 @@ curl -X POST -H "Content-Type: application/json" http://localhost:8083/connector
 This repository includes an example Dockerfile to run Kafka Connect in distributed mode. It also adds in the MQ source connector as an available connector plugin. It uses the default `connect-distributed.properties` and `connect-log4j.properties` files.
 
 1. `mvn clean package`
-1. `docker build -t kafkaconnect-with-mq-source:1.3.3 .`
-1. `docker run -p 8083:8083 kafkaconnect-with-mq-source:1.3.3`
+1. `docker build -t kafkaconnect-with-mq-source:<TAG> .`
+1. `docker run -p 8083:8083 kafkaconnect-with-mq-source:<TAG>`
+
+Substitute `<TAG>` with the version of the connector or `latest` to use the latest version.
 
 **NOTE:** To provide custom properties files create a folder called `config` containing the `connect-distributed.properties` and `connect-log4j.properties` files and use a Docker volume to make them available when running the container like this:
 
 ``` shell
-docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect-with-mq-source:1.3.3
+docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect-with-mq-source:<TAG>
 ```
 
 To start the MQ connector, you can use `config/mq-source.json` in this repository after replacing all placeholders and use a command like this:
