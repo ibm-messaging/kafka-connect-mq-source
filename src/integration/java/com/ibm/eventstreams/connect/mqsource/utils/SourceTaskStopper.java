@@ -23,39 +23,38 @@ import org.apache.kafka.connect.source.SourceTask;
 
 /**
  * Stops an instance of the MQSourceTask in a way that will ensure
- *  it commits the work that it has completed so far. 
- *  
+ *  it commits the work that it has completed so far.
+ *
  * This is needed for tests so that subsequent tests don't disrupt
  *  each other.
  */
 public class SourceTaskStopper {
-    
+
     private static ExecutorService executor = Executors.newCachedThreadPool();
 
     private SourceTask sourceTask;
-    
-    public SourceTaskStopper(SourceTask task) {
-        sourceTask = task;        
+
+    public SourceTaskStopper(final SourceTask task) {
+        sourceTask = task;
     }
-    
+
     public void run() throws InterruptedException {
         // start the poll in a background thread
         executor.submit(new PollStarter());
-        
-        // the pollstarter thread will block waiting for messages 
-        //  that don't ever come so wait briefly before stopping 
-        //  it from another thread
+
+        // the pollstarter thread will block waiting for messages
+        // that don't ever come so wait briefly before stopping
+        // it from another thread
         Thread.sleep(200);
-        sourceTask.stop();        
+        sourceTask.stop();
     }
 
-    
-    class PollStarter implements Runnable {    
+    class PollStarter implements Runnable {
         @Override
         public void run() {
             try {
                 sourceTask.poll();
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 e.printStackTrace();
             }
         }

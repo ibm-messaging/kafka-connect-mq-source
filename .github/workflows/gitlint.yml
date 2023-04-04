@@ -1,0 +1,19 @@
+name: Verify Signed-off-by
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  verify-signed-off-by:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Verify Signed-off-by
+        run: |
+          for commit in $(git rev-list --no-merges --first-parent ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}); do
+            if ! git show $commit | grep -q "^Signed-off-by: "; then
+              echo "Error: commit $commit does not have a Signed-off-by tag."
+              exit 1
+            fi
+          done

@@ -30,7 +30,6 @@ import java.util.Map;
 
 import javax.jms.MapMessage;
 import javax.jms.Message;
-import javax.jms.MessageFormatException;
 import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.data.Schema;
@@ -48,15 +47,14 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     @After
     public void cleanup() throws InterruptedException {
-        SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
+        final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
         stopper.run();
     }
-
 
     private static final String MQ_QUEUE = "DEV.QUEUE.1";
 
     private Map<String, String> createDefaultConnectorProperties() {
-        Map<String, String> props = new HashMap<>();
+        final Map<String, String> props = new HashMap<>();
         props.put("mq.queue.manager", getQmgrName());
         props.put("mq.connection.mode", "client");
         props.put("mq.connection.name.list", getConnectionName());
@@ -66,24 +64,24 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         return props;
     }
 
-
     @Test
     public void verifyJmsTextMessages() throws Exception {
         connectTask = new MQSourceTask();
 
-        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
         connectTask.start(connectorConfigProps);
 
-        TextMessage message1 = getJmsContext().createTextMessage("hello");
-        TextMessage message2 = getJmsContext().createTextMessage("world");
+        final TextMessage message1 = getJmsContext().createTextMessage("hello");
+        final TextMessage message2 = getJmsContext().createTextMessage("world");
         putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message1, message2));
 
-        List<SourceRecord> kafkaMessages = connectTask.poll();
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(2, kafkaMessages.size());
-        for (SourceRecord kafkaMessage : kafkaMessages) {
+        for (final SourceRecord kafkaMessage : kafkaMessages) {
             assertNull(kafkaMessage.key());
             assertNull(kafkaMessage.valueSchema());
 
@@ -94,64 +92,62 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals("world", kafkaMessages.get(1).value());
     }
 
-
-
     @Test
     public void verifyJmsJsonMessages() throws Exception {
         connectTask = new MQSourceTask();
 
-        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
 
         connectTask.start(connectorConfigProps);
 
-        List<Message> messages = new ArrayList<>();
+        final List<Message> messages = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             messages.add(getJmsContext().createTextMessage(
-                "{ " +
-                    "\"i\" : " + i +
-                "}"));
+                    "{ " +
+                            "\"i\" : " + i +
+                            "}"));
         }
         putAllMessagesToQueue(MQ_QUEUE, messages);
 
-        List<SourceRecord> kafkaMessages = connectTask.poll();
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(5, kafkaMessages.size());
         for (int i = 0; i < 5; i++) {
-            SourceRecord kafkaMessage = kafkaMessages.get(i);
+            final SourceRecord kafkaMessage = kafkaMessages.get(i);
             assertNull(kafkaMessage.key());
             assertNull(kafkaMessage.valueSchema());
 
-            Map<?, ?> value = (Map<?, ?>) kafkaMessage.value();
+            final Map<?, ?> value = (Map<?, ?>) kafkaMessage.value();
             assertEquals(Long.valueOf(i), value.get("i"));
 
             connectTask.commitRecord(kafkaMessage);
         }
     }
 
-
-
     @Test
     public void verifyJmsMessageHeaders() throws Exception {
         connectTask = new MQSourceTask();
 
-        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.jms.properties.copy.to.kafka.headers", "true");
 
         connectTask.start(connectorConfigProps);
 
-        TextMessage message = getJmsContext().createTextMessage("helloworld");
+        final TextMessage message = getJmsContext().createTextMessage("helloworld");
         message.setStringProperty("teststring", "myvalue");
         message.setIntProperty("volume", 11);
         message.setDoubleProperty("decimalmeaning", 42.0);
 
         putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message));
 
-        List<SourceRecord> kafkaMessages = connectTask.poll();
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(1, kafkaMessages.size());
-        SourceRecord kafkaMessage = kafkaMessages.get(0);
+        final SourceRecord kafkaMessage = kafkaMessages.get(0);
         assertNull(kafkaMessage.key());
         assertNull(kafkaMessage.valueSchema());
 
@@ -164,20 +160,19 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectTask.commitRecord(kafkaMessage);
     }
 
-
-
     @Test
     public void verifyMessageBatchIndividualCommits() throws Exception {
         connectTask = new MQSourceTask();
 
-        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.batch.size", "10");
 
         connectTask.start(connectorConfigProps);
 
-        List<Message> messages = new ArrayList<>();
+        final List<Message> messages = new ArrayList<>();
         for (int i = 1; i <= 35; i++) {
             messages.add(getJmsContext().createTextMessage("batch message " + i));
         }
@@ -189,47 +184,46 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
-        for (SourceRecord kafkaMessage : kafkaMessages) {
+        for (final SourceRecord kafkaMessage : kafkaMessages) {
             assertEquals("batch message " + (nextExpectedMessage++), kafkaMessage.value());
             connectTask.commitRecord(kafkaMessage);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
-        for (SourceRecord kafkaMessage : kafkaMessages) {
+        for (final SourceRecord kafkaMessage : kafkaMessages) {
             assertEquals("batch message " + (nextExpectedMessage++), kafkaMessage.value());
             connectTask.commitRecord(kafkaMessage);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
-        for (SourceRecord kafkaMessage : kafkaMessages) {
+        for (final SourceRecord kafkaMessage : kafkaMessages) {
             assertEquals("batch message " + (nextExpectedMessage++), kafkaMessage.value());
             connectTask.commitRecord(kafkaMessage);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(5, kafkaMessages.size());
-        for (SourceRecord kafkaMessage : kafkaMessages) {
+        for (final SourceRecord kafkaMessage : kafkaMessages) {
             assertEquals("batch message " + (nextExpectedMessage++), kafkaMessage.value());
             connectTask.commitRecord(kafkaMessage);
         }
     }
 
-
-
     @Test
     public void verifyMessageBatchGroupCommits() throws Exception {
         connectTask = new MQSourceTask();
 
-        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.batch.size", "10");
 
         connectTask.start(connectorConfigProps);
 
-        List<Message> messages = new ArrayList<>();
+        final List<Message> messages = new ArrayList<>();
         for (int i = 1; i <= 35; i++) {
             messages.add(getJmsContext().createTextMessage("message " + i));
         }
@@ -239,38 +233,37 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
-        for (SourceRecord m : kafkaMessages) {
+        for (final SourceRecord m : kafkaMessages) {
             connectTask.commitRecord(m);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
-        for (SourceRecord m : kafkaMessages) {
+        for (final SourceRecord m : kafkaMessages) {
             connectTask.commitRecord(m);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
-        for (SourceRecord m : kafkaMessages) {
+        for (final SourceRecord m : kafkaMessages) {
             connectTask.commitRecord(m);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(5, kafkaMessages.size());
-        for (SourceRecord m : kafkaMessages) {
+        for (final SourceRecord m : kafkaMessages) {
             connectTask.commitRecord(m);
         }
     }
 
-
-
     @Test
     public void verifyMessageBatchRollback() throws Exception {
-        MQSourceTask newConnectTask = new MQSourceTask();
+        final MQSourceTask newConnectTask = new MQSourceTask();
 
-        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.batch.size", "10");
 
         newConnectTask.start(connectorConfigProps);
@@ -278,14 +271,14 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         // Test overview:
         //
         // messages 01-15 - valid messages
-        // message  16    - a message that the builder can't process
+        // message 16 - a message that the builder can't process
         // messages 17-30 - valid messages
 
-        List<Message> messages = new ArrayList<>();
+        final List<Message> messages = new ArrayList<>();
         for (int i = 1; i <= 15; i++) {
             messages.add(getJmsContext().createTextMessage("message " + i));
         }
-        MapMessage invalidMessage = getJmsContext().createMapMessage();
+        final MapMessage invalidMessage = getJmsContext().createMapMessage();
         invalidMessage.setString("test", "builder cannot convert this");
         messages.add(invalidMessage);
         for (int i = 17; i <= 30; i++) {
@@ -293,7 +286,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         }
         putAllMessagesToQueue(MQ_QUEUE, messages);
 
-        List<SourceRecord> kafkaMessages;
+        final List<SourceRecord> kafkaMessages;
 
         // first batch should successfully retrieve messages 01-10
         kafkaMessages = newConnectTask.poll();
@@ -302,37 +295,36 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         newConnectTask.commit();
 
         // second batch (11-20) should fail because of message 16
-        ConnectException exc = assertThrows(ConnectException.class, () -> {
+        final ConnectException exc = assertThrows(ConnectException.class, () -> {
             newConnectTask.poll();
         });
         assertTrue(exc.getMessage().equals("Unsupported JMS message type"));
 
         // there should be 20 messages left on the MQ queue (messages 11-30)
         newConnectTask.stop();
-        List<Message> remainingMQMessages = getAllMessagesFromQueue(MQ_QUEUE);
+        final List<Message> remainingMQMessages = getAllMessagesFromQueue(MQ_QUEUE);
         assertEquals(20, remainingMQMessages.size());
     }
-
-
 
     @Test
     public void verifyMessageIdAsKey() throws Exception {
         connectTask = new MQSourceTask();
 
-        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.record.builder.key.header", "JMSMessageID");
 
         connectTask.start(connectorConfigProps);
 
-        TextMessage message = getJmsContext().createTextMessage("testmessage");
+        final TextMessage message = getJmsContext().createTextMessage("testmessage");
         putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message));
 
-        List<SourceRecord> kafkaMessages = connectTask.poll();
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(1, kafkaMessages.size());
 
-        SourceRecord kafkaMessage = kafkaMessages.get(0);
+        final SourceRecord kafkaMessage = kafkaMessages.get(0);
         assertEquals(message.getJMSMessageID().substring("ID:".length()), kafkaMessage.key());
         assertNotNull(message.getJMSMessageID());
         assertEquals(Schema.OPTIONAL_STRING_SCHEMA, kafkaMessage.keySchema());
@@ -342,63 +334,61 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectTask.commitRecord(kafkaMessage);
     }
 
-
-
     @Test
     public void verifyCorrelationIdAsKey() throws Exception {
         connectTask = new MQSourceTask();
 
-        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.record.builder.key.header", "JMSCorrelationID");
 
         connectTask.start(connectorConfigProps);
 
-        TextMessage message1 = getJmsContext().createTextMessage("first message");
+        final TextMessage message1 = getJmsContext().createTextMessage("first message");
         message1.setJMSCorrelationID("verifycorrel");
-        TextMessage message2 = getJmsContext().createTextMessage("second message");
+        final TextMessage message2 = getJmsContext().createTextMessage("second message");
         message2.setJMSCorrelationID("ID:5fb4a18030154fe4b09a1dfe8075bc101dfe8075bc104fe4");
         putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message1, message2));
 
-        List<SourceRecord> kafkaMessages = connectTask.poll();
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(2, kafkaMessages.size());
 
-        SourceRecord kafkaMessage1 = kafkaMessages.get(0);
+        final SourceRecord kafkaMessage1 = kafkaMessages.get(0);
         assertEquals("verifycorrel", kafkaMessage1.key());
         assertEquals(Schema.OPTIONAL_STRING_SCHEMA, kafkaMessage1.keySchema());
         assertEquals("first message", kafkaMessage1.value());
         connectTask.commitRecord(kafkaMessage1);
 
-        SourceRecord kafkaMessage2 = kafkaMessages.get(1);
+        final SourceRecord kafkaMessage2 = kafkaMessages.get(1);
         assertEquals("5fb4a18030154fe4b09a1dfe8075bc101dfe8075bc104fe4", kafkaMessage2.key());
         assertEquals(Schema.OPTIONAL_STRING_SCHEMA, kafkaMessage2.keySchema());
         assertEquals("second message", kafkaMessage2.value());
         connectTask.commitRecord(kafkaMessage2);
     }
 
-
-
     @Test
     public void verifyCorrelationIdBytesAsKey() throws Exception {
         connectTask = new MQSourceTask();
 
-        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.record.builder.key.header", "JMSCorrelationIDAsBytes");
 
         connectTask.start(connectorConfigProps);
 
-        TextMessage message = getJmsContext().createTextMessage("testmessagewithcorrelbytes");
+        final TextMessage message = getJmsContext().createTextMessage("testmessagewithcorrelbytes");
         message.setJMSCorrelationID("verifycorrelbytes");
         putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message));
 
-        List<SourceRecord> kafkaMessages = connectTask.poll();
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(1, kafkaMessages.size());
 
-        SourceRecord kafkaMessage = kafkaMessages.get(0);
-        assertArrayEquals("verifycorrelbytes".getBytes(), (byte[])kafkaMessage.key());
+        final SourceRecord kafkaMessage = kafkaMessages.get(0);
+        assertArrayEquals("verifycorrelbytes".getBytes(), (byte[]) kafkaMessage.key());
         assertEquals(Schema.OPTIONAL_BYTES_SCHEMA, kafkaMessage.keySchema());
 
         assertEquals("testmessagewithcorrelbytes", kafkaMessage.value());
@@ -406,26 +396,25 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectTask.commitRecord(kafkaMessage);
     }
 
-
-
     @Test
     public void verifyDestinationAsKey() throws Exception {
         connectTask = new MQSourceTask();
 
-        Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.record.builder.key.header", "JMSDestination");
 
         connectTask.start(connectorConfigProps);
 
-        TextMessage message = getJmsContext().createTextMessage("testmessagewithdest");
+        final TextMessage message = getJmsContext().createTextMessage("testmessagewithdest");
         putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message));
 
-        List<SourceRecord> kafkaMessages = connectTask.poll();
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(1, kafkaMessages.size());
 
-        SourceRecord kafkaMessage = kafkaMessages.get(0);
+        final SourceRecord kafkaMessage = kafkaMessages.get(0);
         assertEquals("queue:///" + MQ_QUEUE, kafkaMessage.key());
         assertEquals(Schema.OPTIONAL_STRING_SCHEMA, kafkaMessage.keySchema());
 

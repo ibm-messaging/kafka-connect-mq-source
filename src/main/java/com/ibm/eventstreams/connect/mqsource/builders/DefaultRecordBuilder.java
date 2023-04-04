@@ -55,28 +55,28 @@ public class DefaultRecordBuilder extends BaseRecordBuilder {
      *
      * @throws JMSException      Message could not be converted
      */
-    @Override public SchemaAndValue getValue(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException {
+    @Override public SchemaAndValue getValue(final JMSContext context, final String topic, final boolean messageBodyJms,
+            final Message message) throws JMSException {
         Schema valueSchema = null;
         Object value = null;
 
-        // Interpreting the body as a JMS message type, we can accept BytesMessage and TextMessage only.
+        // Interpreting the body as a JMS message type, we can accept BytesMessage and
+        // TextMessage only.
         // We do not know the schema so do not specify one.
         if (messageBodyJms) {
             if (message instanceof BytesMessage) {
                 log.debug("Bytes message with no schema");
                 value = message.getBody(byte[].class);
-            }
-            else if (message instanceof TextMessage) {
+            } else if (message instanceof TextMessage) {
                 log.debug("Text message with no schema");
                 value = message.getBody(String.class);
-            }
-            else {
+            } else {
                 log.error("Unsupported JMS message type {}", message.getClass());
                 throw new ConnectException("Unsupported JMS message type");
             }
-        }
-        else {
-            // Not interpreting the body as a JMS message type, all messages come through as BytesMessage.
+        } else {
+            // Not interpreting the body as a JMS message type, all messages come through as
+            // BytesMessage.
             // In this case, we specify the value schema as OPTIONAL_BYTES.
             log.debug("Bytes message with OPTIONAL_BYTES schema");
             valueSchema = Schema.OPTIONAL_BYTES_SCHEMA;

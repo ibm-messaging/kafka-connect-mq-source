@@ -44,17 +44,18 @@ public class JmsToKafkaHeaderConverterTest {
     @Test
     public void convertJmsPropertiesToKafkaHeaders() throws JMSException {
 
-        List<String> keys = Arrays.asList("facilityCountryCode", "facilityNum");
+        final List<String> keys = Arrays.asList("facilityCountryCode", "facilityNum");
 
-        Enumeration<String> keyEnumeration = Collections.enumeration(keys);
+        final Enumeration<String> keyEnumeration = Collections.enumeration(keys);
 
-        //Arrange
+        // Arrange
         when(message.getPropertyNames()).thenReturn(keyEnumeration);
         when(message.getObjectProperty("facilityCountryCode")).thenReturn("US");
         when(message.getObjectProperty("facilityNum")).thenReturn("12345");
 
-        //Act
-        ConnectHeaders actualConnectHeaders = jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message);
+        // Act
+        final ConnectHeaders actualConnectHeaders = jmsToKafkaHeaderConverter
+                .convertJmsPropertiesToKafkaHeaders(message);
 
 
         //Verify

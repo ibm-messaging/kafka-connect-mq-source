@@ -35,10 +35,10 @@ import com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT;
 
 public class JsonRecordBuilderIT extends AbstractJMSContextIT {
 
-    private final String TOPIC = "MY.TOPIC";
-    private final boolean IS_JMS = true;
+    private final String topic = "MY.TOPIC";
+    private final boolean isJMS = true;
 
-    private final String MESSAGE_CONTENTS =
+    private final String messageContents =
         "{ " +
             "\"hello\" : \"world\", " +
             "\"test\" : 123, " +
@@ -46,42 +46,39 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
         "}";
 
     @SuppressWarnings("unchecked")
-    private void verifyJsonMap(Map<?, ?> value) {
+    private void verifyJsonMap(final Map<?, ?> value) {
         assertEquals(3, value.keySet().size());
         assertEquals("world", value.get("hello"));
         assertEquals(123L, value.get("test"));
-        String[] expected = { "one", "two", "three" };
+        final String[] expected = {"one", "two", "three"};
         assertArrayEquals(expected, ((List<String>) value.get("list")).toArray());
     }
-
-
 
     @Test
     public void buildFromJmsTextMessage() throws Exception {
         // create MQ message
-        TextMessage message = getJmsContext().createTextMessage(MESSAGE_CONTENTS);
+        final TextMessage message = getJmsContext().createTextMessage(messageContents);
 
         // use the builder to convert it to a Kafka record
-        JsonRecordBuilder builder = new JsonRecordBuilder();
-        SourceRecord record = builder.toSourceRecord(getJmsContext(), TOPIC, IS_JMS, message);
+        final JsonRecordBuilder builder = new JsonRecordBuilder();
+        final SourceRecord record = builder.toSourceRecord(getJmsContext(), topic, isJMS, message);
 
         // verify the Kafka record
         assertNull(record.key());
         assertNull(record.valueSchema());
         verifyJsonMap((Map<?, ?>) record.value());
     }
-
 
     @Test
     public void buildFromJmsBytesMessage() throws Exception {
         // create MQ message
-        BytesMessage message = getJmsContext().createBytesMessage();
-        message.writeBytes(MESSAGE_CONTENTS.getBytes());
+        final BytesMessage message = getJmsContext().createBytesMessage();
+        message.writeBytes(messageContents.getBytes());
         message.reset();
 
         // use the builder to convert it to a Kafka record
-        JsonRecordBuilder builder = new JsonRecordBuilder();
-        SourceRecord record = builder.toSourceRecord(getJmsContext(), TOPIC, IS_JMS, message);
+        final JsonRecordBuilder builder = new JsonRecordBuilder();
+        final SourceRecord record = builder.toSourceRecord(getJmsContext(), topic, isJMS, message);
 
         // verify the Kafka record
         assertNull(record.key());
@@ -89,19 +86,18 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
         verifyJsonMap((Map<?, ?>) record.value());
     }
 
-
     @Test
     public void buildFromJmsMapMessage() throws Exception {
-        final String MESSAGE_CONTENTS = "This is the message contents";
+        final String messageContents = "This is the message contents";
 
         // create MQ message
-        MapMessage message = getJmsContext().createMapMessage();
-        message.setString("example", MESSAGE_CONTENTS);
+        final MapMessage message = getJmsContext().createMapMessage();
+        message.setString("example", messageContents);
 
         // use the builder to convert it to a Kafka record
-        JsonRecordBuilder builder = new JsonRecordBuilder();
-        ConnectException exc = assertThrows(ConnectException .class, () -> {
-            builder.toSourceRecord(getJmsContext(), TOPIC, IS_JMS, message);
+        final JsonRecordBuilder builder = new JsonRecordBuilder();
+        final ConnectException exc = assertThrows(ConnectException.class, () -> {
+            builder.toSourceRecord(getJmsContext(), topic, isJMS, message);
         });
 
         // verify the exception

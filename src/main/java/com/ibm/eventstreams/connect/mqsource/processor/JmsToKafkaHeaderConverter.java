@@ -31,33 +31,33 @@ import java.util.List;
 public class JmsToKafkaHeaderConverter {
     private static final Logger log = LoggerFactory.getLogger(JmsToKafkaHeaderConverter.class);
 
-	/**
-	 * Copies the JMS properties to Kafka headers.
-	 *
-	 * @param message        JMS message.
-	 *
-	 * @return Kafka connect headers.
-	 */
-    public ConnectHeaders convertJmsPropertiesToKafkaHeaders(Message message) {
-        ConnectHeaders connectHeaders = new ConnectHeaders();
+    /**
+     * Copies the JMS properties to Kafka headers.
+     *
+     * @param message JMS message.
+     *
+     * @return Kafka connect headers.
+     */
+    public ConnectHeaders convertJmsPropertiesToKafkaHeaders(final Message message) {
+        final ConnectHeaders connectHeaders = new ConnectHeaders();
 
         try {
             @SuppressWarnings("unchecked")
-            Enumeration<String> propertyNames = (Enumeration<String>)message.getPropertyNames();
-            List<String> jmsPropertyKeys = Collections.list(propertyNames);
+            final Enumeration<String> propertyNames = (Enumeration<String>) message.getPropertyNames();
+            final List<String> jmsPropertyKeys = Collections.list(propertyNames);
 
             jmsPropertyKeys.forEach(key -> {
                 try {
                     connectHeaders.addString(key.toString(), message.getObjectProperty(key.toString()).toString());
-                }
-                catch (JMSException e) {
-                    // Not failing the message processing if JMS properties cannot be read for some reason.
+                } catch (final JMSException e) {
+                    // Not failing the message processing if JMS properties cannot be read for some
+                    // reason.
                     log.warn("JMS exception {}", e);
                 }
             });
-        }
-        catch (JMSException e) {
-            // Not failing the message processing if JMS properties cannot be read for some reason.
+        } catch (final JMSException e) {
+            // Not failing the message processing if JMS properties cannot be read for some
+            // reason.
             log.warn("JMS exception {}", e);
         }
 
