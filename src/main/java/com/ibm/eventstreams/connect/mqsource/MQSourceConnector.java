@@ -17,6 +17,7 @@ package com.ibm.eventstreams.connect.mqsource;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -131,11 +132,11 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_MQ_USER_AUTHENTICATION_MQCSP = "Whether to use MQ connection security parameters (MQCSP).";
     public static final String CONFIG_DISPLAY_MQ_USER_AUTHENTICATION_MQCSP = "User authentication using MQCSP";
 
-    public static final String CONFIG_NAME_TOPIC = "topic"; 
+    public static final String CONFIG_NAME_TOPIC = "topic";
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
-    public static String VERSION = "1.3.2";
+    public static String version = "1.3.2";
 
     private Map<String, String> configProps;
 
@@ -145,7 +146,7 @@ public class MQSourceConnector extends SourceConnector {
      * @return the version, formatted as a String
      */
     @Override public String version() {
-        return VERSION;
+        return version;
     }
 
     /**
@@ -154,13 +155,13 @@ public class MQSourceConnector extends SourceConnector {
      *
      * @param props configuration settings
      */
-    @Override public void start(Map<String, String> props) {
+    @Override public void start(final Map<String, String> props) {
         log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
 
         configProps = props;
-        for (final Entry<String, String> entry: props.entrySet()) {
-            String value;
-            if (entry.getKey().toLowerCase().contains("password")) {
+        for (final Entry<String, String> entry : props.entrySet()) {
+            final String value;
+            if (entry.getKey().toLowerCase(Locale.ENGLISH).contains("password")) {
                 value = "[hidden]";
             } else {
                 value = entry.getValue();
@@ -174,7 +175,8 @@ public class MQSourceConnector extends SourceConnector {
     /**
      * Returns the Task implementation for this Connector.
      */
-    @Override public Class<? extends Task> taskClass() {
+    @Override
+    public Class<? extends Task> taskClass() {
         return MQSourceTask.class;
     }
 
@@ -185,33 +187,38 @@ public class MQSourceConnector extends SourceConnector {
      * @param maxTasks maximum number of configurations to generate
      * @return configurations for Tasks
      */
-    @Override public List<Map<String, String>> taskConfigs(int maxTasks) {
-        log.trace("[{}] Entry {}.taskConfigs, maxTasks={}", Thread.currentThread().getId(), this.getClass().getName(), maxTasks);
+    @Override
+    public List<Map<String, String>> taskConfigs(final int maxTasks) {
+        log.trace("[{}] Entry {}.taskConfigs, maxTasks={}", Thread.currentThread().getId(), this.getClass().getName(),
+                maxTasks);
 
-        List<Map<String, String>> taskConfigs = new ArrayList<>();
-        for (int i = 0; i < maxTasks; i++)
-        {
+        final List<Map<String, String>> taskConfigs = new ArrayList<>();
+        for (int i = 0; i < maxTasks; i++) {
             taskConfigs.add(configProps);
         }
 
-        log.trace("[{}]  Exit {}.taskConfigs, retval={}", Thread.currentThread().getId(), this.getClass().getName(), taskConfigs);
+        log.trace("[{}]  Exit {}.taskConfigs, retval={}", Thread.currentThread().getId(), this.getClass().getName(),
+                taskConfigs);
         return taskConfigs;
     }
 
     /**
      * Stop this connector.
      */
-    @Override public void stop() {
+    @Override
+    public void stop() {
         log.trace("[{}] Entry {}.stop", Thread.currentThread().getId(), this.getClass().getName());
         log.trace("[{}]  Exit {}.stop", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**
      * Define the configuration for the connector.
+     *
      * @return The ConfigDef for this connector.
      */
-    @Override public ConfigDef config() {
-        ConfigDef config = new ConfigDef();
+    @Override
+    public ConfigDef config() {
+        final ConfigDef config = new ConfigDef();
 
         config.define(CONFIG_NAME_MQ_QUEUE_MANAGER, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
                       CONFIG_DOCUMENTATION_MQ_QUEUE_MANAGER, CONFIG_GROUP_MQ, 1, Width.MEDIUM,
