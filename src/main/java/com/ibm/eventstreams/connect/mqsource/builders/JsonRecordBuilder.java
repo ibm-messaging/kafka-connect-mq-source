@@ -15,7 +15,7 @@
  */
 package com.ibm.eventstreams.connect.mqsource.builders;
 
-import static java.nio.charset.StandardCharsets.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.HashMap;
 import javax.jms.BytesMessage;
@@ -45,7 +45,7 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
         converter = new JsonConverter();
 
         // We just want the payload, not the schema in the output message
-        HashMap<String, String> m = new HashMap<>();
+        final HashMap<String, String> m = new HashMap<>();
         m.put("schemas.enable", "false");
 
         // Convert the value, not the key (isKey == false)
@@ -55,26 +55,26 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
     /**
      * Gets the value schema to use for the Kafka Connect SourceRecord.
      *
-     * @param context            the JMS context to use for building messages
-     * @param topic              the Kafka topic
-     * @param messageBodyJms     whether to interpret MQ messages as JMS messages
-     * @param message            the message
+     * @param context        the JMS context to use for building messages
+     * @param topic          the Kafka topic
+     * @param messageBodyJms whether to interpret MQ messages as JMS messages
+     * @param message        the message
      *
      * @return the Kafka Connect SourceRecord's value
      *
-     * @throws JMSException      Message could not be converted
+     * @throws JMSException Message could not be converted
      */
-    @Override public SchemaAndValue getValue(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException {
-        byte[] payload;
+    @Override
+    public SchemaAndValue getValue(final JMSContext context, final String topic, final boolean messageBodyJms,
+            final Message message) throws JMSException {
+        final byte[] payload;
 
         if (message instanceof BytesMessage) {
             payload = message.getBody(byte[].class);
-        }
-        else if (message instanceof TextMessage) {
-            String s = message.getBody(String.class);
+        } else if (message instanceof TextMessage) {
+            final String s = message.getBody(String.class);
             payload = s.getBytes(UTF_8);
-        }
-        else {
+        } else {
             log.error("Unsupported JMS message type {}", message.getClass());
             throw new ConnectException("Unsupported JMS message type");
         }

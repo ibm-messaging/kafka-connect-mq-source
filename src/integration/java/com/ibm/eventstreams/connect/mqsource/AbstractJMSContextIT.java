@@ -49,7 +49,7 @@ public class AbstractJMSContextIT {
     private static final String CHANNEL_NAME = "DEV.APP.SVRCONN";
 
     @ClassRule
-    public static GenericContainer<?> MQ_CONTAINER = new GenericContainer<>("icr.io/ibm-messaging/mq:latest")
+    public static GenericContainer<?> mqContainer = new GenericContainer<>("icr.io/ibm-messaging/mq:latest")
         .withEnv("LICENSE", "accept")
         .withEnv("MQ_QMGR_NAME", QMGR_NAME)
         .withEnv("MQ_ENABLE_EMBEDDED_WEB_SERVER", "false")
@@ -66,7 +66,7 @@ public class AbstractJMSContextIT {
         if (jmsContext == null) {
             waitForQueueManagerStartup();
 
-            MQConnectionFactory mqcf = new MQConnectionFactory();
+            final MQConnectionFactory mqcf = new MQConnectionFactory();
             mqcf.setTransportType(WMQConstants.WMQ_CM_CLIENT);
             mqcf.setChannel(CHANNEL_NAME);
             mqcf.setQueueManager(QMGR_NAME);
@@ -78,51 +78,50 @@ public class AbstractJMSContextIT {
         return jmsContext;
     }
 
-
     /**
-     * Gets the host port that has been mapped to the default MQ 1414 port in the test container.
+     * Gets the host port that has been mapped to the default MQ 1414 port in the
+     * test container.
      */
     public Integer getMQPort() {
-        return MQ_CONTAINER.getMappedPort(1414);
+        return mqContainer.getMappedPort(1414);
     }
 
     public String getQmgrName() {
         return QMGR_NAME;
     }
+
     public String getChannelName() {
         return CHANNEL_NAME;
     }
+
     public String getConnectionName() {
         return "localhost(" + getMQPort().toString() + ")";
     }
 
-
     /**
-     * Waits until we see a log line in the queue manager test container that indicates
-     *  the queue manager is ready.
+     * Waits until we see a log line in the queue manager test container that
+     * indicates
+     * the queue manager is ready.
      */
     private void waitForQueueManagerStartup() throws TimeoutException {
-        WaitingConsumer logConsumer = new WaitingConsumer();
-        MQ_CONTAINER.followOutput(logConsumer);
+        final WaitingConsumer logConsumer = new WaitingConsumer();
+        mqContainer.followOutput(logConsumer);
         logConsumer.waitUntil(logline -> logline.getUtf8String().contains("AMQ5975I"));
     }
 
-
-
-
     /**
      * Puts all messages to the specified MQ queue. Used in tests to
-     *  give the Connector something to get.
+     * give the Connector something to get.
      */
-    public void putAllMessagesToQueue(String queueName, List<Message> messages) throws JMSException {
+    public void putAllMessagesToQueue(final String queueName, final List<Message> messages) throws JMSException {
         Connection connection = null;
         Session session = null;
         Destination destination = null;
         MessageProducer producer = null;
 
-        JmsFactoryFactory ff = JmsFactoryFactory.getInstance(WMQConstants.WMQ_PROVIDER);
+        final JmsFactoryFactory ff = JmsFactoryFactory.getInstance(WMQConstants.WMQ_PROVIDER);
 
-        JmsConnectionFactory cf = ff.createConnectionFactory();
+        final JmsConnectionFactory cf = ff.createConnectionFactory();
         cf.setStringProperty(WMQConstants.WMQ_HOST_NAME, "localhost");
         cf.setIntProperty(WMQConstants.WMQ_PORT, getMQPort());
         cf.setStringProperty(WMQConstants.WMQ_CHANNEL, getChannelName());
@@ -138,7 +137,7 @@ public class AbstractJMSContextIT {
 
         connection.start();
 
-        for (Message message : messages) {
+        for (final Message message : messages) {
             message.setJMSDestination(destination);
             producer.send(message);
         }
@@ -146,20 +145,19 @@ public class AbstractJMSContextIT {
         connection.close();
     }
 
-
     /**
      * Gets all messages from the specified MQ queue. Used in tests to
-     *  verify what is left on the test queue
+     * verify what is left on the test queue
      */
-    public List<Message> getAllMessagesFromQueue(String queueName) throws JMSException {
+    public List<Message> getAllMessagesFromQueue(final String queueName) throws JMSException {
         Connection connection = null;
         Session session = null;
         Destination destination = null;
         MessageConsumer consumer = null;
 
-        JmsFactoryFactory ff = JmsFactoryFactory.getInstance(WMQConstants.WMQ_PROVIDER);
+        final JmsFactoryFactory ff = JmsFactoryFactory.getInstance(WMQConstants.WMQ_PROVIDER);
 
-        JmsConnectionFactory cf = ff.createConnectionFactory();
+        final JmsConnectionFactory cf = ff.createConnectionFactory();
         cf.setStringProperty(WMQConstants.WMQ_HOST_NAME, "localhost");
         cf.setIntProperty(WMQConstants.WMQ_PORT, getMQPort());
         cf.setStringProperty(WMQConstants.WMQ_CHANNEL, getChannelName());
@@ -175,7 +173,7 @@ public class AbstractJMSContextIT {
 
         connection.start();
 
-        List<Message> messages = new ArrayList<>();
+        final List<Message> messages = new ArrayList<>();
         Message message;
         do {
             message = consumer.receiveNoWait();

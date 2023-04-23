@@ -30,23 +30,21 @@ public class MQQueueManagerAttrs {
         + "    \"command\": \"display conn(*) where (channel EQ 'DEV.APP.SVRCONN')\""
         + "  }"
         + "}";
-    
-    
-    public static int getNumConnections(String qmgrname, int portnum, String password) throws KeyManagementException, NoSuchAlgorithmException, IOException, JSONException {
-        String url = "https://localhost:" + portnum + "/ibmmq/rest/v2/admin/action/qmgr/" + qmgrname + "/mqsc";
-        JSONObject connectionInfo = JsonRestApi.jsonPost(url, "admin", password, REQ_GET_SVRCONNS);
 
-        int completionCode = connectionInfo.getInt("overallCompletionCode");
-        int reasonCode = connectionInfo.getInt("overallReasonCode");
-        
+    public static int getNumConnections(final String qmgrname, final int portnum, final String password)
+            throws KeyManagementException, NoSuchAlgorithmException, IOException, JSONException {
+        final String url = "https://localhost:" + portnum + "/ibmmq/rest/v2/admin/action/qmgr/" + qmgrname + "/mqsc";
+        final JSONObject connectionInfo = JsonRestApi.jsonPost(url, "admin", password, REQ_GET_SVRCONNS);
+
+        final int completionCode = connectionInfo.getInt("overallCompletionCode");
+        final int reasonCode = connectionInfo.getInt("overallReasonCode");
+
         if (completionCode == 2 && reasonCode == 3008) {
             return 0;
-        }
-        else if (completionCode == 0 && reasonCode == 0) {
+        } else if (completionCode == 0 && reasonCode == 0) {
             return connectionInfo.getJSONArray("commandResponse").length();
-        }
-        else {
+        } else {
             return -1;
         }
-    }    
+    }
 }

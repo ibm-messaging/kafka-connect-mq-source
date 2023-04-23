@@ -40,31 +40,31 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class JsonRestApi {
-    
-    public static JSONObject jsonPost(String url, String username, String password, String payload) throws IOException, KeyManagementException, NoSuchAlgorithmException, JSONException {
-        URL urlObj = new URL(url);
-        HttpsURLConnection urlConnection = (HttpsURLConnection) urlObj.openConnection();    
+
+    public static JSONObject jsonPost(final String url, final String username, final String password,
+            final String payload) throws IOException, KeyManagementException, NoSuchAlgorithmException, JSONException {
+        final URL urlObj = new URL(url);
+        final HttpsURLConnection urlConnection = (HttpsURLConnection) urlObj.openConnection();
         urlConnection.setHostnameVerifier(new IgnoreCertVerifier());
         urlConnection.setSSLSocketFactory(getTrustAllCertsFactory());
         urlConnection.setRequestProperty("Authorization", getAuthHeader(username, password));
         urlConnection.setRequestProperty("Content-Type", "application/json");
         urlConnection.setRequestProperty("ibm-mq-rest-csrf-token", "junit");
         urlConnection.setDoOutput(true);
-        
-        try(OutputStream os = urlConnection.getOutputStream()) {
-            byte[] input = payload.getBytes("utf-8");
-            os.write(input, 0, input.length);           
+
+        try (OutputStream os = urlConnection.getOutputStream()) {
+            final byte[] input = payload.getBytes("utf-8");
+            os.write(input, 0, input.length);
         }
-        
-        try (InputStream input = urlConnection.getInputStream()){
-            BufferedReader re = new BufferedReader(new InputStreamReader(input, Charset.forName("utf-8")));
+
+        try (InputStream input = urlConnection.getInputStream()) {
+            final BufferedReader re = new BufferedReader(new InputStreamReader(input, Charset.forName("utf-8")));
             return new JSONObject(read(re));
         }
     }
 
-    
-    private static String read(Reader re) throws IOException {
-        StringBuilder str = new StringBuilder();
+    private static String read(final Reader re) throws IOException {
+        final StringBuilder str = new StringBuilder();
         int ch;
         do {
             ch = re.read();
@@ -72,30 +72,35 @@ public class JsonRestApi {
         } while (ch != -1);
         return str.toString();
     }
-    
-    
-    private static String getAuthHeader(String username, String password) {
-        String userpass = username + ":" + password;
-        String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userpass.getBytes()));
+
+    private static String getAuthHeader(final String username, final String password) {
+        final String userpass = username + ":" + password;
+        final String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userpass.getBytes()));
         return basicAuth;
     }
-    
+
     private static class IgnoreCertVerifier implements HostnameVerifier {
         @Override
-        public boolean verify(String host, SSLSession session) {
+        public boolean verify(final String host, final SSLSession session) {
             return true;
         }
     }
-    
+
     private static SSLSocketFactory getTrustAllCertsFactory() throws NoSuchAlgorithmException, KeyManagementException {
-        TrustManager[] trustAllCerts = new TrustManager[] { 
+        final TrustManager[] trustAllCerts = new TrustManager[] {
             new X509TrustManager() {
-                public java.security.cert.X509Certificate[] getAcceptedIssuers() { return null; }
-                public void checkClientTrusted(X509Certificate[] certs, String authType) { }
-                public void checkServerTrusted(X509Certificate[] certs, String authType) { }
-            } 
+                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+
+                public void checkClientTrusted(final X509Certificate[] certs, final String authType) {
+                }
+
+                public void checkServerTrusted(final X509Certificate[] certs, final String authType) {
+                }
+            }
         };
-        SSLContext sc = SSLContext.getInstance("SSL");
+        final SSLContext sc = SSLContext.getInstance("SSL");
         sc.init(null, trustAllCerts, new java.security.SecureRandom());
         return sc.getSocketFactory();
     }

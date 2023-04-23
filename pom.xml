@@ -262,6 +262,31 @@
             </execution>
          </executions>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>3.2.0</version>
+        <configuration>
+            <encoding>UTF-8</encoding>
+            <consoleOutput>true</consoleOutput>
+            <failsOnError>true</failsOnError>
+            <violationSeverity>warning</violationSeverity>
+            <failOnViolation>true</failOnViolation>
+            <linkXRef>false</linkXRef>
+            <sourceDirectories>${project.build.sourceDirectory}</sourceDirectories>
+            <configLocation>${project.basedir}/.checkstyle/checkstyle.xml</configLocation>
+            <propertyExpansion>checkstyle.config.path=${project.basedir}</propertyExpansion>
+        </configuration>
+        <executions>
+            <execution>
+                <id>validate</id>
+                <phase>validate</phase>
+                <goals>
+                    <goal>check</goal>
+                </goals>
+            </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 </project>

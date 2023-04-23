@@ -40,55 +40,53 @@ public class DefaultRecordBuilderIT extends AbstractJMSContextIT {
 
     @Test
     public void buildFromJmsMapMessage() throws Exception {
-        final String MESSAGE_CONTENTS = "This is the message contents";
-        final boolean IS_JMS = true;
+        final String messageContent = "This is the message contents";
+        final boolean isJMS = true;
 
         // create MQ message
-        MapMessage message = getJmsContext().createMapMessage();
-        message.setString("example", MESSAGE_CONTENTS);
+        final MapMessage message = getJmsContext().createMapMessage();
+        message.setString("example", messageContent);
 
         // use the builder to convert it to a Kafka record
-        DefaultRecordBuilder builder = new DefaultRecordBuilder();
-        ConnectException exc = assertThrows(ConnectException .class, () -> {
-            builder.toSourceRecord(getJmsContext(), TOPIC, IS_JMS, message);
+        final DefaultRecordBuilder builder = new DefaultRecordBuilder();
+        final ConnectException exc = assertThrows(ConnectException.class, () -> {
+            builder.toSourceRecord(getJmsContext(), TOPIC, isJMS, message);
         });
 
         // verify the exception
         assertEquals("Unsupported JMS message type", exc.getMessage());
     }
 
-
     @Test
     public void buildFromJmsTextMessage() throws Exception {
-        final String MESSAGE_CONTENTS = "This is the JMS message contents";
-        final boolean IS_JMS = true;
+        final String messageContents = "This is the JMS message contents";
+        final boolean isJMS = true;
 
         // create MQ message
-        TextMessage message = getJmsContext().createTextMessage(MESSAGE_CONTENTS);
+        final TextMessage message = getJmsContext().createTextMessage(messageContents);
 
         // use the builder to convert it to a Kafka record
-        DefaultRecordBuilder builder = new DefaultRecordBuilder();
-        SourceRecord record = builder.toSourceRecord(getJmsContext(), TOPIC, IS_JMS, message);
+        final DefaultRecordBuilder builder = new DefaultRecordBuilder();
+        final SourceRecord record = builder.toSourceRecord(getJmsContext(), TOPIC, isJMS, message);
 
         // verify the Kafka record
         assertNull(record.key());
-        assertEquals(MESSAGE_CONTENTS, record.value());
+        assertEquals(messageContents, record.value());
         assertNull(record.valueSchema());
     }
 
-
     @Test
     public void buildFromTextMessage() throws Exception {
-        final String MESSAGE_CONTENTS = "This is the message contents";
-        final boolean IS_JMS = false;
+        final String messageContents = "This is the message contents";
+        final boolean isJMS = false;
 
         // create MQ message
-        TextMessage message = getJmsContext().createTextMessage(MESSAGE_CONTENTS);
+        final TextMessage message = getJmsContext().createTextMessage(messageContents);
 
         // use the builder to convert it to a Kafka record
-        DefaultRecordBuilder builder = new DefaultRecordBuilder();
-        MessageFormatException exc = assertThrows(MessageFormatException.class, () -> {
-            builder.toSourceRecord(getJmsContext(), TOPIC, IS_JMS, message);
+        final DefaultRecordBuilder builder = new DefaultRecordBuilder();
+        final MessageFormatException exc = assertThrows(MessageFormatException.class, () -> {
+            builder.toSourceRecord(getJmsContext(), TOPIC, isJMS, message);
         });
 
         // verify the exception
@@ -96,47 +94,45 @@ public class DefaultRecordBuilderIT extends AbstractJMSContextIT {
         assertTrue(exc.getMessage().contains("The message of type jms_text can not have its body assigned to"));
     }
 
-
     @Test
     public void buildFromJmsBytesMessage() throws Exception {
-        final String MESSAGE_ORIGIN = "This is the data used for message contents";
-        final byte[] MESSAGE_CONTENTS = MESSAGE_ORIGIN.getBytes();
-        final boolean IS_JMS = true;
+        final String messageOrigin = "This is the data used for message contents";
+        final byte[] messageContents = messageOrigin.getBytes();
+        final boolean isJMS = true;
 
         // create MQ message
-        BytesMessage message = getJmsContext().createBytesMessage();
-        message.writeBytes(MESSAGE_CONTENTS);
+        final BytesMessage message = getJmsContext().createBytesMessage();
+        message.writeBytes(messageContents);
         message.reset();
 
         // use the builder to convert it to a Kafka record
-        DefaultRecordBuilder builder = new DefaultRecordBuilder();
-        SourceRecord record = builder.toSourceRecord(getJmsContext(), TOPIC, IS_JMS, message);
+        final DefaultRecordBuilder builder = new DefaultRecordBuilder();
+        final SourceRecord record = builder.toSourceRecord(getJmsContext(), TOPIC, isJMS, message);
 
         // verify the Kafka record
         assertNull(record.key());
-        assertArrayEquals(MESSAGE_CONTENTS, (byte[])record.value());
+        assertArrayEquals(messageContents, (byte[]) record.value());
         assertNull(record.valueSchema());
     }
 
-
     @Test
     public void buildFromBytesMessage() throws Exception {
-        final String MESSAGE_ORIGIN = "This is the data used for message contents";
-        final byte[] MESSAGE_CONTENTS = MESSAGE_ORIGIN.getBytes();
-        final boolean IS_JMS = false;
+        final String messageOrigin = "This is the data used for message contents";
+        final byte[] messageContents = messageOrigin.getBytes();
+        final boolean isJMS = false;
 
         // create MQ message
-        BytesMessage message = getJmsContext().createBytesMessage();
-        message.writeBytes(MESSAGE_CONTENTS);
+        final BytesMessage message = getJmsContext().createBytesMessage();
+        message.writeBytes(messageContents);
         message.reset();
 
         // use the builder to convert it to a Kafka record
-        DefaultRecordBuilder builder = new DefaultRecordBuilder();
-        SourceRecord record = builder.toSourceRecord(getJmsContext(), TOPIC, IS_JMS, message);
+        final DefaultRecordBuilder builder = new DefaultRecordBuilder();
+        final SourceRecord record = builder.toSourceRecord(getJmsContext(), TOPIC, isJMS, message);
 
         // verify the Kafka record
         assertNull(record.key());
-        assertArrayEquals(MESSAGE_CONTENTS, (byte[])record.value());
+        assertArrayEquals(messageContents, (byte[]) record.value());
         assertEquals(Schema.OPTIONAL_BYTES_SCHEMA, record.valueSchema());
     }
 }
