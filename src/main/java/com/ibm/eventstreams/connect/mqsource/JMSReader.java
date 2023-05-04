@@ -224,7 +224,10 @@ public class JMSReader {
             } else {
                 jmsCtxt = mqConnFactory.createContext(JMSContext.SESSION_TRANSACTED);
             }
-
+            
+            if (jmsCons != null) {
+                jmsCons.close();
+            }
             jmsCons = jmsCtxt.createConsumer(queue);
             connected = true;
 
