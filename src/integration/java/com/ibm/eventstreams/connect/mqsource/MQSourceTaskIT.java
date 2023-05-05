@@ -258,7 +258,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     @Test
     public void verifyMessageBatchRollback() throws Exception {
-        final MQSourceTask newConnectTask = new MQSourceTask();
+        connectTask = new MQSourceTask();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
@@ -266,7 +266,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
                 "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.batch.size", "10");
 
-        newConnectTask.start(connectorConfigProps);
+        connectTask.start(connectorConfigProps);
 
         // Test overview:
         //
@@ -289,19 +289,19 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessages;
 
         // first batch should successfully retrieve messages 01-10
-        kafkaMessages = newConnectTask.poll();
+        kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
-        newConnectTask.commit();
-        newConnectTask.commit();
+        connectTask.commit();
+        connectTask.commit();
 
         // second batch (11-20) should fail because of message 16
         final ConnectException exc = assertThrows(ConnectException.class, () -> {
-            newConnectTask.poll();
+            connectTask.poll();
         });
         assertTrue(exc.getMessage().equals("Unsupported JMS message type"));
 
         // there should be 20 messages left on the MQ queue (messages 11-30)
-        newConnectTask.stop();
+        connectTask.stop();
         final List<Message> remainingMQMessages = getAllMessagesFromQueue(MQ_QUEUE);
         assertEquals(20, remainingMQMessages.size());
     }

@@ -106,7 +106,7 @@ public class AbstractJMSContextIT {
     private void waitForQueueManagerStartup() throws TimeoutException {
         final WaitingConsumer logConsumer = new WaitingConsumer();
         mqContainer.followOutput(logConsumer);
-        logConsumer.waitUntil(logline -> logline.getUtf8String().contains("AMQ5975I"));
+        logConsumer.waitUntil(logline -> logline.getUtf8String().contains("AMQ5806I"));
     }
 
     /**
