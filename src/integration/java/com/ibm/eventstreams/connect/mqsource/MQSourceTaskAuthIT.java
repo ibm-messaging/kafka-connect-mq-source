@@ -142,7 +142,7 @@ public class MQSourceTaskAuthIT {
     private void waitForQueueManagerStartup() throws TimeoutException {
         final WaitingConsumer logConsumer = new WaitingConsumer();
         mqContainer.followOutput(logConsumer);
-        logConsumer.waitUntil(logline -> logline.getUtf8String().contains("AMQ5975I"));
+        logConsumer.waitUntil(logline -> logline.getUtf8String().contains("AMQ5806I"));
     }
 
     private void putAllMessagesToQueue(final List<MQMessage> messages) throws MQException {
