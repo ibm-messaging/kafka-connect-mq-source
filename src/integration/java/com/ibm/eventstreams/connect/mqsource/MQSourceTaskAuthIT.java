@@ -72,6 +72,7 @@ public class MQSourceTaskAuthIT {
         connectorProps.put("mq.password", APP_PASSWORD);
         connectorProps.put("mq.message.body.jms", "false");
         connectorProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorProps.put("topic", "TOPICB");
         return connectorProps;
     }
 
@@ -133,6 +134,38 @@ public class MQSourceTaskAuthIT {
                 numQmgrConnectionsDuring > numQmgrConnectionsBefore);
         assertTrue("connections should have decreased after calling stop()",
                 numQmgrConnectionsAfter < numQmgrConnectionsDuring);
+
+        // cleanup
+        final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
+        stopper.run();
+    }
+
+
+
+    @Test
+    public void verifyJmsConnections() throws Exception {
+
+        final int restApiPortNumber = mqContainer.getMappedPort(9443);
+        final MQSourceTask connectTask = new MQSourceTask();
+        connectTask.start(getConnectorProps());
+
+       // count number of connections to the qmgr at the start
+        final int numQmgrConnections = MQQueueManagerAttrs.getNumConnections(QMGR_NAME, restApiPortNumber,
+        ADMIN_PASSWORD);
+
+        final Map<String, String> connectorConfigProps = getConnectorProps();
+        connectorConfigProps.put("topic", "TOPICA");
+        connectTask.stop();
+        connectTask.start(connectorConfigProps);
+
+
+        // count number of connections to the qmgr now - it should be same as before
+        final int numQmgrConnectionsDuring = MQQueueManagerAttrs.getNumConnections(QMGR_NAME, restApiPortNumber,
+                ADMIN_PASSWORD);
+
+        // verify number of connections 
+        assertTrue("connections should be same before and after the change of topic ",
+                numQmgrConnectionsDuring == numQmgrConnections);
 
         // cleanup
         final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
