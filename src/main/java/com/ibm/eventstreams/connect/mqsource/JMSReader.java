@@ -79,7 +79,7 @@ public class JMSReader {
     private AtomicBoolean closeNow = new AtomicBoolean();           // Whether close has been requested
     private long reconnectDelayMillis = reconnectDelayMillisMin; // Delay between repeated reconnect attempts
 
-    private static long receiveTimeout = 30000L;
+    private static long receiveTimeout = 2000L;
     private static long reconnectDelayMillisMin = 64L;
     private static long reconnectDelayMillisMax = 8192L;
 
@@ -258,10 +258,8 @@ public class JMSReader {
         SourceRecord sr = null;
         try {
             if (wait) {
-                while (m == null && !closeNow.get()) {
-                    log.debug("Waiting {} ms for message", receiveTimeout);
-                    m = jmsCons.receive(receiveTimeout);
-                }
+                log.debug("Waiting {} ms for message", receiveTimeout);
+                m = jmsCons.receive(receiveTimeout);
 
                 if (m == null) {
                     log.debug("No message received");
