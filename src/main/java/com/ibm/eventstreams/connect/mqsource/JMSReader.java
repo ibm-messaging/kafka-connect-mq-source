@@ -351,7 +351,6 @@ public class JMSReader {
      * Closes the connection.
      */
     public void close() {
-        log.trace("jmscloseeeeeeee");
         log.trace("[{}] Entry {}.close", Thread.currentThread().getId(), this.getClass().getName());
 
         closeNow.set(true);
