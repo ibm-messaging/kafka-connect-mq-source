@@ -261,10 +261,9 @@ public class JMSReader {
         SourceRecord sr = null;
         try {
             if (wait) {
-                while (m == null && !closeNow.get()) {
-                    log.debug("Waiting {} ms for message", receiveTimeout);
-                    m = jmsCons.receive(receiveTimeout);
-                }
+                
+                log.debug("Waiting {} ms for message", receiveTimeout);
+                m = jmsCons.receive(receiveTimeout);
 
                 if (m == null) {
                     log.debug("No message received");
@@ -352,6 +351,7 @@ public class JMSReader {
      * Closes the connection.
      */
     public void close() {
+        log.trace("jmscloseeeeeeee");
         log.trace("[{}] Entry {}.close", Thread.currentThread().getId(), this.getClass().getName());
 
         closeNow.set(true);
