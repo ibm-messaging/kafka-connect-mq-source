@@ -92,13 +92,13 @@ curl -X POST -H "Content-Type: application/json" http://localhost:8083/connector
 This repository includes an example Dockerfile to run Kafka Connect in distributed mode. It also adds in the MQ source connector as an available connector plugin. It uses the default `connect-distributed.properties` and `connect-log4j.properties` files.
 
 1. `mvn clean package`
-1. `docker build -t kafkaconnect-with-mq-source:1.3.2 .`
-1. `docker run -p 8083:8083 kafkaconnect-with-mq-source:1.3.2`
+1. `docker build -t kafkaconnect-with-mq-source:1.3.3 .`
+1. `docker run -p 8083:8083 kafkaconnect-with-mq-source:1.3.3`
 
 **NOTE:** To provide custom properties files create a folder called `config` containing the `connect-distributed.properties` and `connect-log4j.properties` files and use a Docker volume to make them available when running the container like this:
 
 ``` shell
-docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect-with-mq-source:1.3.2
+docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect-with-mq-source:1.3.3
 ```
 
 To start the MQ connector, you can use `config/mq-source.json` in this repository after replacing all placeholders and use a command like this:

@@ -130,7 +130,7 @@ public class MQSourceTask extends SourceTask {
                     }
                 } while (src != null && messageCount < batchSize && !stopNow.get());
             } else {
-                log.debug("Stopping polling for records");
+                log.info("Stopping polling for records");
             }
         } finally {
         }
