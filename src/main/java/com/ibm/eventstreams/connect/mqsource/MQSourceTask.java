@@ -119,7 +119,7 @@ public class MQSourceTask extends SourceTask {
 
         try {
             if (!stopNow.get()) {
-                log.info("Polling for records");
+                log.debug("Polling for records");
                 SourceRecord src;
                 do {
                     // For the first message in the batch, wait a while if no message
@@ -130,7 +130,7 @@ public class MQSourceTask extends SourceTask {
                     }
                 } while (src != null && messageCount < batchSize && !stopNow.get());
             } else {
-                log.info("Stopping polling for records");
+                log.debug("Stopping polling for records");
             }
         } finally {
         }
