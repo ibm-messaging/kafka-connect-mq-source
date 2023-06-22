@@ -19,7 +19,7 @@ COPY --chown=esuser:esgroup --from=builder /opt/kafka/libs/ /opt/kafka/libs/
 COPY --chown=esuser:esgroup --from=builder /opt/kafka/config/ /opt/kafka/config/
 RUN mkdir /opt/kafka/logs && chown esuser:esgroup /opt/kafka/logs
 
-COPY --chown=esuser:esgroup target/kafka-connect-*-jar-with-dependencies.jar /opt/connectors
+COPY --chown=esuser:esgroup target/kafka-connect-*-jar-with-dependencies.jar /opt/connectors/
 
 WORKDIR /opt/kafka
 
