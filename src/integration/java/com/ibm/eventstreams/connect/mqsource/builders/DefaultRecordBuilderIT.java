@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 IBM Corporation
+ * Copyright 2022, 2023 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,15 @@
  */
 package com.ibm.eventstreams.connect.mqsource.builders;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.jms.BytesMessage;
 import javax.jms.MapMessage;
@@ -27,7 +31,6 @@ import javax.jms.MessageFormatException;
 import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.Test;
 
@@ -49,7 +52,7 @@ public class DefaultRecordBuilderIT extends AbstractJMSContextIT {
 
         // use the builder to convert it to a Kafka record
         final DefaultRecordBuilder builder = new DefaultRecordBuilder();
-        final ConnectException exc = assertThrows(ConnectException.class, () -> {
+        final RecordBuilderException exc = assertThrows(RecordBuilderException.class, () -> {
             builder.toSourceRecord(getJmsContext(), TOPIC, isJMS, message);
         });
 
@@ -135,4 +138,35 @@ public class DefaultRecordBuilderIT extends AbstractJMSContextIT {
         assertArrayEquals(messageContents, (byte[]) record.value());
         assertEquals(Schema.OPTIONAL_BYTES_SCHEMA, record.valueSchema());
     }
+
+    @Test
+    public void testBuildWithOffset() throws Exception {
+        final String messageContents = "This is the JMS message contents";
+        final boolean isJMS = true;
+
+        // create MQ message
+        final TextMessage message = getJmsContext().createTextMessage(messageContents);
+
+        // use the builder to convert it to a Kafka record
+        final DefaultRecordBuilder builder = new DefaultRecordBuilder();
+
+        Map<String, Long> sourceOffset = new HashMap<>();
+        sourceOffset.put("sequence-id", 0L);
+
+        Map<String, String> sourcePartition = new HashMap<>();
+        sourcePartition.put("source", "myqmgr/myq");
+
+
+        final SourceRecord record = builder.toSourceRecord(getJmsContext(), TOPIC, isJMS, message, sourceOffset, sourcePartition);
+
+        assertThat(record).isNotNull();
+        assertThat(record.sourceOffset()).isEqualTo(sourceOffset);
+        assertThat(record.sourcePartition()).isEqualTo(sourcePartition);
+
+        // verify the Kafka record
+        assertNull(record.key());
+        assertEquals(messageContents, record.value());
+        assertNull(record.valueSchema());
+    }
+
 }

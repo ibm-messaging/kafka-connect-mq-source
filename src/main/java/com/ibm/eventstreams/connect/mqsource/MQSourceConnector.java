@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2020 IBM Corporation
+ * Copyright 2017, 2020, 2023 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
 import org.apache.kafka.connect.connector.Task;
+import org.apache.kafka.connect.source.ConnectorTransactionBoundaries;
+import org.apache.kafka.connect.source.ExactlyOnceSupport;
 import org.apache.kafka.connect.source.SourceConnector;
 
 import org.slf4j.Logger;
@@ -57,6 +59,10 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_NAME_MQ_QUEUE = "mq.queue";
     public static final String CONFIG_DOCUMENTATION_MQ_QUEUE = "The name of the source MQ queue.";
     public static final String CONFIG_DISPLAY_MQ_QUEUE = "Source queue";
+
+    public static final String CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE = "mq.exactly.once.state.queue";
+    public static final String CONFIG_DOCUMENTATION_MQ_EXACTLY_ONCE_STATE_QUEUE = "The name of the MQ queue used to store state. Required to run with exactly-once processing.";
+    public static final String CONFIG_DISPLAY_MQ_EXACTLY_ONCE_STATE_QUEUE = "Exactly-once state queue";
 
     public static final String CONFIG_NAME_MQ_USER_NAME = "mq.user.name";
     public static final String CONFIG_DOCUMENTATION_MQ_USER_NAME = "The user name for authenticating with the queue manager.";
@@ -136,7 +142,7 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
-    public static String version = "1.3.2";
+    public static String version = "2.0.0";
 
     private Map<String, String> configProps;
 
@@ -312,10 +318,59 @@ public class MQSourceConnector extends SourceConnector {
                       CONFIG_DOCUMENTATION_MQ_SSL_USE_IBM_CIPHER_MAPPINGS, CONFIG_GROUP_MQ, 22, Width.SHORT,
                       CONFIG_DISPLAY_MQ_SSL_USE_IBM_CIPHER_MAPPINGS);
 
+        config.define(CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE, Type.STRING, null, Importance.HIGH,
+                      CONFIG_DOCUMENTATION_MQ_EXACTLY_ONCE_STATE_QUEUE, CONFIG_GROUP_MQ, 23, Width.LONG,
+                      CONFIG_DISPLAY_MQ_EXACTLY_ONCE_STATE_QUEUE);
+
         config.define(CONFIG_NAME_TOPIC, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
                       CONFIG_DOCUMENTATION_TOPIC, null, 0, Width.MEDIUM,
                       CONFIG_DISPLAY_TOPIC);
 
         return config;
+    }
+
+    /**
+     * Signals that this connector is not capable of defining other transaction boundaries. 
+     * A new transaction will be started and committed for every batch of records returned by {@link MQSourceTask#poll()}. 
+     *
+     * @param connectorConfig the configuration that will be used for the connector
+     * @return {@link ConnectorTransactionBoundaries#UNSUPPORTED}
+     */
+    @Override
+    public ConnectorTransactionBoundaries canDefineTransactionBoundaries(final Map<String, String> connectorConfig) {
+        // The connector only supports Kafka transaction boundaries on the poll() method
+        return ConnectorTransactionBoundaries.UNSUPPORTED;
+    }
+
+    /**
+     * Signals whether this connector supports exactly-once semantics with the supplied configuration.
+     *
+     * @param connectorConfig the configuration that will be used for the connector. 
+     * 'mq.exactly.once.state.queue' must be supplied in the configuration to enable exactly-once semantics.
+     * 
+     * @return {@link ExactlyOnceSupport#SUPPORTED} if the configuration supports exactly-once semantics,
+     * {@link ExactlyOnceSupport#UNSUPPORTED} otherwise.
+     */
+    @Override
+    public ExactlyOnceSupport exactlyOnceSupport(final Map<String, String> connectorConfig) {        
+        if (configSupportsExactlyOnce(connectorConfig)) {
+            return ExactlyOnceSupport.SUPPORTED;
+        }
+        return ExactlyOnceSupport.UNSUPPORTED;
+    }
+
+    /**
+     * Returns true if the supplied connector configuration supports exactly-once semantics.
+     * Checks that 'mq.exactly.once.state.queue' property is supplied and is not empty and
+     * that 'tasks.max' is 1.
+     * 
+     * @param connectorConfig the connector config
+     * @return true if 'mq.exactly.once.state.queue' property is supplied and is not empty and 'tasks.max' is 1.
+     */
+    public static final boolean configSupportsExactlyOnce(final Map<String, String> connectorConfig) {
+        // If there is a state queue configured and tasks.max is 1 we can do exactly-once semantics
+        final String exactlyOnceStateQueue = connectorConfig.get(CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE);
+        final String tasksMax = connectorConfig.get("tasks.max");
+        return exactlyOnceStateQueue != null && !exactlyOnceStateQueue.isEmpty() && (tasksMax == null || "1".equals(tasksMax));
     }
 }

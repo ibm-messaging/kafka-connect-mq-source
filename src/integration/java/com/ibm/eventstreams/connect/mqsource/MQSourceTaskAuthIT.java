@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 IBM Corporation
+ * Copyright 2022, 2023 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.ibm.eventstreams.connect.mqsource;
 
+import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskObjectMother.getSourceTaskWithEmptyKafkaOffset;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -25,16 +26,20 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.output.WaitingConsumer;
+import org.testcontainers.containers.wait.strategy.Wait;
 
+import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.PortBinding;
+import com.github.dockerjava.api.model.Ports;
 import com.ibm.eventstreams.connect.mqsource.utils.MQQueueManagerAttrs;
+import com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil;
 import com.ibm.eventstreams.connect.mqsource.utils.SourceTaskStopper;
 import com.ibm.mq.MQException;
 import com.ibm.mq.MQMessage;
@@ -42,23 +47,35 @@ import com.ibm.mq.MQQueue;
 import com.ibm.mq.MQQueueManager;
 import com.ibm.mq.constants.MQConstants;
 
+@SuppressWarnings("resource")
 public class MQSourceTaskAuthIT {
 
     private static final String QMGR_NAME = "MYAUTHQMGR";
-    private static final String QUEUE_NAME = "DEV.QUEUE.2";
+    private static final String QUEUE_NAME = "DEV.QUEUE.1";
+    private static final String STATE_QUEUE_NAME = "DEV.QUEUE.2";
     private static final String CHANNEL_NAME = "DEV.APP.SVRCONN";
     private static final String APP_PASSWORD = "MySuperSecretPassword";
     private static final String ADMIN_PASSWORD = "MyAdminPassword";
 
+    private static final int TCP_MQ_HOST_PORT = 9090;
+    private static final int TCP_MQ_EXPOSED_PORT = 1414;
+
+    private static final int REST_API_HOST_PORT = 9091;
+    private static final int REST_API_EXPOSED_PORT = 9443;
 
     @ClassRule
-    public static GenericContainer<?> mqContainer = new GenericContainer<>("icr.io/ibm-messaging/mq:latest")
-        .withEnv("LICENSE", "accept")
-        .withEnv("MQ_QMGR_NAME", QMGR_NAME)
-        .withEnv("MQ_APP_PASSWORD", APP_PASSWORD)
-        .withEnv("MQ_ADMIN_PASSWORD", ADMIN_PASSWORD)
-        .withExposedPorts(1414, 9443);
-
+     public static GenericContainer<?> mqContainer = new GenericContainer<>(MQTestUtil.mqContainer)
+            .withEnv("LICENSE", "accept")
+            .withEnv("MQ_QMGR_NAME", QMGR_NAME)
+            .withEnv("MQ_APP_PASSWORD", APP_PASSWORD)
+            .withEnv("MQ_ADMIN_PASSWORD", ADMIN_PASSWORD)
+            .withExposedPorts(TCP_MQ_EXPOSED_PORT, REST_API_EXPOSED_PORT)
+            .withCreateContainerCmdModifier(cmd -> cmd.withHostConfig(
+                    new HostConfig().withPortBindings(
+                            new PortBinding(Ports.Binding.bindPort(TCP_MQ_HOST_PORT), new ExposedPort(TCP_MQ_EXPOSED_PORT)),
+                            new PortBinding(Ports.Binding.bindPort(REST_API_HOST_PORT), new ExposedPort(REST_API_EXPOSED_PORT))
+                    )
+                )).waitingFor(Wait.forListeningPort());
 
     private Map<String, String> getConnectorProps() {
         final Map<String, String> connectorProps = new HashMap<>();
@@ -77,9 +94,8 @@ public class MQSourceTaskAuthIT {
 
     @Test
     public void testAuthenticatedQueueManager() throws Exception {
-        waitForQueueManagerStartup();
 
-        final MQSourceTask newConnectTask = new MQSourceTask();
+        final MQSourceTask newConnectTask = getSourceTaskWithEmptyKafkaOffset();
         newConnectTask.start(getConnectorProps());
 
         final MQMessage message1 = new MQMessage();
@@ -114,7 +130,7 @@ public class MQSourceTaskAuthIT {
                 ADMIN_PASSWORD);
 
         // start the source connector so that it connects to the qmgr
-        final MQSourceTask connectTask = new MQSourceTask();
+        final MQSourceTask connectTask = getSourceTaskWithEmptyKafkaOffset();
         connectTask.start(getConnectorProps());
 
         // count number of connections to the qmgr now - it should have increased
@@ -137,12 +153,6 @@ public class MQSourceTaskAuthIT {
         // cleanup
         final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
         stopper.run();
-    }
-
-    private void waitForQueueManagerStartup() throws TimeoutException {
-        final WaitingConsumer logConsumer = new WaitingConsumer();
-        mqContainer.followOutput(logConsumer);
-        logConsumer.waitUntil(logline -> logline.getUtf8String().contains("AMQ5806I"));
     }
 
     private void putAllMessagesToQueue(final List<MQMessage> messages) throws MQException {

@@ -15,6 +15,7 @@ The connector is supplied as source code which you can easily build into a JAR f
 - [Data formats](#data-formats)
 - [Security](#security)
 - [Configuration](#configuration)
+- [Exactly-once message delivery semantics](#exactly-once-message-delivery-semantics)
 - [Troubleshooting](#troubleshooting)
 - [Support](#support)
 - [Issues and contributions](#issues-and-contributions)
@@ -48,6 +49,8 @@ mvn clean package
 
 Once built, the output is a single JAR called `target/kafka-connect-mq-source-<version>-jar-with-dependencies.jar` which contains all of the required dependencies.
 
+**NOTE:** With the 2.0.0 release the base Kafka Connect library has been updated from 2.6.0 to 3.4.0 to enable the implementation of the exactly-once delivery. 
+
 ## Running the connector
 
 For step-by-step instructions, see the following guides for running the connector:
@@ -59,7 +62,7 @@ To run the connector, you must have:
 
 - The JAR from building the connector
 - A properties file containing the configuration for the connector
-- Apache Kafka 2.0.0 or later, either standalone or included as part of an offering such as IBM Event Streams
+- Apache Kafka 2.0.0 or later, either standalone or included as part of an offering such as IBM Event Streams (Apache Kafka 3.3.0 or later is required for exactly-once delivery).
 - IBM MQ v8 or later, or the IBM MQ on Cloud service
 
 The connector can be run in a Kafka Connect worker in either standalone (single process) or distributed mode. It's a good idea to start in standalone mode.
@@ -92,13 +95,13 @@ curl -X POST -H "Content-Type: application/json" http://localhost:8083/connector
 This repository includes an example Dockerfile to run Kafka Connect in distributed mode. It also adds in the MQ source connector as an available connector plugin. It uses the default `connect-distributed.properties` and `connect-log4j.properties` files.
 
 1. `mvn clean package`
-1. `docker build -t kafkaconnect-with-mq-source:1.3.2 .`
-1. `docker run -p 8083:8083 kafkaconnect-with-mq-source:1.3.2`
+1. `docker build -t kafkaconnect-with-mq-source:2.0.0 .`
+1. `docker run -p 8083:8083 kafkaconnect-with-mq-source:2.0.0`
 
 **NOTE:** To provide custom properties files create a folder called `config` containing the `connect-distributed.properties` and `connect-log4j.properties` files and use a Docker volume to make them available when running the container like this:
 
 ``` shell
-docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect-with-mq-source:1.3.2
+docker run -v $(pwd)/config:/opt/kafka/config -p 8083:8083 kafkaconnect-with-mq-source:2.0.0
 ```
 
 To start the MQ connector, you can use `config/mq-source.json` in this repository after replacing all placeholders and use a command like this:
@@ -282,6 +285,7 @@ The configuration options for the Kafka Connect source connector for IBM MQ are 
 | mq.connection.name.list                 | List of connection names for queue manager                             | string  |                | host(port)[,host(port),...]                             |
 | mq.channel.name                         | The name of the server-connection channel                              | string  |                | MQ channel name                                         |
 | mq.queue                                | The name of the source MQ queue                                        | string  |                | MQ queue name                                           |
+| mq.exactly.once.state.queue             | The name of the MQ queue used to store state when running with exactly-once semantics | string |  | MQ state queue name                                     |
 | mq.user.name                            | The user name for authenticating with the queue manager                | string  |                | User name                                               |
 | mq.password                             | The password for authenticating with the queue manager                 | string  |                | Password                                                |
 | mq.user.authentication.mqcsp            | Whether to use MQ connection security parameters (MQCSP)               | boolean | true           |                                                         |
@@ -335,8 +339,54 @@ mq.password=${file:mq-secret.properties:secret-key}
 
 To use a file for the `mq.password` in Kubernetes, you create a Secret using the file as described in [the Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod).
 
+## Exactly-once message delivery semantics
+
+The MQ source connector provides at-least-once message delivery by default. This means that each MQ message will be delivered to Kafka, but in failure scenarios it is possible to have duplicated messages delivered to Kafka.
+
+Version 2.0.0 of the MQ source connector introduced exactly-once message delivery semantics. An additional MQ queue is used to store the state of message deliveries. When exactly-once delivery is enabled all MQ messages are delivered to Kafka with no duplicated messages.
+
+### Exactly-once delivery Kafka Connect worker configuration
+
+To enable exactly-once delivery, the MQ source connector must be run on Kafka Connect version 3.3.0 or later with the `exactly.once.source.support` property set to `enabled` in the Kafka connect worker configuration. See the [Kafka documentation](https://kafka.apache.org/documentation/#connect_exactlyoncesource) for more details about this setting, and the ACL requirements for the worker nodes. 
+
+**Note**: Exactly-once support for source connectors is only available in [distributed mode](#running-in-distributed-mode); standalone Connect workers cannot provide exactly-once delivery semantics. Kafka Connect is in distributed mode when [running the connector with Docker](#running-with-docker) and when [deploying the connector to Kubernetes](#deploying-to-kubernetes).
+
+### Exactly-once delivery MQ source connector configuration
+
+To enable exactly-once delivery, the MQ source connector must be configured the `mq.exactly.once.state.queue` property set to the name of a pre-configured MQ queue on the same queue manager as the source MQ queue. The MQ source connector only permits a [`transaction.boundary`](https://kafka.apache.org/documentation/#sourceconnectorconfigs_transaction.boundary) property value of `poll` (the default value), as exactly-once delivery requires the Kafka producer transactions to be started and committed for each batch of records that the MQ source connector provides to Kafka.
+
+Exactly-once delivery requires that only a single connector task can run in the Kafka Connect instance, hence the `tasks.max` property must be set to `1` to ensure that failure scenarios do not cause duplicated messages to be delivered.
+
+Exactly-once delivery also requires that the MQ Source connector principal has a specific set of ACLs to be able to write transactionally to Kafka.
+See the [Kafka documentation](https://kafka.apache.org/documentation/#connect_exactlyoncesource) for the ACL requirements.
+
+To start the MQ source connector with exactly-once delivery, the `config/mq-source-exactly-once.json` file in this repository can be used as a connector configuration template.
+
+**Note**: Exactly-once delivery requires a clear state queue on start-up otherwise the connector will behave as if it is recovering from a failure state and will attempt to get undelivered messages recorded in the out-of-date state message. Therefore, ensure that the state queue is empty each time exactly-once delivery is enabled (especially if re-enabling the exactly once feature).
+
+### Exactly-once delivery MQ requirements
+
+The following values are recommended across MQ to facilitate the exactly-once behaviour:
+
+- On the channel used for Kafka Connect, `HBINT` should be set to 30 seconds to allow MQ transaction rollbacks to occur more quickly in failure scenarios.
+- On the state queue, `DEFSOPT` should be set to `EXCL` to ensure the state queue share option is exclusive.
+
+Exactly-once delivery requires that messages are set to not expire and that all messages on both the source and state queue are all persistent (this is to ensure correct behaviour around queue manager restarts).
+
+### Exactly-once delivery downstream Kafka consumer requirements
+
+Once the MQ source connector has delivered messages to Kafka with exactly-once semantics, downstream consumers of the Kafka topic must set the [`isolation.level`](https://kafka.apache.org/documentation/#consumerconfigs_isolation.level) configuration property to `read_committed` to ensure they are only consuming transactionally committed messages.
+
+### Exactly-once failure scenarios
+
+The MQ source connector is designed to fail on start-up in certain cases to ensure that exactly-once delivery is not compromised.
+In some of these failure scenarios, it will be necessary for an MQ administrator to remove messages from the exactly-once state queue before the MQ source connector can start up and begin to deliver messages from the source queue again. In these cases, the MQ source connector will have the `FAILED` status and the Kafka Connect logs will describe any required administrative action.
+
 ## Troubleshooting
 
+### Connector in a `FAILED` state
+
+If the connector experiences a non retriable error then a ConnectException will cause the connector to go in to a `FAILED` state. This will require a manual restart using the Kafka Connect REST API to restart the connector. 
 ### Unable to connect to Kafka
 
 You may receive an `org.apache.kafka.common.errors.SslAuthenticationException: SSL handshake failed` error when trying to run the MQ source connector using SSL to connect to your Kafka cluster. In the case that the error is caused by the following exception: `Caused by: java.security.cert.CertificateException: No subject alternative DNS name matching XXXXX found.`, Java may be replacing the IP address of your cluster with the corresponding hostname in your `/etc/hosts` file. For example, to push Docker images to a custom Docker repository, you may add an entry in this file which corresponds to the IP of your repository e.g. `123.456.78.90    mycluster.icp`. To fix this, you can comment out this line in your `/etc/hosts` file.
