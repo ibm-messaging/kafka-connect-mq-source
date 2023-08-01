@@ -349,7 +349,7 @@ When configuring TLS connection to MQ, you may find that the queue manager rejec
 
 ## Support
 
-A commercially supported version of this connector is available for customers with a support entitlement for [IBM Event Streams](https://www.ibm.com/cloud/event-streams) or [IBM Cloud Pak for Integration](https://www.ibm.com/cloud/cloud-pak-for-integration).
+Commercial support for this connector is available for customers with a support entitlement for [IBM Event Automation](https://www.ibm.com/products/event-automation) or [IBM Cloud Pak for Integration](https://www.ibm.com/cloud/cloud-pak-for-integration).
 
 ## Issues and contributions
 
@@ -357,7 +357,7 @@ For issues relating specifically to this connector, please use the [GitHub issue
 
 ## License
 
-Copyright 2017, 2020 IBM Corporation
+Copyright 2017, 2020, 2023 IBM Corporation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
