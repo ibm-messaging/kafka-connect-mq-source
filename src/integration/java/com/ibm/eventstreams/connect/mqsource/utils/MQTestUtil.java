@@ -45,7 +45,7 @@ public class MQTestUtil {
 
     private static final Logger log = LoggerFactory.getLogger(MQTestUtil.class);
 
-    public static final String mqContainer = "docker-eu-public.artifactory.swg-devops.com/hyc-qp-stable-docker-local/mq-dev:9.3.3.0-arm64"; // Need to choose a container for integration tests, should work with all versions
+    public static final String mqContainer = "icr.io/ibm-messaging/mq:latest";
 
     /**
      * Puts all messages to the specified MQ queue. Used in tests to

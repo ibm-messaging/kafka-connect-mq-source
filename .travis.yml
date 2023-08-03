@@ -3,4 +3,4 @@ language: java
 services:
   - docker
 
-script: mvn clean verify
+script: mvn clean test verify
