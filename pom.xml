@@ -32,9 +32,14 @@
   </description>
   <licenses>
     <license>
-      <name>Apache License 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-      <distribution>repo</distribution>
+      <name>IBM International Program License Agreement - IBM Event Automation 1.0.0.0</name>
+      <url>https%3A%2F%2Fwww14.software.ibm.com%2Fcgi-bin%2Fweblap%2Flap.pl%3Fpopup%3DY%26li_formnum%3DL-HRZF-DWHH7A</url>
+      <distribution>manual</distribution>
+    </license>
+    <license>
+      <name>IBM International Program License Agreement - IBM Cloud Pak for Integration 2023.2.1 Standard</name>
+      <url>https%3A%2F%2Fwww14.software.ibm.com%2Fcgi-bin%2Fweblap%2Flap.pl%3Fpopup%3DY%26li_formnum%3DL-YBXJ-ADJNSM</url>
+      <distribution>manual</distribution>
     </license>
   </licenses>
   <properties>
@@ -109,6 +114,19 @@
 
   <build>
     <plugins>
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <resources>
+            <resource>
+              <directory>LICENSES</directory>
+            </resource>
+          </resources>
+          <outputDirectory>${project.build.outputDirectory}/META-INF/LICENSES</outputDirectory>
+        </configuration>
+      </plugin>
+      
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.1</version>

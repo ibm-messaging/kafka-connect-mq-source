@@ -23,12 +23,6 @@
     <format>jar</format>
   </formats>
   <includeBaseDirectory>false</includeBaseDirectory>
-  <files>
-    <file>
-      <source>LICENSE</source>
-      <outputDirectory></outputDirectory>
-    </file>
-  </files>
   <dependencySets>
     <dependencySet>
       <outputDirectory></outputDirectory>
@@ -37,6 +31,7 @@
         <excludes>
           <exclude>**/copyright-exclude</exclude>
           <exclude>META-INF/maven/**</exclude>
+          <exclude>META-INF/LICENSE*</exclude>
         </excludes>
       </unpackOptions>
       <useTransitiveFiltering>true</useTransitiveFiltering>
