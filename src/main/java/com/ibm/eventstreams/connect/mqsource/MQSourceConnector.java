@@ -132,6 +132,10 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_MQ_USER_AUTHENTICATION_MQCSP = "Whether to use MQ connection security parameters (MQCSP).";
     public static final String CONFIG_DISPLAY_MQ_USER_AUTHENTICATION_MQCSP = "User authentication using MQCSP";
 
+    public static final String CONFIG_NAME_MQ_CCSID = "mq.ccsid";
+    public static final String CONFIG_DOCUMENTATION_MQ_CCSID = "The character set to use when you are encoding strings in the message.";
+    public static final String CONFIG_DISPLAY_MQ_CCSID = "CCSID";
+
     public static final String CONFIG_NAME_TOPIC = "topic";
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
@@ -311,6 +315,10 @@ public class MQSourceConnector extends SourceConnector {
         config.define(CONFIG_NAME_MQ_SSL_USE_IBM_CIPHER_MAPPINGS, Type.BOOLEAN, null, Importance.LOW,
                       CONFIG_DOCUMENTATION_MQ_SSL_USE_IBM_CIPHER_MAPPINGS, CONFIG_GROUP_MQ, 22, Width.SHORT,
                       CONFIG_DISPLAY_MQ_SSL_USE_IBM_CIPHER_MAPPINGS);
+                      
+        config.define(CONFIG_NAME_MQ_CCSID, Type.INT, null, Importance.MEDIUM,
+                      CONFIG_DOCUMENTATION_MQ_CCSID, CONFIG_GROUP_MQ, 24, Width.MEDIUM,
+                      CONFIG_DISPLAY_MQ_CCSID);
 
         config.define(CONFIG_NAME_TOPIC, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, Importance.HIGH,
                       CONFIG_DOCUMENTATION_TOPIC, null, 0, Width.MEDIUM,
