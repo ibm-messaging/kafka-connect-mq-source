@@ -301,7 +301,7 @@ The configuration options for the Kafka Connect source connector for IBM MQ are 
 | mq.ssl.use.ibm.cipher.mappings          | Whether to set system property to control use of IBM cipher mappings   | boolean |                |                                                         |
 | mq.batch.size                           | The maximum number of messages in a batch (unit of work)               | integer | 250            | 1 or greater                                            |
 | mq.message.mqmd.read                    | Whether to enable reading of all MQMD fields                           | boolean | false          |                                                         |
-| mq.ccsid                                | The coded character set identifier to use when for encoding strings    | integer |                | Valid 16-bit CCSID ([IBM CCSID reference information](https://www.ibm.com/docs/en/i/7.5?topic=information-ccsid-reference)) |
+| mq.ccsid                                | The coded character set identifier (CCSID) used for encoding strings   | integer | 819 (ascii)    | Valid CCSID value ([IBM CCSID reference information](https://www.ibm.com/docs/en/i/7.5?topic=information-ccsid-reference)) |
 
 ### Using a CCDT file
 

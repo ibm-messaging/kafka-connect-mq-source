@@ -140,13 +140,11 @@ public class JMSReader {
             mqConnFactory.setTransportType(transportType);
             mqConnFactory.setQueueManager(queueManager);
             mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, true);
+            mqConnFactory.setCCSID(Integer.parseInt(ccsid));
+            
             if (useMQCSP != null) {
                 mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP,
                         Boolean.parseBoolean(useMQCSP));
-            }
-            
-            if (ccsid != null) {
-                mqConnFactory.setCCSID(Integer.parseInt(ccsid));
             }
 
             if (transportType == WMQConstants.WMQ_CM_CLIENT) {
