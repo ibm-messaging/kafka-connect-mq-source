@@ -116,7 +116,6 @@ public class JMSReader {
         final String sslTruststorePassword = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_PASSWORD);
         final String useMQCSP = props.get(MQSourceConnector.CONFIG_NAME_MQ_USER_AUTHENTICATION_MQCSP);
         final String useIBMCipherMappings = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_USE_IBM_CIPHER_MAPPINGS);
-        final String ccsid = props.get(MQSourceConnector.CONFIG_NAME_MQ_CCSID);
         final String topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
 
         if (useIBMCipherMappings != null) {
@@ -140,8 +139,7 @@ public class JMSReader {
             mqConnFactory.setTransportType(transportType);
             mqConnFactory.setQueueManager(queueManager);
             mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, true);
-            mqConnFactory.setCCSID(Integer.parseInt(ccsid));
-            
+            mqConnFactory.setCCSID(getCCSIDOrDefault(props));
             if (useMQCSP != null) {
                 mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP,
                         Boolean.parseBoolean(useMQCSP));
@@ -213,6 +211,11 @@ public class JMSReader {
         }
 
         log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
+    }
+
+    private int getCCSIDOrDefault(final Map<String, String> props) {
+        final String ccsid = props.get(MQSourceConnector.CONFIG_NAME_MQ_CCSID);
+        return ccsid != null ? Integer.parseInt(ccsid) : MQSourceConnector.CONFIG_VALUE_MQ_CCSID_DEFAULT;
     }
 
     /**
