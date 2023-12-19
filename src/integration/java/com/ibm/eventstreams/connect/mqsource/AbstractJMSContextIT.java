@@ -47,11 +47,15 @@ public class AbstractJMSContextIT {
 
     private static final String QMGR_NAME = "MYQMGR";
     private static final String CHANNEL_NAME = "DEV.APP.SVRCONN";
+    protected static final String APP_PASSWORD = "MySuperSecretPassword";
+    private static final String ADMIN_PASSWORD = "MyAdminPassword";
 
     @ClassRule
     public static GenericContainer<?> mqContainer = new GenericContainer<>("icr.io/ibm-messaging/mq:latest")
         .withEnv("LICENSE", "accept")
         .withEnv("MQ_QMGR_NAME", QMGR_NAME)
+        .withEnv("MQ_APP_PASSWORD", APP_PASSWORD)
+        .withEnv("MQ_ADMIN_PASSWORD", ADMIN_PASSWORD)
         .withEnv("MQ_ENABLE_EMBEDDED_WEB_SERVER", "false")
         .withExposedPorts(1414);
 
@@ -72,7 +76,7 @@ public class AbstractJMSContextIT {
             mqcf.setQueueManager(QMGR_NAME);
             mqcf.setConnectionNameList(getConnectionName());
 
-            jmsContext = mqcf.createContext();
+            jmsContext = mqcf.createContext("app", APP_PASSWORD);
         }
 
         return jmsContext;
@@ -127,7 +131,8 @@ public class AbstractJMSContextIT {
         cf.setStringProperty(WMQConstants.WMQ_CHANNEL, getChannelName());
         cf.setIntProperty(WMQConstants.WMQ_CONNECTION_MODE, WMQConstants.WMQ_CM_CLIENT);
         cf.setStringProperty(WMQConstants.WMQ_QUEUE_MANAGER, getQmgrName());
-        cf.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, false);
+        cf.setStringProperty(WMQConstants.USERID, "app");
+        cf.setStringProperty(WMQConstants.PASSWORD, APP_PASSWORD);
 
         connection = cf.createConnection();
         session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
@@ -163,7 +168,8 @@ public class AbstractJMSContextIT {
         cf.setStringProperty(WMQConstants.WMQ_CHANNEL, getChannelName());
         cf.setIntProperty(WMQConstants.WMQ_CONNECTION_MODE, WMQConstants.WMQ_CM_CLIENT);
         cf.setStringProperty(WMQConstants.WMQ_QUEUE_MANAGER, getQmgrName());
-        cf.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, false);
+        cf.setStringProperty(WMQConstants.USERID, "app");
+        cf.setStringProperty(WMQConstants.PASSWORD, APP_PASSWORD);
 
         connection = cf.createConnection();
         session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
