@@ -61,6 +61,9 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         props.put("mq.channel.name", getChannelName());
         props.put("mq.queue", MQ_QUEUE);
         props.put("mq.user.authentication.mqcsp", "false");
+        props.put("mq.user.name", "app");
+        props.put("mq.password", APP_PASSWORD);
+        props.put("mq.user.authentication.mqcsp", "true");
         return props;
     }
 
