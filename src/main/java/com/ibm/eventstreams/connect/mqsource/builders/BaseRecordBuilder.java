@@ -17,6 +17,8 @@ package com.ibm.eventstreams.connect.mqsource.builders;
 
 import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
 import com.ibm.eventstreams.connect.mqsource.processor.JmsToKafkaHeaderConverter;
+
+import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -29,7 +31,6 @@ import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Builds Kafka Connect SourceRecords from messages.
@@ -55,28 +56,27 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
         log.trace("[{}] Entry {}.configure, props={}", Thread.currentThread().getId(), this.getClass().getName(),
                 props);
 
-        final String kh = props.get(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER);
-        if (kh != null) {
-            if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSMESSAGEID)) {
+        final AbstractConfig config = new AbstractConfig(MQSourceConnector.CONFIGDEF, props);
+        switch (String.valueOf(config.getString(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER))) {
+            case MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSMESSAGEID:
                 keyheader = KeyHeader.MESSAGE_ID;
                 log.debug("Setting Kafka record key from JMSMessageID header field");
-            } else if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONID)) {
+                break;
+            case MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONID:
                 keyheader = KeyHeader.CORRELATION_ID;
                 log.debug("Setting Kafka record key from JMSCorrelationID header field");
-            } else if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONIDASBYTES)) {
+                break;
+            case MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONIDASBYTES:
                 keyheader = KeyHeader.CORRELATION_ID_AS_BYTES;
                 log.debug("Setting Kafka record key from JMSCorrelationIDAsBytes header field");
-            } else if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION)) {
+                break;
+            case MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION:
                 keyheader = KeyHeader.DESTINATION;
                 log.debug("Setting Kafka record key from JMSDestination header field");
-            } else {
-                log.error("Unsupported MQ record builder key header value {}", kh);
-                throw new ConnectException("Unsupported MQ record builder key header value");
-            }
+                break;
         }
 
-        final String str = props.get(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
-        copyJmsPropertiesFlag = Boolean.parseBoolean(Optional.ofNullable(str).orElse("false"));
+        copyJmsPropertiesFlag = config.getBoolean(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
         jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
 
         log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());

@@ -31,7 +31,6 @@ import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.SecureRandom;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.jms.JMSConsumer;
@@ -45,6 +44,8 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.common.config.types.Password;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -61,7 +62,7 @@ public class JMSReader {
 
     // Configs
     private String userName;
-    private String password;
+    private Password password;
     private String topic;
     private boolean messageBodyJms;
 
@@ -93,79 +94,44 @@ public class JMSReader {
      *
      * @throws ConnectException Operation failed and connector should stop.
      */
-    public void configure(final Map<String, String> props) {
+    public void configure(final AbstractConfig config) {
         log.trace("[{}] Entry {}.configure, props={}", Thread.currentThread().getId(), this.getClass().getName(),
-                props);
+                config);
 
-        final String queueManager = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE_MANAGER);
-        final String connectionMode = props.get(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_MODE);
-        final String connectionNameList = props.get(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_NAME_LIST);
-        final String channelName = props.get(MQSourceConnector.CONFIG_NAME_MQ_CHANNEL_NAME);
-        final String queueName = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE);
-        final String userName = props.get(MQSourceConnector.CONFIG_NAME_MQ_USER_NAME);
-        final String password = props.get(MQSourceConnector.CONFIG_NAME_MQ_PASSWORD);
-        final String ccdtUrl = props.get(MQSourceConnector.CONFIG_NAME_MQ_CCDT_URL);
-        final String builderClass = props.get(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER);
-        final String mbj = props.get(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS);
-        final String mdr = props.get(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_MQMD_READ);
-        final String sslCipherSuite = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_CIPHER_SUITE);
-        final String sslPeerName = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_PEER_NAME);
-        final String sslKeystoreLocation = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_LOCATION);
-        final String sslKeystorePassword = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_PASSWORD);
-        final String sslTruststoreLocation = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_LOCATION);
-        final String sslTruststorePassword = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_PASSWORD);
-        final String useMQCSP = props.get(MQSourceConnector.CONFIG_NAME_MQ_USER_AUTHENTICATION_MQCSP);
-        final String useIBMCipherMappings = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_USE_IBM_CIPHER_MAPPINGS);
-        final String topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
+        System.setProperty("com.ibm.mq.cfg.useIBMCipherMappings",
+                           config.getBoolean(MQSourceConnector.CONFIG_NAME_MQ_SSL_USE_IBM_CIPHER_MAPPINGS).toString());
 
-        if (useIBMCipherMappings != null) {
-            System.setProperty("com.ibm.mq.cfg.useIBMCipherMappings", useIBMCipherMappings);
-        }
-
-        int transportType = WMQConstants.WMQ_CM_CLIENT;
-        if (connectionMode != null) {
-            if (connectionMode.equals(MQSourceConnector.CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT)) {
-                transportType = WMQConstants.WMQ_CM_CLIENT;
-            } else if (connectionMode.equals(MQSourceConnector.CONFIG_VALUE_MQ_CONNECTION_MODE_BINDINGS)) {
-                transportType = WMQConstants.WMQ_CM_BINDINGS;
-            } else {
-                log.error("Unsupported MQ connection mode {}", connectionMode);
-                throw new ConnectException("Unsupported MQ connection mode");
-            }
-        }
+        final int transportType =
+            config.getString(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_MODE)
+                .equals(MQSourceConnector.CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT) ?
+                        WMQConstants.WMQ_CM_CLIENT :
+                        WMQConstants.WMQ_CM_BINDINGS;
 
         try {
             mqConnFactory = new MQConnectionFactory();
             mqConnFactory.setTransportType(transportType);
-            mqConnFactory.setQueueManager(queueManager);
-            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, true);
-            if (useMQCSP != null) {
-                mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP,
-                        Boolean.parseBoolean(useMQCSP));
-            }
+            mqConnFactory.setQueueManager(config.getString(MQSourceConnector.CONFIG_NAME_MQ_QUEUE_MANAGER));
+            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP,
+                                             config.getBoolean(MQSourceConnector.CONFIG_NAME_MQ_USER_AUTHENTICATION_MQCSP));
 
             if (transportType == WMQConstants.WMQ_CM_CLIENT) {
+                final String ccdtUrl = config.getString(MQSourceConnector.CONFIG_NAME_MQ_CCDT_URL);
+
                 if (ccdtUrl != null) {
-                    final URL ccdtUrlObject;
-                    try {
-                        ccdtUrlObject = new URL(ccdtUrl);
-                    } catch (final MalformedURLException e) {
-                        log.error("MalformedURLException exception {}", e);
-                        throw new ConnectException("CCDT file url invalid", e);
-                    }
-                    mqConnFactory.setCCDTURL(ccdtUrlObject);
+                    mqConnFactory.setCCDTURL(new URL(ccdtUrl));
                 } else {
-                    mqConnFactory.setConnectionNameList(connectionNameList);
-                    mqConnFactory.setChannel(channelName);
+                    mqConnFactory.setConnectionNameList(config.getString(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_NAME_LIST));
+                    mqConnFactory.setChannel(config.getString(MQSourceConnector.CONFIG_NAME_MQ_CHANNEL_NAME));
                 }
 
-                if (sslCipherSuite != null) {
-                    mqConnFactory.setSSLCipherSuite(sslCipherSuite);
-                    if (sslPeerName != null) {
-                        mqConnFactory.setSSLPeerName(sslPeerName);
-                    }
-                }
+                mqConnFactory.setSSLCipherSuite(config.getString(MQSourceConnector.CONFIG_NAME_MQ_SSL_CIPHER_SUITE));
+                mqConnFactory.setSSLPeerName(config.getString(MQSourceConnector.CONFIG_NAME_MQ_SSL_PEER_NAME));
 
+
+                final String sslKeystoreLocation = config.getString(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_LOCATION);
+                final Password sslKeystorePassword = config.getPassword(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_PASSWORD);
+                final String sslTruststoreLocation = config.getString(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_LOCATION);
+                final Password sslTruststorePassword = config.getPassword(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_PASSWORD);
                 if (sslKeystoreLocation != null || sslTruststoreLocation != null) {
                     final SSLContext sslContext = buildSslContext(sslKeystoreLocation, sslKeystorePassword,
                             sslTruststoreLocation, sslTruststorePassword);
@@ -173,36 +139,35 @@ public class JMSReader {
                 }
             }
 
-            queue = new MQQueue(queueName);
+            queue = new MQQueue(config.getString(MQSourceConnector.CONFIG_NAME_MQ_QUEUE));
 
-            this.userName = userName;
-            this.password = password;
+            userName = config.getString(MQSourceConnector.CONFIG_NAME_MQ_USER_NAME);
+            password = config.getPassword(MQSourceConnector.CONFIG_NAME_MQ_PASSWORD);
 
-            this.messageBodyJms = false;
-            queue.setMessageBodyStyle(WMQConstants.WMQ_MESSAGE_BODY_MQ);
-            if (mbj != null) {
-                if (Boolean.parseBoolean(mbj)) {
-                    this.messageBodyJms = true;
-                    queue.setMessageBodyStyle(WMQConstants.WMQ_MESSAGE_BODY_JMS);
-                }
-            }
+            messageBodyJms = config.getBoolean(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS);
+            queue.setMessageBodyStyle(messageBodyJms ?
+                                        WMQConstants.WMQ_MESSAGE_BODY_JMS :
+                                        WMQConstants.WMQ_MESSAGE_BODY_MQ);
 
-            if (mdr != null) {
-                if (Boolean.parseBoolean(mdr)) {
-                    queue.setBooleanProperty(WMQConstants.WMQ_MQMD_READ_ENABLED, true);
-                }
-            }
+            queue.setBooleanProperty(WMQConstants.WMQ_MQMD_READ_ENABLED,
+                                     config.getBoolean(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_MQMD_READ));
 
-            this.topic = topic;
+            topic = config.getString(MQSourceConnector.CONFIG_NAME_TOPIC);
+
         } catch (JMSException | JMSRuntimeException jmse) {
             log.error("JMS exception {}", jmse);
             throw new ConnectException(jmse);
+        } catch (final MalformedURLException e) {
+            log.error("MalformedURLException exception {}", e);
+            throw new ConnectException("CCDT file url invalid", e);
         }
 
+
+        final String builderClass = config.getString(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER);
         try {
             final Class<? extends RecordBuilder> c = Class.forName(builderClass).asSubclass(RecordBuilder.class);
             builder = c.newInstance();
-            builder.configure(props);
+            builder.configure(config.originalsStrings());
         } catch (ClassNotFoundException | ClassCastException | IllegalAccessException | InstantiationException
                 | NullPointerException exc) {
             log.error("Could not instantiate message builder {}", builderClass);
@@ -220,7 +185,7 @@ public class JMSReader {
 
         try {
             if (userName != null) {
-                jmsCtxt = mqConnFactory.createContext(userName, password, JMSContext.SESSION_TRANSACTED);
+                jmsCtxt = mqConnFactory.createContext(userName, password.value(), JMSContext.SESSION_TRANSACTED);
             } else {
                 jmsCtxt = mqConnFactory.createContext(JMSContext.SESSION_TRANSACTED);
             }
@@ -373,7 +338,7 @@ public class JMSReader {
         log.trace("[{}] Entry {}.connectInternal", Thread.currentThread().getId(), this.getClass().getName());
         try {
             if (userName != null) {
-                jmsCtxt = mqConnFactory.createContext(userName, password, JMSContext.SESSION_TRANSACTED);
+                jmsCtxt = mqConnFactory.createContext(userName, password.value(), JMSContext.SESSION_TRANSACTED);
             } else {
                 jmsCtxt = mqConnFactory.createContext(JMSContext.SESSION_TRANSACTED);
             }
@@ -498,8 +463,8 @@ public class JMSReader {
         return new ConnectException(exc);
     }
 
-    private SSLContext buildSslContext(final String sslKeystoreLocation, final String sslKeystorePassword,
-            final String sslTruststoreLocation, final String sslTruststorePassword) {
+    private SSLContext buildSslContext(final String sslKeystoreLocation, final Password sslKeystorePassword,
+            final String sslTruststoreLocation, final Password sslTruststorePassword) {
         log.trace("[{}] Entry {}.buildSslContext", Thread.currentThread().getId(), this.getClass().getName());
 
         try {
@@ -508,7 +473,7 @@ public class JMSReader {
 
             if (sslKeystoreLocation != null) {
                 final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                kmf.init(loadKeyStore(sslKeystoreLocation, sslKeystorePassword), sslKeystorePassword.toCharArray());
+                kmf.init(loadKeyStore(sslKeystoreLocation, sslKeystorePassword), sslKeystorePassword.value().toCharArray());
                 keyManagers = kmf.getKeyManagers();
             }
 
@@ -530,12 +495,12 @@ public class JMSReader {
         }
     }
 
-    private KeyStore loadKeyStore(final String location, final String password) throws GeneralSecurityException {
+    private KeyStore loadKeyStore(final String location, final Password password) throws GeneralSecurityException {
         log.trace("[{}] Entry {}.loadKeyStore", Thread.currentThread().getId(), this.getClass().getName());
 
         try (final InputStream ksStr = new FileInputStream(location)) {
             final KeyStore ks = KeyStore.getInstance("JKS");
-            ks.load(ksStr, password.toCharArray());
+            ks.load(ksStr, password.value().toCharArray());
 
             log.trace("[{}]  Exit {}.loadKeyStore, retval={}", Thread.currentThread().getId(),
                     this.getClass().getName(), ks);

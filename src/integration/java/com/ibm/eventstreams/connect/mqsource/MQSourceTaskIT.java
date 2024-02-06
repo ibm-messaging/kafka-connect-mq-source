@@ -61,6 +61,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         props.put("mq.channel.name", getChannelName());
         props.put("mq.queue", MQ_QUEUE);
         props.put("mq.user.authentication.mqcsp", "false");
+        props.put("topic", "mytopic");
         return props;
     }
 
@@ -82,6 +83,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(2, kafkaMessages.size());
         for (final SourceRecord kafkaMessage : kafkaMessages) {
+            assertEquals("mytopic", kafkaMessage.topic());
             assertNull(kafkaMessage.key());
             assertNull(kafkaMessage.valueSchema());
 
@@ -116,6 +118,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals(5, kafkaMessages.size());
         for (int i = 0; i < 5; i++) {
             final SourceRecord kafkaMessage = kafkaMessages.get(i);
+            assertEquals("mytopic", kafkaMessage.topic());
             assertNull(kafkaMessage.key());
             assertNull(kafkaMessage.valueSchema());
 
@@ -148,6 +151,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(1, kafkaMessages.size());
         final SourceRecord kafkaMessage = kafkaMessages.get(0);
+        assertEquals("mytopic", kafkaMessage.topic());
         assertNull(kafkaMessage.key());
         assertNull(kafkaMessage.valueSchema());
 

@@ -72,6 +72,7 @@ public class MQSourceTaskAuthIT {
         connectorProps.put("mq.password", APP_PASSWORD);
         connectorProps.put("mq.message.body.jms", "false");
         connectorProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorProps.put("topic", "mytopic");
         return connectorProps;
     }
 
