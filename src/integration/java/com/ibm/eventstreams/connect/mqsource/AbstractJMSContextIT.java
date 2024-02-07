@@ -31,6 +31,7 @@ import javax.jms.Session;
 import org.junit.ClassRule;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.WaitingConsumer;
+import org.testcontainers.utility.MountableFile;
 
 import com.ibm.mq.jms.MQConnectionFactory;
 import com.ibm.msg.client.jms.JmsConnectionFactory;
@@ -53,6 +54,7 @@ public class AbstractJMSContextIT {
         .withEnv("LICENSE", "accept")
         .withEnv("MQ_QMGR_NAME", QMGR_NAME)
         .withEnv("MQ_ENABLE_EMBEDDED_WEB_SERVER", "false")
+        .withCopyFileToContainer(MountableFile.forClasspathResource("no-auth-qmgr.mqsc"), "/etc/mqm/99-no-auth-qmgr.mqsc")
         .withExposedPorts(1414);
 
     private JMSContext jmsContext;

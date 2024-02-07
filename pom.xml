@@ -301,5 +301,12 @@
                 </executions>
             </plugin>
         </plugins>
+
+        <!-- some integration tests use the custom mqsc file in the resources directory -->
+        <testResources>
+            <testResource>
+                <directory>src/integration/resources</directory>
+            </testResource>
+        </testResources>
     </build>
 </project>
