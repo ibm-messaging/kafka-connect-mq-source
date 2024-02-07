@@ -187,28 +187,6 @@
                 </executions>
             </plugin>
 
-            <!-- add the src/integration folder as a test folder, which lets us keep -->
-            <!--  tests that have a dependency on testcontainers separate from pure  -->
-            <!--  unit tests with no external dependency                             -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.3.0</version>
-                <executions>
-                    <execution>
-                        <id>add-test-source</id>
-                        <phase>process-test-sources</phase>
-                        <goals>
-                            <goal>add-test-source</goal>
-                        </goals>
-                        <configuration>
-                            <sources>
-                                <source>src/integration/java</source>
-                            </sources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
 
             <!-- generate test code coverage report -->
             <plugin>
@@ -323,5 +301,12 @@
                 </executions>
             </plugin>
         </plugins>
+
+        <!-- some integration tests use the custom mqsc file in the resources directory -->
+        <testResources>
+            <testResource>
+                <directory>src/integration/resources</directory>
+            </testResource>
+        </testResources>
     </build>
 </project>

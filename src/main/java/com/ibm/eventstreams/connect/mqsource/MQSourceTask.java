@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 
@@ -71,14 +72,13 @@ public class MQSourceTask extends SourceTask {
             log.debug("Task props entry {} : {}", entry.getKey(), value);
         }
 
-        final String strBatchSize = props.get(MQSourceConnector.CONFIG_NAME_MQ_BATCH_SIZE);
-        if (strBatchSize != null) {
-            batchSize = Integer.parseInt(strBatchSize);
-        }
+        final AbstractConfig config = new AbstractConfig(MQSourceConnector.CONFIGDEF, props);
+
+        batchSize = config.getInt(MQSourceConnector.CONFIG_NAME_MQ_BATCH_SIZE);
 
         // Construct a reader to interface with MQ
         reader = new JMSReader();
-        reader.configure(props);
+        reader.configure(config);
 
         // Make a connection as an initial test of the configuration
         reader.connect();
