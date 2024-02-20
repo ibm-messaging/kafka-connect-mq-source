@@ -25,6 +25,7 @@ import com.ibm.msg.client.wmq.WMQConstants;
 import org.junit.ClassRule;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.utility.MountableFile;
 
 import javax.jms.JMSContext;
 import java.util.HashMap;
@@ -59,7 +60,10 @@ public class AbstractJMSContextIT {
     public static GenericContainer<?> mqContainer = new GenericContainer<>(MQTestUtil.mqContainer)
             .withEnv("LICENSE", "accept")
             .withEnv("MQ_QMGR_NAME", QMGR_NAME)
+            .withEnv("MQ_APP_PASSWORD", ADMIN_PASSWORD)
+            .withEnv("MQ_ADMIN_PASSWORD", ADMIN_PASSWORD)
             .withExposedPorts(TCP_MQ_EXPOSED_PORT, REST_API_EXPOSED_PORT)
+            .withCopyFileToContainer(MountableFile.forClasspathResource("no-auth-qmgr.mqsc"), "/etc/mqm/99-no-auth-qmgr.mqsc")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostConfig(
                     new HostConfig().withPortBindings(
                     new PortBinding(Ports.Binding.bindPort(TCP_MQ_HOST_PORT), new ExposedPort(TCP_MQ_EXPOSED_PORT)),
