@@ -18,6 +18,7 @@ package com.ibm.eventstreams.connect.mqsource;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.kafka.common.config.types.Password;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -35,8 +36,8 @@ public class SSLContextBuilder {
 
     private static final Logger log = LoggerFactory.getLogger(SSLContextBuilder.class);
 
-    public SSLContext buildSslContext(final String sslKeystoreLocation, final String sslKeystorePassword,
-                                       final String sslTruststoreLocation, final String sslTruststorePassword) {
+    public SSLContext buildSslContext(final String sslKeystoreLocation, final Password sslKeystorePassword,
+                                       final String sslTruststoreLocation, final Password sslTruststorePassword) {
         log.trace("[{}] Entry {}.buildSslContext", Thread.currentThread().getId(), this.getClass().getName());
 
         try {
@@ -45,14 +46,14 @@ public class SSLContextBuilder {
 
             if (sslKeystoreLocation != null) {
                 final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-                kmf.init(loadKeyStore(sslKeystoreLocation, sslKeystorePassword), sslKeystorePassword.toCharArray());
+                kmf.init(loadKeyStore(sslKeystoreLocation, sslKeystorePassword.value()), sslKeystorePassword.value().toCharArray());
                 keyManagers = kmf.getKeyManagers();
             }
 
             if (sslTruststoreLocation != null) {
                 final TrustManagerFactory tmf = TrustManagerFactory
                         .getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                tmf.init(loadKeyStore(sslTruststoreLocation, sslTruststorePassword));
+                tmf.init(loadKeyStore(sslTruststoreLocation, sslTruststorePassword.value()));
                 trustManagers = tmf.getTrustManagers();
             }
 

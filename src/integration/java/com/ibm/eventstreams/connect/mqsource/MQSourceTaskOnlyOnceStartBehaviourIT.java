@@ -55,10 +55,10 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
     public void startup() throws Exception {
 
         JMSWorker shared = new JMSWorker();
-        shared.configure(connectionProperties());
+        shared.configure(getPropertiesConfig(connectionProperties()));
         shared.connect();
         JMSWorker dedicated = new JMSWorker();
-        dedicated.configure(connectionProperties());
+        dedicated.configure(getPropertiesConfig(connectionProperties()));
         dedicated.connect();
         sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
 
@@ -86,6 +86,7 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
         props.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         props.put("mq.exactly.once.state.queue", DEFAULT_STATE_QUEUE);
         props.put("tasks.max", "1");
+        props.put("topic", "mytopic");
         return props;
     }
 
@@ -132,8 +133,8 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
 
         // Check that MQ has been read from
         List<Message> mqMessages = browseAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
-        assertThat(mqMessages).isEmpty(); 
-        
+        assertThat(mqMessages).isEmpty();
+
         // Check that the messages have been created as source records correctly
         assertThat(kafkaMessages)
                 .hasSize(2)
@@ -173,8 +174,8 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
 
         // Check that MQ has been read from
         List<Message> mqMessages = browseAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
-        assertThat(mqMessages).isEmpty(); 
-        
+        assertThat(mqMessages).isEmpty();
+
         // Check that the messages have been created as source records correctly
         assertThat(kafkaMessages)
                 .hasSize(2)
@@ -192,7 +193,7 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
         assertThat(mqSequenceState.get().getSequenceId()).isEqualTo(6L);
     }
 
-    @Test // this one needs to take in to account the message ids that should be re deilvered from MQ Also need assertion on state defined inthe start command 
+    @Test // this one needs to take in to account the message ids that should be re deilvered from MQ Also need assertion on state defined inthe start command
     public void testOnlyOnceStartBehaviour_GivenSequenceStateIsPresentOnQueue_AndStateIsInFlight_AndStoredOffsetNotInKafka() throws Exception {
 
         connectTask = getSourceTaskWithEmptyKafkaOffset(); // Kafka has no state
@@ -219,7 +220,7 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
         assertThat(connectTask.startUpAction).isEqualTo(MQSourceTaskStartUpAction.REDELIVER_UNSENT_BATCH);
         assertThat(connectTask.getSequenceId().get()).isEqualTo(23L);
         assertThat(connectTask.getMsgIds()).isEqualTo(firstBatchOfMessageIds);
-        
+
         final List<SourceRecord> kafkaMessagesInitialPoll = connectTask.poll();
 
         // Check that no record have been returned since the inflight records transaction has ent been rolled back yet
@@ -247,7 +248,7 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
 
         // Check that MQ has been read from
         List<Message> mqMessages = browseAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
-        assertThat(mqMessages.size()).isEqualTo(3); 
+        assertThat(mqMessages.size()).isEqualTo(3);
 
         // Check that the internal sequence id has been set correctly
         assertThat(connectTask.getSequenceId().get()).isEqualTo(23L);

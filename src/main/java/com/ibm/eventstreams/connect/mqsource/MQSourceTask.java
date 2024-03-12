@@ -22,6 +22,7 @@ import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateExceptio
 import com.ibm.eventstreams.connect.mqsource.util.LogMessages;
 import com.ibm.eventstreams.connect.mqsource.util.ExceptionProcessor;
 import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
+import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -36,9 +37,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -125,6 +124,8 @@ public class MQSourceTask extends SourceTask {
 
     protected void start(final Map<String, String> props, final JMSWorker reader, final JMSWorker dedicated, final SequenceStateClient sequenceStateClient) {
         log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
+        final AbstractConfig config = new AbstractConfig(MQSourceConnector.CONFIGDEF, props, true);
+
         this.reader = reader;
         this.dedicated = dedicated;
         this.sequenceStateClient = sequenceStateClient;
@@ -137,14 +138,14 @@ public class MQSourceTask extends SourceTask {
 
         startUpAction = NORMAL_OPERATION;
 
-        logConfiguration(props);
+        batchSize = config.getInt(CONFIG_NAME_MQ_BATCH_SIZE);
         try {
-            reader.configure(props);
+            reader.configure(config);
             reader.connect();
 
             if (isExactlyOnceMode) {
                 log.debug(" Deciding startup behaviour from state provided in the state queue and Kafka offsets for exactly once processing.");
-                dedicated.configure(props);
+                dedicated.configure(config);
                 dedicated.connect();
 
                 sequenceStateClient.validateStateQueue();
@@ -178,13 +179,7 @@ public class MQSourceTask extends SourceTask {
             throw e;
         }
 
-
-        final String strBatchSize = props.get(CONFIG_NAME_MQ_BATCH_SIZE);
         sourceQueue = props.get(CONFIG_NAME_MQ_QUEUE);
-
-        if (strBatchSize != null) {
-            batchSize = Integer.parseInt(strBatchSize);
-        }
 
         log.trace("[{}]  Exit {}.start", Thread.currentThread().getId(), this.getClass().getName());
     }
@@ -210,18 +205,6 @@ public class MQSourceTask extends SourceTask {
 
     private static boolean mqSequenceMatchesKafkaSequence(final SequenceState mqSequenceState, final Optional<Long> kafkaSequenceState) {
         return mqSequenceState.getSequenceId() == kafkaSequenceState.orElse(-1L);
-    }
-
-    private static void logConfiguration(final Map<String, String> props) {
-        for (final Entry<String, String> entry : props.entrySet()) {
-            final String value;
-            if (entry.getKey().toLowerCase(Locale.ENGLISH).contains("password")) {
-                value = "[hidden]";
-            } else {
-                value = entry.getValue();
-            }
-            log.debug("Task props entry {} : {}", entry.getKey(), value);
-        }
     }
 
     /**
@@ -274,12 +257,11 @@ public class MQSourceTask extends SourceTask {
                     removeDeliveredMessagesFromSourceQueue(msgIds);
                     startUpAction = NORMAL_OPERATION;
                     log.debug(" Delivered message have been removed from the source queue and will not be forwarded to Kafka.");
-                    return Collections.emptyList();
                 } else { // The messages could still be locked in a tx on mq.
                     log.debug(" Delivered message have not been rolled back to the source queue.");
                     maybeFailWithTimeoutIfNotWaitAndIncrement(msgIds);
-                    return Collections.emptyList();
                 }
+                return Collections.emptyList();
 
             case REDELIVER_UNSENT_BATCH:
                 if (isFirstMsgOnSourceQueueARequiredMsg(msgIds)) {
@@ -410,18 +392,18 @@ public class MQSourceTask extends SourceTask {
     }
 
     /**
-     * 
+     *
      * Commit the offsets, up to the offsets that have been returned by
      * {@link #poll()}. This
      * method should block until the commit is complete.
-     * 
-     * 
+     *
+     *
      * SourceTasks are not required to implement this functionality; Kafka Connect
      * will record offsets
      * automatically. This hook is provided for systems that also need to store
      * offsets internally
      * in their own system.
-     * 
+     *
      */
     public void commit() throws InterruptedException {
         log.trace("[{}] Entry {}.commit", Thread.currentThread().getId(), this.getClass().getName());
@@ -497,17 +479,17 @@ public class MQSourceTask extends SourceTask {
     }
 
     /**
-     * 
+     *
      * Commit an individual {@link SourceRecord} when the callback from the producer
      * client is received, or if a record is filtered by a transformation.
-     * 
-     * 
+     *
+     *
      * SourceTasks are not required to implement this functionality; Kafka Connect
      * will record offsets
      * automatically. This hook is provided for systems that also need to store
      * offsets internally
      * in their own system.
-     * 
+     *
      *
      * @param record {@link SourceRecord} that was successfully sent via the
      *               producer.

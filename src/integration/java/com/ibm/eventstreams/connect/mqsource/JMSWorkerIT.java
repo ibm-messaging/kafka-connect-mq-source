@@ -45,7 +45,7 @@ public class JMSWorkerIT extends AbstractJMSContextIT {
         defaultConnectorProperties.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
         jmsWorker = new JMSWorker();
-        jmsWorker.configure(defaultConnectorProperties);
+        jmsWorker.configure(getPropertiesConfig(defaultConnectorProperties));
         jmsWorker.connect();
     }
 

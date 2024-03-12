@@ -59,6 +59,8 @@ public class MQSourceTaskTest {
         props.put("mq.channel.name", CHANNEL_NAME);
         props.put("mq.queue", DEFAULT_SOURCE_QUEUE);
         props.put("mq.user.authentication.mqcsp", "false");
+        props.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        props.put("topic", "mytopic");
         return props;
     }
 
@@ -117,7 +119,7 @@ public class MQSourceTaskTest {
 
         assertThat(mqSourceTask.getSequenceId().get()).isEqualTo(0L);
     }
-    
+
     @Test
     public void testStartWhenPrepareMessageInMQAndSequenceStateIsDELIVERED() throws JMSRuntimeException, JMSException {
         List<String> messageIds = Arrays.asList("1", "2", "3", "4", "5");

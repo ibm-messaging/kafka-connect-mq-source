@@ -52,7 +52,6 @@ public class MQSourceTaskAuthIT {
 
     private static final String QMGR_NAME = "MYAUTHQMGR";
     private static final String QUEUE_NAME = "DEV.QUEUE.1";
-    private static final String STATE_QUEUE_NAME = "DEV.QUEUE.2";
     private static final String CHANNEL_NAME = "DEV.APP.SVRCONN";
     private static final String APP_PASSWORD = "MySuperSecretPassword";
     private static final String ADMIN_PASSWORD = "MyAdminPassword";
@@ -89,6 +88,7 @@ public class MQSourceTaskAuthIT {
         connectorProps.put("mq.password", APP_PASSWORD);
         connectorProps.put("mq.message.body.jms", "false");
         connectorProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorProps.put("topic", "mytopic");
         return connectorProps;
     }
 

@@ -85,6 +85,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         props.put("mq.channel.name", CHANNEL_NAME);
         props.put("mq.queue", DEFAULT_SOURCE_QUEUE);
         props.put("mq.user.authentication.mqcsp", "false");
+        props.put("topic", "mytopic");
         return props;
     }
 
@@ -430,9 +431,9 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put("mq.message.body.jms", "true");
         connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
-        spyJMSWorker.configure(connectorConfigProps);
+        spyJMSWorker.configure(getPropertiesConfig(connectorConfigProps));
         JMSWorker dedicated = new JMSWorker();
-        dedicated.configure(connectorConfigProps);
+        dedicated.configure(getPropertiesConfig(connectorConfigProps));
         SequenceStateClient sequenceStateClient = Mockito.spy(new SequenceStateClient(DEFAULT_STATE_QUEUE, spyJMSWorker, dedicated));
 
         connectTask.start(connectorConfigProps, spyJMSWorker, dedicated, sequenceStateClient);
@@ -484,9 +485,9 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
         JMSWorker shared = new JMSWorker();
-        shared.configure(connectorConfigProps);
+        shared.configure(getPropertiesConfig(connectorConfigProps));
         JMSWorker dedicated = new JMSWorker();
-        dedicated.configure(connectorConfigProps);
+        dedicated.configure(getPropertiesConfig(connectorConfigProps));
         SequenceStateClient sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
 
         connectTask.start(connectorConfigProps, shared, dedicated, sequenceStateClient);
@@ -514,9 +515,9 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         JMSWorker spyDedicated = Mockito.spy(new JMSWorker());
         JMSWorker spyShared = Mockito.spy(new JMSWorker());
 
-        spyJMSWorker.configure(connectorConfigProps);
-        spyDedicated.configure(connectorConfigProps);
-        spyShared.configure(connectorConfigProps);
+        spyJMSWorker.configure(getPropertiesConfig(connectorConfigProps));
+        spyDedicated.configure(getPropertiesConfig(connectorConfigProps));
+        spyShared.configure(getPropertiesConfig(connectorConfigProps));
 
         Message messageSpy = Mockito.spy(getJmsContext().createTextMessage("Spy Injected Message"));
 
@@ -552,9 +553,9 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         JMSWorker spyDedicated = Mockito.spy(new JMSWorker());
         JMSWorker spyShared = Mockito.spy(new JMSWorker());
 
-        spyJMSWorker.configure(connectorConfigProps);
-        spyDedicated.configure(connectorConfigProps);
-        spyShared.configure(connectorConfigProps);
+        spyJMSWorker.configure(getPropertiesConfig(connectorConfigProps));
+        spyDedicated.configure(getPropertiesConfig(connectorConfigProps));
+        spyShared.configure(getPropertiesConfig(connectorConfigProps));
 
         Message messageSpy = Mockito.spy(getJmsContext().createTextMessage("Spy Injected Message"));
 

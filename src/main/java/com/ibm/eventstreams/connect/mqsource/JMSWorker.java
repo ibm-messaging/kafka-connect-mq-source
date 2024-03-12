@@ -22,6 +22,9 @@ import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
 import com.ibm.mq.jms.MQConnectionFactory;
 import com.ibm.mq.jms.MQQueue;
 import com.ibm.msg.client.wmq.WMQConstants;
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.common.config.types.Password;
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +57,7 @@ public class JMSWorker {
 
     // Configs
     private String userName;
-    private String password;
+    private Password password;
     private String topic;
 
     // JMS factory and context
@@ -66,87 +69,57 @@ public class JMSWorker {
 
     private boolean connected = false; // Whether connected to MQ
     private AtomicBoolean closeNow; // Whether close has been requested
-    private long reconnectDelayMillis = reconnectDelayMillisMin; // Delay between repeated reconnect attempts
+    private long reconnectDelayMillis = RECONNECT_DELAY_MILLIS_MIN; // Delay between repeated reconnect attempts
 
-    private static long receiveTimeout = 2000L;
-    private static long reconnectDelayMillisMin = 64L;
-    private static long reconnectDelayMillisMax = 8192L;
+    private static final long RECEIVE_TIMEOUT = 2000L;
+    private static final long RECONNECT_DELAY_MILLIS_MIN = 64L;
+    private static final long RECONNECT_DELAY_MILLIS_MAX = 8192L;
 
     /**
      * Configure this class.
      *
-     * @param props initial configuration
+     * @param config initial configuration
      * @throws JMSWorkerConnectionException
      */
-    public void configure(final Map<String, String> props) {
+    public void configure(final AbstractConfig config) {
+
         log.trace("[{}] Entry {}.configure, props={}", Thread.currentThread().getId(), this.getClass().getName(),
-                props);
+                config);
 
-        final String queueManager = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE_MANAGER);
-        final String connectionMode = props.get(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_MODE);
-        final String connectionNameList = props.get(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_NAME_LIST);
-        final String channelName = props.get(MQSourceConnector.CONFIG_NAME_MQ_CHANNEL_NAME);
-        final String userName = props.get(MQSourceConnector.CONFIG_NAME_MQ_USER_NAME);
-        final String password = props.get(MQSourceConnector.CONFIG_NAME_MQ_PASSWORD);
-        final String ccdtUrl = props.get(MQSourceConnector.CONFIG_NAME_MQ_CCDT_URL);
-        final String sslCipherSuite = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_CIPHER_SUITE);
-        final String sslPeerName = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_PEER_NAME);
-        final String sslKeystoreLocation = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_LOCATION);
-        final String sslKeystorePassword = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_PASSWORD);
-        final String sslTruststoreLocation = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_LOCATION);
-        final String sslTruststorePassword = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_PASSWORD);
-        final String useMQCSP = props.get(MQSourceConnector.CONFIG_NAME_MQ_USER_AUTHENTICATION_MQCSP);
-        final String useIBMCipherMappings = props.get(MQSourceConnector.CONFIG_NAME_MQ_SSL_USE_IBM_CIPHER_MAPPINGS);
-        final String topic = props.get(MQSourceConnector.CONFIG_NAME_TOPIC);
+        System.setProperty("com.ibm.mq.cfg.useIBMCipherMappings",
+                config.getBoolean(MQSourceConnector.CONFIG_NAME_MQ_SSL_USE_IBM_CIPHER_MAPPINGS).toString());
 
-        if (useIBMCipherMappings != null) {
-            System.setProperty("com.ibm.mq.cfg.useIBMCipherMappings", useIBMCipherMappings);
-        }
-
-        int transportType = WMQConstants.WMQ_CM_CLIENT;
-        if (connectionMode != null) {
-            if (connectionMode.equals(MQSourceConnector.CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT)) {
-                transportType = WMQConstants.WMQ_CM_CLIENT;
-            } else if (connectionMode.equals(MQSourceConnector.CONFIG_VALUE_MQ_CONNECTION_MODE_BINDINGS)) {
-                transportType = WMQConstants.WMQ_CM_BINDINGS;
-            } else {
-                log.error("Unsupported MQ connection mode {}", connectionMode);
-                throw new JMSWorkerConnectionException("Unsupported MQ connection mode");
-            }
-        }
+        final int transportType =
+                config.getString(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_MODE)
+                        .equals(MQSourceConnector.CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT) ?
+                        WMQConstants.WMQ_CM_CLIENT :
+                        WMQConstants.WMQ_CM_BINDINGS;
 
         try {
             mqConnFactory = new MQConnectionFactory();
             mqConnFactory.setTransportType(transportType);
-            mqConnFactory.setQueueManager(queueManager);
-            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP, true);
-            if (useMQCSP != null) {
-                mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP,
-                        Boolean.parseBoolean(useMQCSP));
-            }
+            mqConnFactory.setQueueManager(config.getString(MQSourceConnector.CONFIG_NAME_MQ_QUEUE_MANAGER));
+            mqConnFactory.setBooleanProperty(WMQConstants.USER_AUTHENTICATION_MQCSP,
+                    config.getBoolean(MQSourceConnector.CONFIG_NAME_MQ_USER_AUTHENTICATION_MQCSP));
 
             if (transportType == WMQConstants.WMQ_CM_CLIENT) {
+                final String ccdtUrl = config.getString(MQSourceConnector.CONFIG_NAME_MQ_CCDT_URL);
+
                 if (ccdtUrl != null) {
-                    final URL ccdtUrlObject;
-                    try {
-                        ccdtUrlObject = new URL(ccdtUrl);
-                    } catch (final MalformedURLException e) {
-                        log.error("MalformedURLException exception {}", e);
-                        throw new JMSWorkerConnectionException("CCDT file url invalid", e);
-                    }
-                    mqConnFactory.setCCDTURL(ccdtUrlObject);
+                    mqConnFactory.setCCDTURL(new URL(ccdtUrl));
                 } else {
-                    mqConnFactory.setConnectionNameList(connectionNameList);
-                    mqConnFactory.setChannel(channelName);
+                    mqConnFactory.setConnectionNameList(config.getString(MQSourceConnector.CONFIG_NAME_MQ_CONNECTION_NAME_LIST));
+                    mqConnFactory.setChannel(config.getString(MQSourceConnector.CONFIG_NAME_MQ_CHANNEL_NAME));
                 }
 
-                if (sslCipherSuite != null) {
-                    mqConnFactory.setSSLCipherSuite(sslCipherSuite);
-                    if (sslPeerName != null) {
-                        mqConnFactory.setSSLPeerName(sslPeerName);
-                    }
-                }
+                mqConnFactory.setSSLCipherSuite(config.getString(MQSourceConnector.CONFIG_NAME_MQ_SSL_CIPHER_SUITE));
+                mqConnFactory.setSSLPeerName(config.getString(MQSourceConnector.CONFIG_NAME_MQ_SSL_PEER_NAME));
 
+
+                final String sslKeystoreLocation = config.getString(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_LOCATION);
+                final Password sslKeystorePassword = config.getPassword(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_PASSWORD);
+                final String sslTruststoreLocation = config.getString(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_LOCATION);
+                final Password sslTruststorePassword = config.getPassword(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_PASSWORD);
                 if (sslKeystoreLocation != null || sslTruststoreLocation != null) {
                     final SSLContext sslContext = new SSLContextBuilder().buildSslContext(sslKeystoreLocation, sslKeystorePassword,
                             sslTruststoreLocation, sslTruststorePassword);
@@ -154,16 +127,19 @@ public class JMSWorker {
                 }
             }
 
-            this.userName = userName;
-            this.password = password;
-            this.topic = topic;
+            userName = config.getString(MQSourceConnector.CONFIG_NAME_MQ_USER_NAME);
+            password = config.getPassword(MQSourceConnector.CONFIG_NAME_MQ_PASSWORD);
+            topic = config.getString(MQSourceConnector.CONFIG_NAME_TOPIC);
         } catch (JMSException | JMSRuntimeException jmse) {
             log.error("JMS exception {}", jmse);
             throw new JMSWorkerConnectionException("JMS connection failed", jmse);
+        } catch (final MalformedURLException e) {
+            log.error("MalformedURLException exception {}", e);
+            throw new ConnectException("CCDT file url invalid", e);
         }
         closeNow = new AtomicBoolean();
         closeNow.set(false);
-        this.recordBuilder = RecordBuilderFactory.getRecordBuilder(props);
+        this.recordBuilder = RecordBuilderFactory.getRecordBuilder(config.originalsStrings());
 
         log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
     }
@@ -187,7 +163,7 @@ public class JMSWorker {
     public void connect() {
         log.trace("[{}] Entry {}.connect", Thread.currentThread().getId(), this.getClass().getName());
         if (userName != null) {
-            this.jmsCtxt = mqConnFactory.createContext(userName, password, JMSContext.SESSION_TRANSACTED);
+            this.jmsCtxt = mqConnFactory.createContext(userName, password.value(), JMSContext.SESSION_TRANSACTED);
         } else {
             this.jmsCtxt = mqConnFactory.createContext(JMSContext.SESSION_TRANSACTED);
         }
@@ -227,9 +203,9 @@ public class JMSWorker {
 
         Message message = null;
         if (wait) {
-            log.debug("Waiting {} ms for message", receiveTimeout);
+            log.debug("Waiting {} ms for message", RECEIVE_TIMEOUT);
 
-            message = internalConsumer.receive(receiveTimeout);
+            message = internalConsumer.receive(RECEIVE_TIMEOUT);
 
             if (message == null) {
                 log.debug("No message received");
@@ -361,7 +337,7 @@ public class JMSWorker {
         log.trace("[{}] Entry {}.maybeReconnect", Thread.currentThread().getId(), this.getClass().getName());
         try {
             connect();
-            reconnectDelayMillis = reconnectDelayMillisMin;
+            reconnectDelayMillis = RECONNECT_DELAY_MILLIS_MIN;
             log.info("Connection to MQ established");
         } catch (final JMSRuntimeException jmse) {
             // Delay slightly so that repeated reconnect loops don't run too fast
@@ -370,7 +346,7 @@ public class JMSWorker {
             } catch (final InterruptedException ie) {
             }
 
-            if (reconnectDelayMillis < reconnectDelayMillisMax) {
+            if (reconnectDelayMillis < RECONNECT_DELAY_MILLIS_MAX) {
                 reconnectDelayMillis = reconnectDelayMillis * 2;
             }
 

@@ -22,7 +22,6 @@ import com.ibm.eventstreams.connect.mqsource.util.LogMessages;
 import com.ibm.eventstreams.connect.mqsource.utils.SourceTaskStopper;
 
 import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.jetbrains.annotations.NotNull;
 import org.junit.After;
@@ -61,9 +60,9 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = connectionProperties();
 
         final JMSWorker shared = new JMSWorker();
-        shared.configure(connectorConfigProps);
+        shared.configure(getPropertiesConfig(connectorConfigProps));
         final JMSWorker dedicated = new JMSWorker();
-        dedicated.configure(connectorConfigProps);
+        dedicated.configure(getPropertiesConfig(connectorConfigProps));
         sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
 
         connectTask.start(connectorConfigProps, shared, dedicated, sequenceStateClient);
@@ -89,12 +88,13 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         props.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         props.put("mq.exactly.once.state.queue", DEFAULT_STATE_QUEUE);
         props.put("tasks.max", "1");
+        props.put("topic", "mytopic");
         return props;
     }
 
     private Map<String, String> connectionPropertiesWithOnlyOnceDisabled() {
         final Map<String, String> props = connectionProperties();
-        props.put("mq.exactly.once.state.queue", null);
+        props.remove("mq.exactly.once.state.queue");
         return props;
     }
 

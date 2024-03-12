@@ -22,6 +22,8 @@ import com.github.dockerjava.api.model.Ports;
 import com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil;
 import com.ibm.mq.jms.MQConnectionFactory;
 import com.ibm.msg.client.wmq.WMQConstants;
+
+import org.apache.kafka.common.config.AbstractConfig;
 import org.junit.ClassRule;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -100,7 +102,12 @@ public class AbstractJMSContextIT {
         props.put("mq.channel.name", CHANNEL_NAME);
         props.put("mq.queue", DEFAULT_SOURCE_QUEUE);
         props.put("mq.user.authentication.mqcsp", "false");
+        props.put("topic", "mytopic");
         return props;
     }
 
+    public AbstractConfig getPropertiesConfig(Map<String, String> props) {
+        final AbstractConfig connectorConfig = new AbstractConfig(MQSourceConnector.CONFIGDEF, props);
+        return connectorConfig;
+    }
 }

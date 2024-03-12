@@ -57,9 +57,9 @@ public class SequenceStateClientIT extends AbstractJMSContextIT {
         Map<String, String> props = getDefaultConnectorProperties();
         props.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         shared = new JMSWorker();
-        shared.configure(props);
+        shared.configure(getPropertiesConfig(props));
         JMSWorker dedicated = new JMSWorker();
-        dedicated.configure(props);
+        dedicated.configure(getPropertiesConfig(props));
         sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
     }
 
@@ -332,5 +332,5 @@ public class SequenceStateClientIT extends AbstractJMSContextIT {
         String text = "GenericTextMessage";
         return Arrays.asList(getJmsContext().createTextMessage(text));
     }
-    
+
 }

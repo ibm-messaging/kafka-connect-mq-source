@@ -31,7 +31,7 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doCallRealMethod;
 
 import java.util.ArrayList;
@@ -68,6 +68,8 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
     private MQSourceTask connectTask;
     private SequenceStateClient sequenceStateClient;
 
+    private static final String TOPIC_NAME = "mytopic";
+
     private SequenceStateClient createSequenceStateClient(final JMSWorker shared, final JMSWorker dedicated, final Map<String,String> connectorProps) {
         sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
         return sequenceStateClient;
@@ -79,10 +81,10 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = getConnectorProps();
 
         JMSWorker shared = new JMSWorker();
-        shared.configure(connectorConfigProps);
+        shared.configure(getPropertiesConfig(connectorConfigProps));
 
         JMSWorker dedicated = new JMSWorker();
-        dedicated.configure(connectorConfigProps);
+        dedicated.configure(getPropertiesConfig(connectorConfigProps));
 
         connectTask.start(connectorConfigProps);
         createSequenceStateClient(shared, dedicated, connectorConfigProps);
@@ -108,6 +110,7 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         connectorProps.put("mq.user.authentication.mqcsp", "false");
         connectorProps.put("mq.message.body.jms", "true");
         connectorProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorProps.put("topic", TOPIC_NAME);
         return connectorProps;
     }
 
@@ -176,10 +179,10 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
     @Test
     public void testIfErrorsOccurWithPollRollbackAndContinues() throws Exception {
         JMSWorker spyJMSWorker = Mockito.spy(new JMSWorker());
-        spyJMSWorker.configure(getConnectorProps());
+        spyJMSWorker.configure(getPropertiesConfig(getConnectorProps()));
 
         JMSWorker dedicated = new JMSWorker();
-        dedicated.configure(getConnectorProps());
+        dedicated.configure(getPropertiesConfig(getConnectorProps()));
 
         MQSourceTask connectTask = getSourceTaskWithEmptyKafkaOffset();
 
@@ -240,10 +243,10 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
     @Test
     public void testNoExceptionThrownWhenJMSExceptionThrownByBuilder_AndRecordsAreRollbackAndThenProcessedNextPoll() throws Exception {
         JMSWorker sharedJMSWorker = new JMSWorker();
-        sharedJMSWorker.configure(getConnectorProps());
+        sharedJMSWorker.configure(getPropertiesConfig(getConnectorProps()));
 
         JMSWorker dedicated = new JMSWorker();
-        dedicated.configure(getConnectorProps());
+        dedicated.configure(getPropertiesConfig(getConnectorProps()));
 
         DefaultRecordBuilder spyRecordBuilder = Mockito.spy(new DefaultRecordBuilder());
 
@@ -274,7 +277,7 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
                 .doThrow(new JMSException("This is a JMSException caused by a spy!!")) // 8
                 .doCallRealMethod()
                  // Be careful with these, any() does not cover null hence null is used
-                .when(spyRecordBuilder).toSourceRecord(any(JMSContext.class), isNull(), anyBoolean(), any(Message.class), any(), any());
+                .when(spyRecordBuilder).toSourceRecord(any(JMSContext.class), eq(TOPIC_NAME), anyBoolean(), any(Message.class), any(), any());
 
         // Needs to be done here, after the doCallRealMethods have been setup.
         sharedJMSWorker.setRecordBuilder(spyRecordBuilder);

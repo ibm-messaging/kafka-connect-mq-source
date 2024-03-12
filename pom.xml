@@ -126,7 +126,7 @@
           <outputDirectory>${project.build.outputDirectory}/META-INF/LICENSES</outputDirectory>
         </configuration>
       </plugin>
-      
+
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.1</version>
@@ -324,7 +324,6 @@
             </execution>
         </executions>
       </plugin>
-
     </plugins>
   </build>
 </project>
