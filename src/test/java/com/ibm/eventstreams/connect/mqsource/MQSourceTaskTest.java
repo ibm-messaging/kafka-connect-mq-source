@@ -17,6 +17,10 @@ package com.ibm.eventstreams.connect.mqsource;
 
 import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceState;
 import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateClient;
+import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
+
+import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTaskContext;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -32,6 +36,7 @@ import java.util.Optional;
 
 import javax.jms.JMSException;
 import javax.jms.JMSRuntimeException;
+import javax.jms.TextMessage;
 
 import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.CHANNEL_NAME;
 import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.DEFAULT_CONNECTION_NAME;
@@ -39,17 +44,23 @@ import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.DEFAULT
 import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.DEFAULT_STATE_QUEUE;
 import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.QMGR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 
 @RunWith(MockitoJUnitRunner.class)
 public class MQSourceTaskTest {
 
+    @Mock private TextMessage jmsMessage;
     @Mock private JMSWorker jmsWorker;
     @Mock private JMSWorker dedicatedWorker;
     @Mock private SequenceStateClient sequenceStateClient;
     @Mock private SourceTaskContext sourceTaskContext;
+
+    private final static int MQ_BATCH_SIZE = 8;
+    private final static int MAX_POLL_BLOCKED_TIME_MS = 100;
 
     private Map<String, String> createDefaultConnectorProperties() {
         final Map<String, String> props = new HashMap<>();
@@ -61,6 +72,8 @@ public class MQSourceTaskTest {
         props.put("mq.user.authentication.mqcsp", "false");
         props.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         props.put("topic", "mytopic");
+        props.put("mq.batch.size", Integer.toString(MQ_BATCH_SIZE));
+        props.put("mq.max.poll.blocked.time.ms", Integer.toString(MAX_POLL_BLOCKED_TIME_MS));
         return props;
     }
 
@@ -206,5 +219,57 @@ public class MQSourceTaskTest {
                         messageIds,
                         SequenceState.LastKnownState.DELIVERED)
         );
+    }
+
+    @Test
+    public void testPollsBlockUntilBatchComplete() throws JMSRuntimeException, JMSException, InterruptedException {
+        Mockito.when(jmsWorker.receive(anyString(), any(QueueConfig.class), anyBoolean())).thenReturn(jmsMessage);
+
+        MQSourceTask mqSourceTask = new MQSourceTask();
+        mqSourceTask.initialize(sourceTaskContext);
+        mqSourceTask.start(createDefaultConnectorProperties(), jmsWorker, dedicatedWorker, sequenceStateClient);
+
+        List<SourceRecord> firstConnectMessagesBatch = mqSourceTask.poll();
+        assertThat(firstConnectMessagesBatch.size()).isEqualTo(MQ_BATCH_SIZE);
+
+        for (int i = 0; i < firstConnectMessagesBatch.size(); i++) {
+            if (i < 2 || i > (MQ_BATCH_SIZE - 2)) {
+                // do a few polls while messages are being committed, but
+                //  keep under the limit that will cause an exception
+                List<SourceRecord> pollDuringCommits = mqSourceTask.poll();
+                assertThat(pollDuringCommits).isNull();
+            }
+
+            mqSourceTask.commitRecord(firstConnectMessagesBatch.get(i));
+        }
+
+        // now all messages are committed, a poll should return messages
+        List<SourceRecord> secondConnectMessagesBatch = mqSourceTask.poll();
+        assertThat(secondConnectMessagesBatch.size()).isEqualTo(MQ_BATCH_SIZE);
+    }
+
+    @Test
+    public void testRepeatedPollsFailWhileMessagesInFlight() throws JMSRuntimeException, JMSException, InterruptedException {
+        Mockito.when(jmsWorker.receive(anyString(), any(QueueConfig.class), anyBoolean())).thenReturn(jmsMessage);
+
+        MQSourceTask mqSourceTask = new MQSourceTask();
+        mqSourceTask.initialize(sourceTaskContext);
+        mqSourceTask.start(createDefaultConnectorProperties(), jmsWorker, dedicatedWorker, sequenceStateClient);
+
+        List<SourceRecord> firstConnectMessagesBatch = mqSourceTask.poll();
+        assertThat(firstConnectMessagesBatch.size()).isEqualTo(MQ_BATCH_SIZE);
+
+        final int BLOCKED_POLLS_LIMIT = 50;
+        for (int i = 0; i < BLOCKED_POLLS_LIMIT; i++) {
+            // up to the limit, polls before the batch is committed are
+            //  allowed, but return null to indicate that the poll
+            //  cycle was skipped
+            List<SourceRecord> pollDuringCommits = mqSourceTask.poll();
+            assertThat(pollDuringCommits).isNull();
+        }
+
+        // additional polls throw an exception to indicate that the
+        //  task has been blocked for too long
+        assertThrows(ConnectException.class, () -> mqSourceTask.poll());
     }
 }

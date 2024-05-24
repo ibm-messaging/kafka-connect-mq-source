@@ -147,7 +147,12 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
-    public static String version = "2.0.0";
+    public static final String CONFIG_MAX_POLL_BLOCKED_TIME_MS = "mq.max.poll.blocked.time.ms";
+    public static final String CONFIG_DOCUMENTATION_MAX_POLL_BLOCKED_TIME_MS = "How long the SourceTask will wait for a "
+                                + "previous batch of messages to be delivered to Kafka before starting a new poll.";
+    public static final String CONFIG_DISPLAY_MAX_POLL_BLOCKED_TIME_MS = "Max poll blocked time ms";
+
+    public static String version = "2.0.1";
 
     private Map<String, String> configProps;
 
@@ -449,6 +454,19 @@ public class MQSourceConnector extends SourceConnector {
                 CONFIG_DOCUMENTATION_MQ_EXACTLY_ONCE_STATE_QUEUE,
                 CONFIG_GROUP_MQ, 23, Width.LONG,
                 CONFIG_DISPLAY_MQ_EXACTLY_ONCE_STATE_QUEUE);
+
+        // How long the SourceTask will wait for a previous batch of messages to
+        //  be delivered to Kafka before starting a new poll.
+        // It is important that this is less than the time defined for
+        //  task.shutdown.graceful.timeout.ms as that is how long Connect will
+        //  wait for the task to perform lifecycle operations.
+        CONFIGDEF.define(CONFIG_MAX_POLL_BLOCKED_TIME_MS,
+                Type.INT,
+                2000, ConfigDef.Range.atLeast(0),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MAX_POLL_BLOCKED_TIME_MS,
+                null, 24, Width.MEDIUM,
+                CONFIG_DISPLAY_MAX_POLL_BLOCKED_TIME_MS);
 
         CONFIGDEF.define(CONFIG_NAME_TOPIC,
                 Type.STRING,

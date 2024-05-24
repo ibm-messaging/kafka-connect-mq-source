@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2018, 2019, 2023 IBM Corporation
+ * Copyright 2017, 2018, 2019, 2023, 2024 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,12 +40,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_MAX_POLL_BLOCKED_TIME_MS;
 import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_BATCH_SIZE;
 import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE;
 import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_QUEUE;
@@ -63,11 +65,37 @@ public class MQSourceTask extends SourceTask {
 
     // The maximum number of records returned per call to poll()
     private int batchSize = CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT;
-    private CountDownLatch batchCompleteSignal = null; // Used to signal completion of a batch
-    private AtomicLong pollCycle = new AtomicLong(1); // Incremented each time poll() is called
+
+    // Used to signal completion of a batch
+    //  After returning a batch of messages to Connect, the SourceTask waits
+    //  for an acknowledgement that each message has been successfully
+    //  delivered to Kafka.
+    //
+    //  The count maintained by the latch is a count of how many MQ messages
+    //  the task is still waiting for this confirmation for.
+    //
+    //  There is only one active batch at a time - a new batch cannot be
+    //  started until this countdown has reached zero.
+    private CountDownLatch batchCompleteSignal = null;
+
+    // The number of times a new poll was blocked because the current batch
+    //  is not yet complete. (A batch is complete once all messages have
+    //  been delivered to Kafka, as confirmed by callbacks to #commitRecord
+    //  and #commit).
+    private int blockedPollsCount = 0;
+
+    // The maximum number of times the SourceTask will tolerate new polls
+    //  being blocked before reporting an error to the Connect framework.
+    private final static int MAX_BLOCKED_POLLS = 50;
+
+    // Incremented each time poll() is called successfully
+    private AtomicLong pollCycle = new AtomicLong(1);
+
+    // The value of pollCycle the last time commit() was called
+    private long lastCommitPollCycle = 0;
+
     private AtomicLong sequenceStateId = new AtomicLong(0);
     private List<String> msgIds = new ArrayList<String>();
-    private long lastCommitPollCycle = 0; // The value of pollCycle the last time commit() was called
     private AtomicBoolean stopNow = new AtomicBoolean(); // Whether stop has been requested
     private boolean isExactlyOnceMode;
     private String sourceQueue;
@@ -76,6 +104,7 @@ public class MQSourceTask extends SourceTask {
     private JMSWorker dedicated;
     private SequenceStateClient sequenceStateClient;
     private Map<String, String> sourceQueuePartition;
+    private int getMaxPollBlockedTimeMs;
 
     private int startActionPollLimit = 300; // This is a 5 minute time out on the initial start procedure
     private AtomicInteger startActionPollCount = new AtomicInteger(0);
@@ -88,11 +117,15 @@ public class MQSourceTask extends SourceTask {
     protected CountDownLatch getBatchCompleteSignal() {
         return batchCompleteSignal;
     }
+    private void resetBatchCompleteSignal() {
+        batchCompleteSignal = null;
+        blockedPollsCount = 0;
+    }
 
 
     /**
-     * Get the version of this task. Usually this should be the same as the
-     * corresponding {@link //Connector} class's version.
+     * Get the version of this task. This should be the same as the
+     * {@link MQSourceConnector} class's version.
      *
      * @return the version, formatted as a String
      */
@@ -102,12 +135,11 @@ public class MQSourceTask extends SourceTask {
     }
 
     /**
-     * Start the Task. This should handle any configuration parsing and one-time
-     * setup of the task.
+     * Start the Task. This handles configuration parsing and preparing
+     *  the JMS clients that will be used by the task.
      *
      * @param props initial configuration
      */
-
     @Override
     public void start(final Map<String, String> props) {
         log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
@@ -131,6 +163,8 @@ public class MQSourceTask extends SourceTask {
         this.sequenceStateClient = sequenceStateClient;
         this.isExactlyOnceMode = MQSourceConnector.configSupportsExactlyOnce(props);
         this.sourceQueueConfig = new QueueConfig(props);
+        this.getMaxPollBlockedTimeMs = config.getInt(CONFIG_MAX_POLL_BLOCKED_TIME_MS);
+
         this.sourceQueuePartition = Collections.singletonMap(
                 SOURCE_PARTITION_IDENTIFIER,
                 props.get(CONFIG_NAME_MQ_QUEUE_MANAGER) + "/" + props.get(CONFIG_NAME_MQ_QUEUE)
@@ -208,9 +242,10 @@ public class MQSourceTask extends SourceTask {
     }
 
     /**
-     * Poll this SourceTask for new records. This method should block if no data is
-     * currently
-     * available.
+     * Poll this SourceTask for new records. This method briefly blocks
+     * if no data is currently available to wait for new messages, however
+     * needs to promptly return control to Connect to allow the thread to
+     * be used for task lifecycle management.
      *
      * @return a list of source records
      */
@@ -224,7 +259,7 @@ public class MQSourceTask extends SourceTask {
             maybeCloseAllWorkers(e);
             throw ExceptionProcessor.handleException(e);
         } catch (final RecordBuilderException e) {
-            batchCompleteSignal = null;
+            resetBatchCompleteSignal();
             maybeCloseAllWorkers(e);
             throw new ConnectException(e);
         } catch (final ConnectException e) {
@@ -243,14 +278,33 @@ public class MQSourceTask extends SourceTask {
 
         // Resolve any in-flight transaction, committing unless there has been an error
         // between receiving the message from MQ and converting it
-        if (batchCompleteSignal != null) waitForKafkaThenCommitMQ();
+        if (batchCompleteSignal != null) {
+            final boolean batchIsComplete = waitForKafkaThenCommitMQ();
+            if (batchIsComplete) {
+                blockedPollsCount = 0;
+            } else {
+                // we cannot proceed with this poll because the previous
+                //  batch has not yet been delivered to Kafka
+
+                blockedPollsCount += 1;
+
+                if (blockedPollsCount > MAX_BLOCKED_POLLS) {
+                    // we have been blocked for too long and need to
+                    //  report that the task cannot proceed
+                    throw new ConnectException("Missing commits for message batch");
+                } else {
+                    log.debug("skipping poll cycle until previous batch completes");
+                    return null;
+                }
+            }
+        }
 
         // Increment the counter for the number of times poll is called so we can ensure
         // we don't get stuck waiting for
         // commitRecord callbacks to trigger the batch complete signal
         log.debug("Starting poll cycle {}", pollCycle.incrementAndGet());
 
-        log.info(" {}.internalPoll: acting on startup action", this.getClass().getName());
+        log.debug(" {}.internalPoll: acting on startup action {}", this.getClass().getName(), startUpAction);
         switch (startUpAction) {
             case REMOVE_DELIVERED_MESSAGES_FROM_SOURCE_QUEUE:
                 if (isFirstMsgOnSourceQueueARequiredMsg(msgIds)) {
@@ -341,16 +395,19 @@ public class MQSourceTask extends SourceTask {
         synchronized (this) {
             if (predicate) {
                 if (!stopNow.get()) {
+                    // start waiting for confirmations for every
+                    //   message in the list
                     batchCompleteSignal = new CountDownLatch(messageList.size());
+                    blockedPollsCount = 0;
                 } else {
-                    // Discard this batch - we've rolled back when the connection to MQ was closed
-                    // in stop()
+                    // Discard this batch - we've rolled back when
+                    //  the connection to MQ was closed in stop()
                     log.debug("Discarding a batch of {} records as task is stopping", messageList.size());
                     messageList.clear();
-                    batchCompleteSignal = null;
+                    resetBatchCompleteSignal();
                 }
             } else {
-                batchCompleteSignal = null;
+                resetBatchCompleteSignal();
             }
         }
     }
@@ -378,49 +435,44 @@ public class MQSourceTask extends SourceTask {
         return msgIds.contains(message.getJMSMessageID());
     }
 
-    private void waitForKafkaThenCommitMQ() throws InterruptedException, JMSRuntimeException, JMSException {
+    private boolean waitForKafkaThenCommitMQ() throws InterruptedException, JMSRuntimeException, JMSException {
         log.debug("Awaiting batch completion signal");
-        batchCompleteSignal.await();
+        final boolean batchIsComplete = batchCompleteSignal.await(getMaxPollBlockedTimeMs, TimeUnit.MILLISECONDS);
 
-        if (isExactlyOnceMode) {
-            sequenceStateClient.retrieveStateInSharedTx();
+        if (batchIsComplete) {
+            if (isExactlyOnceMode) {
+                sequenceStateClient.retrieveStateInSharedTx();
+            }
+
+            log.debug("Committing records");
+            reader.commit();
+            startUpAction = NORMAL_OPERATION;
+        } else {
+            log.debug("{} messages from previous batch still not committed", batchCompleteSignal.getCount());
         }
 
-        log.debug("Committing records");
-        reader.commit();
-        startUpAction = NORMAL_OPERATION;
+        return batchIsComplete;
     }
 
     /**
-     *
-     * Commit the offsets, up to the offsets that have been returned by
-     * {@link #poll()}. This
-     * method should block until the commit is complete.
-     *
-     *
-     * SourceTasks are not required to implement this functionality; Kafka Connect
-     * will record offsets
-     * automatically. This hook is provided for systems that also need to store
-     * offsets internally
-     * in their own system.
-     *
+     * Indicates that Connect believes all records in the previous batch
+     *  have been committed.
      */
     public void commit() throws InterruptedException {
         log.trace("[{}] Entry {}.commit", Thread.currentThread().getId(), this.getClass().getName());
 
-        // This callback is simply used to ensure that the mechanism to use commitRecord
-        // callbacks
-        // to check that all messages in a batch are complete is not getting stuck. If
-        // this callback
-        // is being called, it means that Kafka Connect believes that all outstanding
-        // messages have
-        // been completed. That should mean that commitRecord has been called for all of
-        // them too.
-        // However, if too few calls to commitRecord are received, the connector could
-        // wait indefinitely.
-        // If this commit callback is called twice without the poll cycle increasing,
-        // trigger the
-        // batch complete signal directly.
+        // This callback is simply used to ensure that the mechanism to use
+        //  commitRecord callbacks to check that all messages in a batch are
+        //  complete is not getting stuck. If this callback is being called,
+        //  it means that Kafka Connect believes that all outstanding messages
+        //  have been completed. That should mean that commitRecord has been
+        //  called for all of them too.
+        //
+        // However, if too few calls to commitRecord are received, the
+        //  connector could wait indefinitely.
+        //
+        // If this commit callback is called twice without the poll cycle
+        //  increasing, trigger the batch complete signal directly.
         final long currentPollCycle = pollCycle.get();
         log.debug("Commit starting in poll cycle {}", currentPollCycle);
 
@@ -444,20 +496,10 @@ public class MQSourceTask extends SourceTask {
     }
 
     /**
-     * Signal this SourceTask to stop. In SourceTasks, this method only needs to
-     * signal to the task that it should stop
-     * trying to poll for new data and interrupt any outstanding poll() requests. It
-     * is not required that the task has
-     * fully stopped. Note that this method necessarily may be invoked from a
-     * different thread than {@link #poll()} and
-     * {@link #commit()}.
-     *
-     * For example, if a task uses a {@link java.nio.channels.Selector} to receive
-     * data over the network, this method
-     * could set a flag that will force {@link #poll()} to exit immediately and
-     * invoke
-     * {@link java.nio.channels.Selector#wakeup() wakeup()} to interrupt any ongoing
-     * requests.
+     * Signal this SourceTask to stop. In SourceTasks, this method only needs
+     *  to signal to the task that it should stop trying to poll for new data.
+     * Note that this method is invoked from the same thread as {@link #poll()}
+     *  however a different thread than {@link #commit()}.
      */
     @Override
     public void stop() {
@@ -479,20 +521,14 @@ public class MQSourceTask extends SourceTask {
     }
 
     /**
-     *
      * Commit an individual {@link SourceRecord} when the callback from the producer
      * client is received, or if a record is filtered by a transformation.
      *
+     * This is used to know when all messages in an MQ batch have been successfully
+     * delivered to Kafka. The SourceTask will not proceed to get new messages from
+     * MQ until this has completed.
      *
-     * SourceTasks are not required to implement this functionality; Kafka Connect
-     * will record offsets
-     * automatically. This hook is provided for systems that also need to store
-     * offsets internally
-     * in their own system.
-     *
-     *
-     * @param record {@link SourceRecord} that was successfully sent via the
-     *               producer.
+     * @param record {@link SourceRecord} that was successfully sent to Kafka.
      * @throws InterruptedException
      */
     @Override
