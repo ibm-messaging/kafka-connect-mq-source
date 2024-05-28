@@ -4,3 +4,15 @@ services:
   - docker
 
 script: mvn clean test verify
+
+# Deployment configuration
+deploy:
+  provider: releases
+  api_key:
+    secure: "$GITHUB_TOKEN" # You need to encrypt your API key
+  file_glob: true
+  file: target/*.jar # Specifies the JAR files to deploy
+  skip_cleanup: true
+  on:
+    tags: true # Only deploy on tagged commits
+  name: "Release: $TRAVIS_TAG"
