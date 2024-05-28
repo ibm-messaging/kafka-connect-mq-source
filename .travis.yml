@@ -3,16 +3,30 @@ language: java
 services:
   - docker
 
-script: mvn clean test verify
+stages:
+  - name: test
+  - name: build-and-deploy
+    if: tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$
 
-# Deployment configuration
-deploy:
-  provider: releases
-  api_key:
-    secure: "$GITHUB_TOKEN" # You need to encrypt your API key
-  file_glob: true
-  file: target/*.jar # Specifies the JAR files to deploy
-  skip_cleanup: true
-  on:
-    tags: true # Only deploy on tagged commits
-  name: "Release: $TRAVIS_TAG"
+jobs:
+  include:
+    - stage: test
+      script:
+        - mvn clean test verify
+
+    - stage: build-and-deploy
+      script:
+        - mvn help:evaluate -Dexpression=project.version -q -DforceStdout > version.txt
+        - export VERSION=$(cat version.txt)
+        - mvn package
+
+      deploy:
+        provider: releases
+        api_key:
+          secure: "$GITHUB_TOKEN" # You need to encrypt your API key
+        file_glob: true
+        file: target/*.jar # Specifies the JAR files to deploy
+        skip_cleanup: true
+        on:
+          tags: true # Only deploy on tagged commits
+        name: "Release: $TRAVIS_TAG"
