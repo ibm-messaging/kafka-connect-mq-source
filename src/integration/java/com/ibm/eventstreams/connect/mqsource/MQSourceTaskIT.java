@@ -426,4 +426,52 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         connectTask.commitRecord(kafkaMessage);
     }
+
+
+    @Test
+    public void verifyEmptyMessage() throws Exception {
+        connectTask = new MQSourceTask();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        Message emptyMessage = getJmsContext().createMessage();
+        putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(emptyMessage));
+
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
+        assertEquals(1, kafkaMessages.size());
+
+        final SourceRecord kafkaMessage = kafkaMessages.get(0);
+        assertNull(kafkaMessage.value());
+
+        connectTask.commitRecord(kafkaMessage);
+    }
+
+
+    @Test
+    public void verifyEmptyTextMessage() throws Exception {
+        connectTask = new MQSourceTask();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        TextMessage emptyMessage = getJmsContext().createTextMessage();
+        putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(emptyMessage));
+
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
+        assertEquals(1, kafkaMessages.size());
+
+        final SourceRecord kafkaMessage = kafkaMessages.get(0);
+        assertNull(kafkaMessage.value());
+
+        connectTask.commitRecord(kafkaMessage);
+    }
 }
