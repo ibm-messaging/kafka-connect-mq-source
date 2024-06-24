@@ -70,6 +70,9 @@ public class DefaultRecordBuilder extends BaseRecordBuilder {
             } else if (message instanceof TextMessage) {
                 log.debug("Text message with no schema");
                 value = message.getBody(String.class);
+            } else if (message.getBody(Object.class) == null) {
+                log.debug("Empty message");
+                value = null;
             } else {
                 log.error("Unsupported JMS message type {}", message.getClass());
                 throw new ConnectException("Unsupported JMS message type");
