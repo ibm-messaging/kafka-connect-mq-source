@@ -15,6 +15,8 @@
  */
 package com.ibm.eventstreams.connect.mqsource;
 
+import org.apache.kafka.common.config.Config;
+import org.apache.kafka.common.config.ConfigValue;
 import org.apache.kafka.connect.connector.Connector;
 import org.apache.kafka.connect.source.ConnectorTransactionBoundaries;
 import org.apache.kafka.connect.source.ExactlyOnceSupport;
@@ -28,7 +30,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class MQSourceConnectorTest {
     @Test
@@ -82,5 +88,62 @@ public class MQSourceConnectorTest {
         assertFalse(MQSourceConnector.configSupportsExactlyOnce(Collections.singletonMap("mq.exactly.once.state.queue", "")));
         assertFalse(MQSourceConnector.configSupportsExactlyOnce(Collections.singletonMap("mq.exactly.once.state.queue", null)));
     }
-    
+
+    @Test
+    public void testValidateMQClientReconnectOptions() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.exactly.once.state.queue", "DEV.QUEUE.2");
+        configProps.put("tasks.max", "1");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_CLIENT_RECONNECT_OPTIONS))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("When running the MQ source connector with exactly once mode, the client reconnect option 'QMGR' should be provided.")));
+    }
+
+    @Test
+    public void testValidateMQClientReconnectOptionsWithoutExactlyOnce() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        assertFalse(config.configValues().stream()
+            .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_CLIENT_RECONNECT_OPTIONS))
+            .flatMap(cv -> cv.errorMessages().stream())
+            .anyMatch(msg -> msg.contains("When running the MQ source connector with exactly once mode, the client reconnect option 'QMGR' should be provided.")));
+    }
+
+    @Test
+    public void testValidateMQClientReconnectOptionsWithQMGROption() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.exactly.once.state.queue", "DEV.QUEUE.2");
+        configProps.put("mq.client.reconnect.options", "QMGR");
+        configProps.put("tasks.max", "1");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertFalse(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_CLIENT_RECONNECT_OPTIONS))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("When running the MQ source connector with exactly once mode, the client reconnect option 'QMGR' should be provided.")));
+    }
+
+    @Test
+    public void testValidateMQClientReconnectOptionsWithANYOption() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.exactly.once.state.queue", "DEV.QUEUE.2");
+        configProps.put("mq.client.reconnect.options", "ANY");
+        configProps.put("tasks.max", "1");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_CLIENT_RECONNECT_OPTIONS))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("When running the MQ source connector with exactly once mode, the client reconnect option 'QMGR' should be provided.")));
+    }
 }

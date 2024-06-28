@@ -23,12 +23,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
+import org.apache.kafka.common.config.Config;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.ConfigValue;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.source.ConnectorTransactionBoundaries;
 import org.apache.kafka.connect.source.ExactlyOnceSupport;
@@ -152,7 +155,27 @@ public class MQSourceConnector extends SourceConnector {
                                 + "previous batch of messages to be delivered to Kafka before starting a new poll.";
     public static final String CONFIG_DISPLAY_MAX_POLL_BLOCKED_TIME_MS = "Max poll blocked time ms";
 
-    public static String version = "2.1.0";
+    public static final String CONFIG_NAME_MQ_CLIENT_RECONNECT_OPTIONS = "mq.client.reconnect.options";
+    public static final String CONFIG_DOCUMENTATION_MQ_CLIENT_RECONNECT_OPTIONS = "Options governing MQ reconnection.";
+    public static final String CONFIG_DISPLAY_MQ_CLIENT_RECONNECT_OPTIONS = "MQ client reconnect options";
+    public static final String CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_QMGR = "QMGR";
+    public static final String CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ANY = "ANY";
+    public static final String CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_DISABLED = "DISABLED";
+    public static final String CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ASDEF = "ASDEF";
+
+    // Define valid reconnect options
+    public static final String[] CONFIG_VALUE_MQ_VALID_RECONNECT_OPTIONS = {
+        CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ASDEF,
+        CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ASDEF.toLowerCase(Locale.ENGLISH),
+        CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ANY,
+        CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ANY.toLowerCase(Locale.ENGLISH),
+        CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_QMGR,
+        CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_QMGR.toLowerCase(Locale.ENGLISH),
+        CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_DISABLED,
+        CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_DISABLED.toLowerCase(Locale.ENGLISH)
+    };
+
+    public static String version = "2.1.1";
 
     private Map<String, String> configProps;
 
@@ -235,6 +258,37 @@ public class MQSourceConnector extends SourceConnector {
     @Override
     public ConfigDef config() {
         return CONFIGDEF;
+    }
+
+    @Override
+    public Config validate(final Map<String, String> connectorConfigs) {
+        final Config config = super.validate(connectorConfigs);
+
+        MQSourceConnector.validateMQClientReconnectOptions(config);
+        return config;
+    }
+
+    private static void validateMQClientReconnectOptions(final Config config) {
+        // Collect all configuration values
+        final Map<String, ConfigValue> configValues = config.configValues().stream()
+                .collect(Collectors.toMap(ConfigValue::name, v -> v));
+
+        final ConfigValue clientReconnectOptionsConfigValue = configValues
+                .get(MQSourceConnector.CONFIG_NAME_MQ_CLIENT_RECONNECT_OPTIONS);
+        final ConfigValue exactlyOnceStateQueueConfigValue = configValues
+                .get(MQSourceConnector.CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE);
+
+        // Check if the exactly once state queue is configured
+        if (exactlyOnceStateQueueConfigValue.value() == null) {
+            return;
+        }
+
+        // Validate the client reconnect options
+        final Boolean isClientReconnectOptionQMGR = CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_QMGR.equals(clientReconnectOptionsConfigValue.value());
+        if (!isClientReconnectOptionQMGR) {
+            clientReconnectOptionsConfigValue.addErrorMessage(
+                    "When running the MQ source connector with exactly once mode, the client reconnect option 'QMGR' should be provided. For example: `mq.client.reconnect.options: QMGR`");
+        }
     }
 
     /** Null validator - indicates that any value is acceptable for this config option. */
@@ -467,6 +521,16 @@ public class MQSourceConnector extends SourceConnector {
                 CONFIG_DOCUMENTATION_MAX_POLL_BLOCKED_TIME_MS,
                 null, 24, Width.MEDIUM,
                 CONFIG_DISPLAY_MAX_POLL_BLOCKED_TIME_MS);
+
+        CONFIGDEF.define(CONFIG_NAME_MQ_CLIENT_RECONNECT_OPTIONS,
+                Type.STRING,
+                CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ASDEF,
+                ConfigDef.ValidString.in(CONFIG_VALUE_MQ_VALID_RECONNECT_OPTIONS),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_CLIENT_RECONNECT_OPTIONS,
+                CONFIG_GROUP_MQ, 25,
+                Width.SHORT,
+                CONFIG_DISPLAY_MQ_CLIENT_RECONNECT_OPTIONS);
 
         CONFIGDEF.define(CONFIG_NAME_TOPIC,
                 Type.STRING,
