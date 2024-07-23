@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 IBM Corporation
+ * Copyright 2022, 2023 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,30 +15,50 @@
  */
 package com.ibm.eventstreams.connect.mqsource;
 
+import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskObjectMother.getSourceTaskWithEmptyKafkaOffset;
+import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.browseAllMessagesFromQueue;
+import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.getAllMessagesFromQueue;
+import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.putAllMessagesToQueue;
+import static com.ibm.eventstreams.connect.mqsource.utils.MessagesObjectMother.createAListOfMessages;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.jms.MapMessage;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
+import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateClient;
+import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateException;
+import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
+import com.ibm.eventstreams.connect.mqsource.utils.JsonRestApi;
+import com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil;
 import com.ibm.eventstreams.connect.mqsource.utils.SourceTaskStopper;
+
 
 
 public class MQSourceTaskIT extends AbstractJMSContextIT {
@@ -46,44 +66,53 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
     private MQSourceTask connectTask = null;
 
     @After
-    public void cleanup() throws InterruptedException {
+    public void after() throws InterruptedException {
         final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
         stopper.run();
     }
 
-    private static final String MQ_QUEUE = "DEV.QUEUE.1";
+    @Before
+    public void before() throws JMSException {
+        MQTestUtil.removeAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
+        MQTestUtil.removeAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
+    }
 
     private Map<String, String> createDefaultConnectorProperties() {
         final Map<String, String> props = new HashMap<>();
-        props.put("mq.queue.manager", getQmgrName());
+        props.put("mq.queue.manager", QMGR_NAME);
         props.put("mq.connection.mode", "client");
-        props.put("mq.connection.name.list", getConnectionName());
-        props.put("mq.channel.name", getChannelName());
-        props.put("mq.queue", MQ_QUEUE);
+        props.put("mq.connection.name.list", DEFAULT_CONNECTION_NAME);
+        props.put("mq.channel.name", CHANNEL_NAME);
+        props.put("mq.queue", DEFAULT_SOURCE_QUEUE);
         props.put("mq.user.authentication.mqcsp", "false");
         props.put("topic", "mytopic");
         return props;
     }
 
+    private Map<String, String> createExactlyOnceConnectorProperties() {
+        final Map<String, String> props = createDefaultConnectorProperties();
+        props.put("mq.exactly.once.state.queue", DEFAULT_STATE_QUEUE);
+        props.put("tasks.max", "1");
+        return props;
+    }
+
     @Test
     public void verifyJmsTextMessages() throws Exception {
-        connectTask = new MQSourceTask();
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder",
-                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
         connectTask.start(connectorConfigProps);
-
+        assertThat(connectTask.startUpAction).isEqualTo(MQSourceTaskStartUpAction.NORMAL_OPERATION);
         final TextMessage message1 = getJmsContext().createTextMessage("hello");
         final TextMessage message2 = getJmsContext().createTextMessage("world");
-        putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message1, message2));
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message1, message2));
 
         final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(2, kafkaMessages.size());
         for (final SourceRecord kafkaMessage : kafkaMessages) {
-            assertEquals("mytopic", kafkaMessage.topic());
             assertNull(kafkaMessage.key());
             assertNull(kafkaMessage.valueSchema());
 
@@ -96,12 +125,11 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     @Test
     public void verifyJmsJsonMessages() throws Exception {
-        connectTask = new MQSourceTask();
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder",
-                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
 
         connectTask.start(connectorConfigProps);
 
@@ -112,13 +140,12 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
                             "\"i\" : " + i +
                             "}"));
         }
-        putAllMessagesToQueue(MQ_QUEUE, messages);
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
 
         final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(5, kafkaMessages.size());
         for (int i = 0; i < 5; i++) {
             final SourceRecord kafkaMessage = kafkaMessages.get(i);
-            assertEquals("mytopic", kafkaMessage.topic());
             assertNull(kafkaMessage.key());
             assertNull(kafkaMessage.valueSchema());
 
@@ -130,13 +157,38 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
     }
 
     @Test
+    public void verifyMQMessage() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "false"); //this could also be absent but if set to true the test should fail
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        final String sent = "Hello World";
+        final String url = "https://localhost:" + REST_API_HOST_PORT + "/ibmmq/rest/v1/messaging/qmgr/" + QMGR_NAME + "/queue/DEV.QUEUE.1/message";
+        JsonRestApi.postString(url, "app", ADMIN_PASSWORD, sent);
+
+        final List<SourceRecord> kafkaMessages = connectTask.poll(); // get all the SRs (1)
+        SourceRecord firstMsg = kafkaMessages.get(0);
+        Object received = firstMsg.value();
+
+        assertNotEquals(received.getClass(), String.class); //jms messages are retrieved as Strings
+        assertEquals(received.getClass(), byte[].class);
+        assertEquals(new String((byte[]) received, StandardCharsets.UTF_8), sent);
+
+        connectTask.commitRecord(firstMsg);
+        connectTask.poll();
+    }
+
+    @Test
     public void verifyJmsMessageHeaders() throws Exception {
-        connectTask = new MQSourceTask();
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder",
-                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.jms.properties.copy.to.kafka.headers", "true");
 
         connectTask.start(connectorConfigProps);
@@ -146,12 +198,11 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         message.setIntProperty("volume", 11);
         message.setDoubleProperty("decimalmeaning", 42.0);
 
-        putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message));
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message));
 
         final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(1, kafkaMessages.size());
         final SourceRecord kafkaMessage = kafkaMessages.get(0);
-        assertEquals("mytopic", kafkaMessage.topic());
         assertNull(kafkaMessage.key());
         assertNull(kafkaMessage.valueSchema());
 
@@ -166,21 +217,18 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     @Test
     public void verifyMessageBatchIndividualCommits() throws Exception {
-        connectTask = new MQSourceTask();
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder",
-                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.batch.size", "10");
 
         connectTask.start(connectorConfigProps);
 
-        final List<Message> messages = new ArrayList<>();
-        for (int i = 1; i <= 35; i++) {
-            messages.add(getJmsContext().createTextMessage("batch message " + i));
-        }
-        putAllMessagesToQueue(MQ_QUEUE, messages);
+        final List<Message> messages = createAListOfMessages(getJmsContext(), 35, "batch message ");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
 
         int nextExpectedMessage = 1;
 
@@ -217,21 +265,17 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     @Test
     public void verifyMessageBatchGroupCommits() throws Exception {
-        connectTask = new MQSourceTask();
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder",
-                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.batch.size", "10");
 
         connectTask.start(connectorConfigProps);
 
-        final List<Message> messages = new ArrayList<>();
-        for (int i = 1; i <= 35; i++) {
-            messages.add(getJmsContext().createTextMessage("message " + i));
-        }
-        putAllMessagesToQueue(MQ_QUEUE, messages);
+        final List<Message> messages = createAListOfMessages(getJmsContext(), 35, "message ");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
 
         List<SourceRecord> kafkaMessages;
 
@@ -261,58 +305,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
     }
 
     @Test
-    public void verifyMessageBatchRollback() throws Exception {
-        connectTask = new MQSourceTask();
-
-        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
-        connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder",
-                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
-        connectorConfigProps.put("mq.batch.size", "10");
-
-        connectTask.start(connectorConfigProps);
-
-        // Test overview:
-        //
-        // messages 01-15 - valid messages
-        // message 16 - a message that the builder can't process
-        // messages 17-30 - valid messages
-
-        final List<Message> messages = new ArrayList<>();
-        for (int i = 1; i <= 15; i++) {
-            messages.add(getJmsContext().createTextMessage("message " + i));
-        }
-        final MapMessage invalidMessage = getJmsContext().createMapMessage();
-        invalidMessage.setString("test", "builder cannot convert this");
-        messages.add(invalidMessage);
-        for (int i = 17; i <= 30; i++) {
-            messages.add(getJmsContext().createTextMessage("message " + i));
-        }
-        putAllMessagesToQueue(MQ_QUEUE, messages);
-
-        final List<SourceRecord> kafkaMessages;
-
-        // first batch should successfully retrieve messages 01-10
-        kafkaMessages = connectTask.poll();
-        assertEquals(10, kafkaMessages.size());
-        connectTask.commit();
-        connectTask.commit();
-
-        // second batch (11-20) should fail because of message 16
-        final ConnectException exc = assertThrows(ConnectException.class, () -> {
-            connectTask.poll();
-        });
-        assertTrue(exc.getMessage().equals("Unsupported JMS message type"));
-
-        // there should be 20 messages left on the MQ queue (messages 11-30)
-        connectTask.stop();
-        final List<Message> remainingMQMessages = getAllMessagesFromQueue(MQ_QUEUE);
-        assertEquals(20, remainingMQMessages.size());
-    }
-
-    @Test
     public void verifyMessageIdAsKey() throws Exception {
-        connectTask = new MQSourceTask();
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
@@ -323,7 +317,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectTask.start(connectorConfigProps);
 
         final TextMessage message = getJmsContext().createTextMessage("testmessage");
-        putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message));
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message));
 
         final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(1, kafkaMessages.size());
@@ -340,7 +334,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     @Test
     public void verifyCorrelationIdAsKey() throws Exception {
-        connectTask = new MQSourceTask();
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
@@ -354,7 +348,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         message1.setJMSCorrelationID("verifycorrel");
         final TextMessage message2 = getJmsContext().createTextMessage("second message");
         message2.setJMSCorrelationID("ID:5fb4a18030154fe4b09a1dfe8075bc101dfe8075bc104fe4");
-        putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message1, message2));
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message1, message2));
 
         final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(2, kafkaMessages.size());
@@ -374,7 +368,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     @Test
     public void verifyCorrelationIdBytesAsKey() throws Exception {
-        connectTask = new MQSourceTask();
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
@@ -386,7 +380,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         final TextMessage message = getJmsContext().createTextMessage("testmessagewithcorrelbytes");
         message.setJMSCorrelationID("verifycorrelbytes");
-        putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message));
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message));
 
         final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(1, kafkaMessages.size());
@@ -402,7 +396,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     @Test
     public void verifyDestinationAsKey() throws Exception {
-        connectTask = new MQSourceTask();
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
@@ -413,13 +407,13 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectTask.start(connectorConfigProps);
 
         final TextMessage message = getJmsContext().createTextMessage("testmessagewithdest");
-        putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(message));
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message));
 
         final List<SourceRecord> kafkaMessages = connectTask.poll();
         assertEquals(1, kafkaMessages.size());
 
         final SourceRecord kafkaMessage = kafkaMessages.get(0);
-        assertEquals("queue:///" + MQ_QUEUE, kafkaMessage.key());
+        assertEquals("queue:///" + DEFAULT_SOURCE_QUEUE, kafkaMessage.key());
         assertEquals(Schema.OPTIONAL_STRING_SCHEMA, kafkaMessage.keySchema());
 
         assertEquals("testmessagewithdest", kafkaMessage.value());
@@ -427,51 +421,160 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectTask.commitRecord(kafkaMessage);
     }
 
+    @Test
+    public void testSequenceStateMsgReadUnderMQTx() throws Exception {
+        JMSWorker spyJMSWorker = Mockito.spy(new JMSWorker());
+
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createExactlyOnceConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+
+        spyJMSWorker.configure(getPropertiesConfig(connectorConfigProps));
+        JMSWorker dedicated = new JMSWorker();
+        dedicated.configure(getPropertiesConfig(connectorConfigProps));
+        SequenceStateClient sequenceStateClient = Mockito.spy(new SequenceStateClient(DEFAULT_STATE_QUEUE, spyJMSWorker, dedicated));
+
+        connectTask.start(connectorConfigProps, spyJMSWorker, dedicated, sequenceStateClient);
+
+        final List<Message> messages = createAListOfMessages(getJmsContext(), 2, "message ");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
+
+        List<SourceRecord> kafkaMessages;
+        kafkaMessages = connectTask.poll();
+
+        List<Message> stateMsgs1 = browseAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
+        assertThat(stateMsgs1.size()).isEqualTo(1);
+
+        for (final SourceRecord m : kafkaMessages) {
+            connectTask.commitRecord(m);
+        }
+
+        /// make commit do rollback when poll is called
+        doAnswer((Void) -> {
+            spyJMSWorker.getContext().rollback();
+            throw new Exception("such an exception");
+
+            }).when(spyJMSWorker).commit();
+
+        try {
+            connectTask.poll();
+        } catch (Exception e) {
+            System.out.println("exception caught");
+        }
+
+
+        /// expect statequeue to not be empty
+        List<Message> stateMsgs2 = getAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
+        assertThat(stateMsgs2.size()).isEqualTo(1);
+
+        List<Message> sourceMsgs = getAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
+        assertThat(sourceMsgs.size()).isEqualTo(2);
+
+
+    }
 
     @Test
-    public void verifyEmptyMessage() throws Exception {
-        connectTask = new MQSourceTask();
+    public void testSequenceStateMsgWrittenIndependentFromGetSource() throws Exception {
+        // setup test condition: put messages on source queue, poll once to read them
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createExactlyOnceConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+
+        JMSWorker shared = new JMSWorker();
+        shared.configure(getPropertiesConfig(connectorConfigProps));
+        JMSWorker dedicated = new JMSWorker();
+        dedicated.configure(getPropertiesConfig(connectorConfigProps));
+        SequenceStateClient sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
+
+        connectTask.start(connectorConfigProps, shared, dedicated, sequenceStateClient);
+
+        final List<Message> messages = createAListOfMessages(getJmsContext(), 2, "message ");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
+
+        connectTask.poll();
+
+        List<Message> stateMsgs1 = browseAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
+        assertThat(stateMsgs1.size()).isEqualTo(1);
+        shared.attemptRollback();
+        assertThat(stateMsgs1.size()).isEqualTo(1); //state message is still there even though source message were rolled back
+
+    }
+
+    @Test
+    public void testRemoveDeliveredMessagesFromSourceQueueThrowsException() throws Exception {
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder",
-                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
-        connectTask.start(connectorConfigProps);
+        JMSWorker spyJMSWorker = Mockito.spy(new JMSWorker());
+        JMSWorker spyDedicated = Mockito.spy(new JMSWorker());
+        JMSWorker spyShared = Mockito.spy(new JMSWorker());
 
-        Message emptyMessage = getJmsContext().createMessage();
-        putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(emptyMessage));
+        spyJMSWorker.configure(getPropertiesConfig(connectorConfigProps));
+        spyDedicated.configure(getPropertiesConfig(connectorConfigProps));
+        spyShared.configure(getPropertiesConfig(connectorConfigProps));
 
-        final List<SourceRecord> kafkaMessages = connectTask.poll();
-        assertEquals(1, kafkaMessages.size());
+        Message messageSpy = Mockito.spy(getJmsContext().createTextMessage("Spy Injected Message"));
 
-        final SourceRecord kafkaMessage = kafkaMessages.get(0);
-        assertNull(kafkaMessage.value());
+        doReturn("6")
+                .when(messageSpy)
+                .getJMSMessageID();
 
-        connectTask.commitRecord(kafkaMessage);
+        doReturn(messageSpy)
+                .when(spyJMSWorker).receive(
+                        anyString(),
+                        any(QueueConfig.class),
+                        anyBoolean());
+
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+        connectTask.start(connectorConfigProps, spyJMSWorker, spyDedicated, new SequenceStateClient(DEFAULT_STATE_QUEUE, spyShared, spyJMSWorker));
+
+        String[] msgIds = new String[] {"1", "2"};
+
+        assertThrows(SequenceStateException.class,
+                () -> connectTask.removeDeliveredMessagesFromSourceQueue(Arrays.asList(msgIds))
+        );
     }
 
 
     @Test
-    public void verifyEmptyTextMessage() throws Exception {
-        connectTask = new MQSourceTask();
+    public void testRemoveDeliveredMessagesFromSourceQueueDoesNotThrowException() throws Exception {
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder",
-                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
-        connectTask.start(connectorConfigProps);
+        JMSWorker spyJMSWorker = Mockito.spy(new JMSWorker());
+        JMSWorker spyDedicated = Mockito.spy(new JMSWorker());
+        JMSWorker spyShared = Mockito.spy(new JMSWorker());
 
-        TextMessage emptyMessage = getJmsContext().createTextMessage();
-        putAllMessagesToQueue(MQ_QUEUE, Arrays.asList(emptyMessage));
+        spyJMSWorker.configure(getPropertiesConfig(connectorConfigProps));
+        spyDedicated.configure(getPropertiesConfig(connectorConfigProps));
+        spyShared.configure(getPropertiesConfig(connectorConfigProps));
 
-        final List<SourceRecord> kafkaMessages = connectTask.poll();
-        assertEquals(1, kafkaMessages.size());
+        Message messageSpy = Mockito.spy(getJmsContext().createTextMessage("Spy Injected Message"));
 
-        final SourceRecord kafkaMessage = kafkaMessages.get(0);
-        assertNull(kafkaMessage.value());
+        doReturn("1")
+                .when(messageSpy)
+                .getJMSMessageID();
 
-        connectTask.commitRecord(kafkaMessage);
+        doReturn(messageSpy)
+                .when(spyJMSWorker).receive(
+                        anyString(),
+                        any(QueueConfig.class),
+                        anyBoolean());
+
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+        connectTask.start(connectorConfigProps, spyJMSWorker, spyDedicated, new SequenceStateClient(DEFAULT_STATE_QUEUE, spyShared, spyJMSWorker));
+
+        String[] msgIds = new String[] {"1", "2"};
+
+        assertThatNoException()
+                .isThrownBy(() -> connectTask.removeDeliveredMessagesFromSourceQueue(Arrays.asList(msgIds)));
     }
 }

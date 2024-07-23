@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 IBM Corporation
+ * Copyright 2022, 2023 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,16 @@
  */
 package com.ibm.eventstreams.connect.mqsource.utils;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,17 +37,6 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.Base64;
-
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-
-import org.json.JSONException;
-import org.json.JSONObject;
 
 public class JsonRestApi {
 
@@ -60,6 +59,31 @@ public class JsonRestApi {
         try (InputStream input = urlConnection.getInputStream()) {
             final BufferedReader re = new BufferedReader(new InputStreamReader(input, Charset.forName("utf-8")));
             return new JSONObject(read(re));
+        }
+    }
+
+    public static void postString(final String url, final String username, final String password,
+                                      final String payload) throws IOException, KeyManagementException, NoSuchAlgorithmException, JSONException {
+        final URL urlObj = new URL(url);
+        final HttpsURLConnection urlConnection = (HttpsURLConnection) urlObj.openConnection();
+        urlConnection.setHostnameVerifier(new IgnoreCertVerifier());
+        urlConnection.setSSLSocketFactory(getTrustAllCertsFactory());
+        urlConnection.setRequestProperty("Authorization", getAuthHeader(username, password));
+        urlConnection.setRequestProperty("Content-Type", "text/plain");
+        urlConnection.setRequestProperty("ibm-mq-rest-csrf-token", "junit");
+        urlConnection.setDoOutput(true);
+
+        try (OutputStream os = urlConnection.getOutputStream()) {
+            final byte[] input = payload.getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+
+        try (InputStream input = urlConnection.getInputStream()) {
+            final BufferedReader re = new BufferedReader(new InputStreamReader(input, Charset.forName("utf-8")));
+            String output;
+            while ((output = re.readLine()) != null) {
+                System.out.println(output);
+            }
         }
     }
 

@@ -16,3 +16,7 @@ target/
 
 # Visual Studio Code
 .vscode/
+
+mqjms.log.*
+/src/main/resources/simplelogger.properties
+.envrc
