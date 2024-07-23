@@ -1,16 +1,25 @@
-FROM strimzi/kafka:latest-kafka-2.6.0 as builder
+# This dockerfile expects Connector jars to have been built under a `connectors` directory
+#
+FROM alpine as builder
 
-FROM ibmjava:8-jre
+RUN apk update
+RUN apk --no-cache add curl
+
+RUN curl -L "https://downloads.apache.org/kafka/3.6.2/kafka_2.12-3.6.2.tgz" -o kafka.tgz
+RUN mkdir /opt/kafka \
+    && tar -xf kafka.tgz -C /opt/kafka --strip-components=1
+
+FROM ibmjava:11
 
 RUN addgroup --gid 5000 --system esgroup && \
     adduser --uid 5000 --ingroup esgroup --system esuser
 
 COPY --chown=esuser:esgroup --from=builder /opt/kafka/bin/ /opt/kafka/bin/
 COPY --chown=esuser:esgroup --from=builder /opt/kafka/libs/ /opt/kafka/libs/
-COPY --chown=esuser:esgroup --from=builder /opt/kafka/config/connect-distributed.properties /opt/kafka/config/
-COPY --chown=esuser:esgroup --from=builder /opt/kafka/config/connect-log4j.properties /opt/kafka/config/
+COPY --chown=esuser:esgroup --from=builder /opt/kafka/config/ /opt/kafka/config/
 RUN mkdir /opt/kafka/logs && chown esuser:esgroup /opt/kafka/logs
-COPY --chown=esuser:esgroup target/kafka-connect-mq-source-2.0.0-jar-with-dependencies.jar /opt/kafka/libs/
+
+COPY --chown=esuser:esgroup target/kafka-connect-*-jar-with-dependencies.jar /opt/connectors/
 
 WORKDIR /opt/kafka
 

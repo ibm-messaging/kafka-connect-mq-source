@@ -388,6 +388,7 @@ In some of these failure scenarios, it will be necessary for an MQ administrator
 ### Connector in a `FAILED` state
 
 If the connector experiences a non retriable error then a ConnectException will cause the connector to go in to a `FAILED` state. This will require a manual restart using the Kafka Connect REST API to restart the connector. 
+
 ### Unable to connect to Kafka
 
 You may receive an `org.apache.kafka.common.errors.SslAuthenticationException: SSL handshake failed` error when trying to run the MQ source connector using SSL to connect to your Kafka cluster. In the case that the error is caused by the following exception: `Caused by: java.security.cert.CertificateException: No subject alternative DNS name matching XXXXX found.`, Java may be replacing the IP address of your cluster with the corresponding hostname in your `/etc/hosts` file. For example, to push Docker images to a custom Docker repository, you may add an entry in this file which corresponds to the IP of your repository e.g. `123.456.78.90    mycluster.icp`. To fix this, you can comment out this line in your `/etc/hosts` file.
@@ -406,6 +407,16 @@ For issues relating specifically to this connector, please use the [GitHub issue
 
 ## License
 
-Copyright 2017, 2020 IBM Corporation
+Copyright 2017, 2020, 2023, 2024 IBM Corporation
 
-The IBM MQ source connector v2 is available under the IBM Event Automation license and IBM Cloud Pak for Integration license. Please see https://ibm.github.io/event-automation/support/licensing/ for further information.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+<http://www.apache.org/licenses/LICENSE-2.0>
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.The project is licensed under the Apache 2 license.

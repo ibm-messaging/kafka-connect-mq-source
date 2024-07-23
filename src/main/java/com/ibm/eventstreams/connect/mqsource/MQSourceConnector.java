@@ -152,7 +152,7 @@ public class MQSourceConnector extends SourceConnector {
                                 + "previous batch of messages to be delivered to Kafka before starting a new poll.";
     public static final String CONFIG_DISPLAY_MAX_POLL_BLOCKED_TIME_MS = "Max poll blocked time ms";
 
-    public static String version = "2.0.1";
+    public static String version = "2.1.0";
 
     private Map<String, String> configProps;
 
