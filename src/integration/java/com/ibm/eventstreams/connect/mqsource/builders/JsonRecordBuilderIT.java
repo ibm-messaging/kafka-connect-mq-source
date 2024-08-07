@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 IBM Corporation
+ * Copyright 2022, 2023, 2024 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import javax.jms.BytesMessage;
 import javax.jms.MapMessage;
 import javax.jms.TextMessage;
 
-import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.Test;
 
@@ -96,7 +95,7 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
 
         // use the builder to convert it to a Kafka record
         final JsonRecordBuilder builder = new JsonRecordBuilder();
-        final ConnectException exc = assertThrows(ConnectException.class, () -> {
+        final RecordBuilderException exc = assertThrows(RecordBuilderException.class, () -> {
             builder.toSourceRecord(getJmsContext(), topic, isJMS, message);
         });
 

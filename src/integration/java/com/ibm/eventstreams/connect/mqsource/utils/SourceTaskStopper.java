@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 IBM Corporation
+ * Copyright 2022, 2023, 2024 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,13 @@
  */
 package com.ibm.eventstreams.connect.mqsource.utils;
 
+import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateClient;
+import org.apache.kafka.connect.source.SourceTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import org.apache.kafka.connect.source.SourceTask;
 
 
 /**
@@ -29,6 +32,7 @@ import org.apache.kafka.connect.source.SourceTask;
  *  each other.
  */
 public class SourceTaskStopper {
+    private static final Logger log = LoggerFactory.getLogger(SequenceStateClient.class);
 
     private static ExecutorService executor = Executors.newCachedThreadPool();
 

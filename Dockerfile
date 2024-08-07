@@ -5,7 +5,7 @@ FROM alpine as builder
 RUN apk update
 RUN apk --no-cache add curl
 
-RUN curl -L "https://downloads.apache.org/kafka/3.4.1/kafka_2.12-3.4.1.tgz" -o kafka.tgz
+RUN curl -L "https://downloads.apache.org/kafka/3.6.2/kafka_2.12-3.6.2.tgz" -o kafka.tgz
 RUN mkdir /opt/kafka \
     && tar -xf kafka.tgz -C /opt/kafka --strip-components=1
 

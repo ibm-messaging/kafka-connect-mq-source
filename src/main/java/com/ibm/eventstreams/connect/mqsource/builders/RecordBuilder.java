@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2018 IBM Corporation
+ * Copyright 2017, 2018, 2023, 2024 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,12 @@
  */
 package com.ibm.eventstreams.connect.mqsource.builders;
 
-import java.util.Map;
+import org.apache.kafka.connect.source.SourceRecord;
 
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.Message;
-
-import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.source.SourceRecord;
+import java.util.Map;
 
 /**
  * Builds Kafka Connect SourceRecords from messages.
@@ -33,7 +31,6 @@ public interface RecordBuilder {
      *
      * @param props initial configuration
      *
-     * @throws ConnectException   Operation failed and connector should stop.
      */
     default void configure(Map<String, String> props) {}
 
@@ -50,4 +47,6 @@ public interface RecordBuilder {
      * @throws JMSException      Message could not be converted
      */
     SourceRecord toSourceRecord(JMSContext context, String topic, boolean messageBodyJms, Message message) throws JMSException;
+
+    SourceRecord toSourceRecord(JMSContext context, String topic, boolean messageBodyJms, Message message, Map<String, Long> sourceOffset, Map<String, String> sourcePartition) throws JMSException;
 }

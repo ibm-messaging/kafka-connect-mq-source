@@ -1,5 +1,5 @@
 /**
- * Copyright 2018, 2019 IBM Corporation
+ * Copyright 2018, 2019, 2023, 2024 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,8 @@ package com.ibm.eventstreams.connect.mqsource.builders;
 
 import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
 import com.ibm.eventstreams.connect.mqsource.processor.JmsToKafkaHeaderConverter;
-
-import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
-import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 
 import org.slf4j.Logger;
@@ -31,6 +28,7 @@ import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Builds Kafka Connect SourceRecords from messages.
@@ -50,33 +48,34 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
      *
      * @param props initial configuration
      *
-     * @throws ConnectException   Operation failed and connector should stop.
+     * @throws RecordBuilderException   Operation failed and connector should stop.
      */
     @Override public void configure(final Map<String, String> props) {
         log.trace("[{}] Entry {}.configure, props={}", Thread.currentThread().getId(), this.getClass().getName(),
                 props);
 
-        final AbstractConfig config = new AbstractConfig(MQSourceConnector.CONFIGDEF, props);
-        switch (String.valueOf(config.getString(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER))) {
-            case MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSMESSAGEID:
+        final String kh = props.get(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER);
+        if (kh != null) {
+            if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSMESSAGEID)) {
                 keyheader = KeyHeader.MESSAGE_ID;
                 log.debug("Setting Kafka record key from JMSMessageID header field");
-                break;
-            case MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONID:
+            } else if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONID)) {
                 keyheader = KeyHeader.CORRELATION_ID;
                 log.debug("Setting Kafka record key from JMSCorrelationID header field");
-                break;
-            case MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONIDASBYTES:
+            } else if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONIDASBYTES)) {
                 keyheader = KeyHeader.CORRELATION_ID_AS_BYTES;
                 log.debug("Setting Kafka record key from JMSCorrelationIDAsBytes header field");
-                break;
-            case MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION:
+            } else if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION)) {
                 keyheader = KeyHeader.DESTINATION;
                 log.debug("Setting Kafka record key from JMSDestination header field");
-                break;
+            } else {
+                log.error("Unsupported MQ record builder key header value {}", kh);
+                throw new RecordBuilderException("Unsupported MQ record builder key header value");
+            }
         }
 
-        copyJmsPropertiesFlag = config.getBoolean(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
+        final String str = props.get(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
+        copyJmsPropertiesFlag = Boolean.parseBoolean(Optional.ofNullable(str).orElse("false"));
         jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
 
         log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
@@ -161,16 +160,38 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
      * @throws JMSException Message could not be converted
      */
     @Override
-    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms,
-            final Message message) throws JMSException {
+    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms, final Message message) throws JMSException {
+        return toSourceRecord(context, topic, messageBodyJms, message, null, null);
+    }
+
+    @Override
+    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms, final Message message, final Map<String, Long> sourceOffset, final Map<String, String> sourceQueuePartition) throws JMSException {
         final SchemaAndValue key = this.getKey(context, topic, message);
         final SchemaAndValue value = this.getValue(context, topic, messageBodyJms, message);
 
-        if (copyJmsPropertiesFlag && messageBodyJms)
-            return new SourceRecord(null, null, topic, (Integer) null, key.schema(), key.value(), value.schema(),
-                    value.value(), message.getJMSTimestamp(),
-                    jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message));
-        else
-            return new SourceRecord(null, null, topic, key.schema(), key.value(), value.schema(), value.value());
+        if (copyJmsPropertiesFlag && messageBodyJms) {
+            return new SourceRecord(
+                    sourceQueuePartition,
+                    sourceOffset,
+                    topic,
+                    null,
+                    key.schema(),
+                    key.value(),
+                    value.schema(),
+                    value.value(),
+                    message.getJMSTimestamp(),
+                    jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message)
+            );
+        } else {
+            return new SourceRecord(
+                    sourceQueuePartition,
+                    sourceOffset,
+                    topic,
+                    key.schema(),
+                    key.value(),
+                    value.schema(),
+                    value.value()
+            );
+        }
     }
 }

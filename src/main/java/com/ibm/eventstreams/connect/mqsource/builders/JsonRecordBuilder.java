@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2018, 2019 IBM Corporation
+ * Copyright 2017, 2018, 2019, 2023, 2024 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import javax.jms.Message;
 import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.data.SchemaAndValue;
-import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.json.JsonConverter;
 
 import org.slf4j.Logger;
@@ -76,7 +75,7 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
             payload = s.getBytes(UTF_8);
         } else {
             log.error("Unsupported JMS message type {}", message.getClass());
-            throw new ConnectException("Unsupported JMS message type");
+            throw new RecordBuilderException("Unsupported JMS message type");
         }
 
         return converter.toConnectData(topic, payload);

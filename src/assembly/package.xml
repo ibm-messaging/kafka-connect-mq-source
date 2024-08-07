@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- * Copyright 2018 IBM Corporation
+ * Copyright 2018, 2024 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@
         <excludes>
           <exclude>**/copyright-exclude</exclude>
           <exclude>META-INF/maven/**</exclude>
+          <exclude>META-INF/LICENSE*</exclude>
         </excludes>
       </unpackOptions>
       <useTransitiveFiltering>true</useTransitiveFiltering>

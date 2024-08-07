@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2020 IBM Corporation
+ * Copyright 2017, 2020, 2023, 2024 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@ import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.connector.Task;
+import org.apache.kafka.connect.source.ConnectorTransactionBoundaries;
+import org.apache.kafka.connect.source.ExactlyOnceSupport;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +64,10 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_NAME_MQ_QUEUE = "mq.queue";
     public static final String CONFIG_DOCUMENTATION_MQ_QUEUE = "The name of the source MQ queue.";
     public static final String CONFIG_DISPLAY_MQ_QUEUE = "Source queue";
+
+    public static final String CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE = "mq.exactly.once.state.queue";
+    public static final String CONFIG_DOCUMENTATION_MQ_EXACTLY_ONCE_STATE_QUEUE = "The name of the MQ queue used to store state. Required to run with exactly-once processing.";
+    public static final String CONFIG_DISPLAY_MQ_EXACTLY_ONCE_STATE_QUEUE = "Exactly-once state queue";
 
     public static final String CONFIG_NAME_MQ_USER_NAME = "mq.user.name";
     public static final String CONFIG_DOCUMENTATION_MQ_USER_NAME = "The user name for authenticating with the queue manager.";
@@ -141,7 +147,12 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DOCUMENTATION_TOPIC = "The name of the target Kafka topic.";
     public static final String CONFIG_DISPLAY_TOPIC = "Target Kafka topic";
 
-    public static String version = "1.3.5";
+    public static final String CONFIG_MAX_POLL_BLOCKED_TIME_MS = "mq.max.poll.blocked.time.ms";
+    public static final String CONFIG_DOCUMENTATION_MAX_POLL_BLOCKED_TIME_MS = "How long the SourceTask will wait for a "
+                                + "previous batch of messages to be delivered to Kafka before starting a new poll.";
+    public static final String CONFIG_DISPLAY_MAX_POLL_BLOCKED_TIME_MS = "Max poll blocked time ms";
+
+    public static String version = "2.1.0";
 
     private Map<String, String> configProps;
 
@@ -233,217 +244,238 @@ public class MQSourceConnector extends SourceConnector {
         CONFIGDEF = new ConfigDef();
 
         CONFIGDEF.define(CONFIG_NAME_MQ_QUEUE_MANAGER,
-                         Type.STRING,
-                         // user must specify the queue manager name
-                         ConfigDef.NO_DEFAULT_VALUE, new ConfigDef.NonEmptyStringWithoutControlChars(),
-                         Importance.HIGH,
-                         CONFIG_DOCUMENTATION_MQ_QUEUE_MANAGER,
-                         CONFIG_GROUP_MQ, 1, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_QUEUE_MANAGER);
+                Type.STRING,
+                // user must specify the queue manager name
+                ConfigDef.NO_DEFAULT_VALUE, new ConfigDef.NonEmptyStringWithoutControlChars(),
+                Importance.HIGH,
+                CONFIG_DOCUMENTATION_MQ_QUEUE_MANAGER,
+                CONFIG_GROUP_MQ, 1, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_QUEUE_MANAGER);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_CONNECTION_MODE,
-                         Type.STRING,
-                         // required value - two valid options
-                         CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT,
-                         ConfigDef.ValidString.in(CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT,
-                                                  CONFIG_VALUE_MQ_CONNECTION_MODE_BINDINGS),
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_CONNECTION_MODE,
-                         CONFIG_GROUP_MQ, 2, Width.SHORT,
-                         CONFIG_DISPLAY_MQ_CONNECTION_MODE);
+                Type.STRING,
+                // required value - two valid options
+                CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT,
+                ConfigDef.ValidString.in(CONFIG_VALUE_MQ_CONNECTION_MODE_CLIENT,
+                        CONFIG_VALUE_MQ_CONNECTION_MODE_BINDINGS),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_CONNECTION_MODE,
+                CONFIG_GROUP_MQ, 2, Width.SHORT,
+                CONFIG_DISPLAY_MQ_CONNECTION_MODE);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_CONNECTION_NAME_LIST,
-                         Type.STRING,
-                         // can be null, for example when using bindings mode or a CCDT
-                         null, ANY,
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_CONNNECTION_NAME_LIST,
-                         CONFIG_GROUP_MQ, 3, Width.LONG,
-                         CONFIG_DISPLAY_MQ_CONNECTION_NAME_LIST);
+                Type.STRING,
+                // can be null, for example when using bindings mode or a CCDT
+                null, ANY,
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_CONNNECTION_NAME_LIST,
+                CONFIG_GROUP_MQ, 3, Width.LONG,
+                CONFIG_DISPLAY_MQ_CONNECTION_NAME_LIST);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_CHANNEL_NAME,
-                         Type.STRING,
-                         // can be null, for example when using bindings mode
-                         null, ANY,
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_CHANNEL_NAME,
-                         CONFIG_GROUP_MQ, 4, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_CHANNEL_NAME);
+                Type.STRING,
+                // can be null, for example when using bindings mode
+                null, ANY,
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_CHANNEL_NAME,
+                CONFIG_GROUP_MQ, 4, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_CHANNEL_NAME);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_CCDT_URL,
-                         Type.STRING,
-                         // can be null, for example when using bindings mode or a conname list
-                         null, new ValidURL(),
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_CCDT_URL,
-                         CONFIG_GROUP_MQ, 5, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_CCDT_URL);
+                Type.STRING,
+                // can be null, for example when using bindings mode or a conname list
+                null, new ValidURL(),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_CCDT_URL,
+                CONFIG_GROUP_MQ, 5, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_CCDT_URL);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_QUEUE,
-                         Type.STRING,
-                         // user must specify the queue name
-                         ConfigDef.NO_DEFAULT_VALUE, new ConfigDef.NonEmptyStringWithoutControlChars(),
-                         Importance.HIGH,
-                         CONFIG_DOCUMENTATION_MQ_QUEUE,
-                         CONFIG_GROUP_MQ, 6, Width.LONG,
-                         CONFIG_DISPLAY_MQ_QUEUE);
+                Type.STRING,
+                // user must specify the queue name
+                ConfigDef.NO_DEFAULT_VALUE, new ConfigDef.NonEmptyStringWithoutControlChars(),
+                Importance.HIGH,
+                CONFIG_DOCUMENTATION_MQ_QUEUE,
+                CONFIG_GROUP_MQ, 6, Width.LONG,
+                CONFIG_DISPLAY_MQ_QUEUE);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_USER_NAME,
-                         Type.STRING,
-                         // can be null, when auth not required
-                         null, ANY,
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_USER_NAME,
-                         CONFIG_GROUP_MQ, 7, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_USER_NAME);
+                Type.STRING,
+                // can be null, when auth not required
+                null, ANY,
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_USER_NAME,
+                CONFIG_GROUP_MQ, 7, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_USER_NAME);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_PASSWORD,
-                         Type.PASSWORD,
-                         // can be null, when auth not required
-                         null, ANY,
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_PASSWORD,
-                         CONFIG_GROUP_MQ, 8, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_PASSWORD);
+                Type.PASSWORD,
+                // can be null, when auth not required
+                null, ANY,
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_PASSWORD,
+                CONFIG_GROUP_MQ, 8, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_PASSWORD);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_RECORD_BUILDER,
-                         Type.STRING,
-                         // user must specify a record builder class
-                         ConfigDef.NO_DEFAULT_VALUE, new ConfigDef.NonEmptyStringWithoutControlChars(),
-                         Importance.HIGH,
-                         CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER,
-                         CONFIG_GROUP_MQ, 9, Width.LONG,
-                         CONFIG_DISPLAY_MQ_RECORD_BUILDER);
+                Type.STRING,
+                // user must specify a record builder class
+                ConfigDef.NO_DEFAULT_VALUE, new ConfigDef.NonEmptyStringWithoutControlChars(),
+                Importance.HIGH,
+                CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER,
+                CONFIG_GROUP_MQ, 9, Width.LONG,
+                CONFIG_DISPLAY_MQ_RECORD_BUILDER);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_MESSAGE_BODY_JMS,
-                         Type.BOOLEAN,
-                         // must be a non-null boolean - assume false if not provided
-                         Boolean.FALSE, new ConfigDef.NonNullValidator(),
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_MESSAGE_BODY_JMS,
-                         CONFIG_GROUP_MQ, 10, Width.SHORT,
-                         CONFIG_DISPLAY_MQ_MESSAGE_BODY_JMS);
+                Type.BOOLEAN,
+                // must be a non-null boolean - assume false if not provided
+                Boolean.FALSE, new ConfigDef.NonNullValidator(),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_MESSAGE_BODY_JMS,
+                CONFIG_GROUP_MQ, 10, Width.SHORT,
+                CONFIG_DISPLAY_MQ_MESSAGE_BODY_JMS);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER,
-                         Type.STRING,
-                         // optional value - four valid values
-                         null, ConfigDef.ValidString.in(null,
-                                                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSMESSAGEID,
-                                                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONID,
-                                                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONIDASBYTES,
-                                                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION),
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_KEY_HEADER,
-                         CONFIG_GROUP_MQ, 11, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_RECORD_BUILDER_KEY_HEADER);
+                Type.STRING,
+                // optional value - four valid values
+                null, ConfigDef.ValidString.in(null,
+                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSMESSAGEID,
+                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONID,
+                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONIDASBYTES,
+                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_KEY_HEADER,
+                CONFIG_GROUP_MQ, 11, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_RECORD_BUILDER_KEY_HEADER);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_SSL_CIPHER_SUITE,
-                         Type.STRING,
-                         // optional - not needed if not using SSL - SSL cipher suites change
-                         //   too frequently so we won't maintain a valid list here
-                         null, ANY,
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_SSL_CIPHER_SUITE,
-                         CONFIG_GROUP_MQ, 12, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_SSL_CIPHER_SUITE);
+                Type.STRING,
+                // optional - not needed if not using SSL - SSL cipher suites change
+                //   too frequently so we won't maintain a valid list here
+                null, ANY,
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_SSL_CIPHER_SUITE,
+                CONFIG_GROUP_MQ, 12, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_SSL_CIPHER_SUITE);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_SSL_PEER_NAME,
-                         Type.STRING,
-                         // optional - not needed if not using SSL
-                         null, ANY,
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_SSL_PEER_NAME,
-                         CONFIG_GROUP_MQ, 13, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_SSL_PEER_NAME);
+                Type.STRING,
+                // optional - not needed if not using SSL
+                null, ANY,
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_SSL_PEER_NAME,
+                CONFIG_GROUP_MQ, 13, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_SSL_PEER_NAME);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_SSL_KEYSTORE_LOCATION,
-                         Type.STRING,
-                         // optional - if provided should be the location of a readable file
-                         null, new ReadableFile(),
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_SSL_KEYSTORE_LOCATION,
-                         CONFIG_GROUP_MQ, 14, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_SSL_KEYSTORE_LOCATION);
+                Type.STRING,
+                // optional - if provided should be the location of a readable file
+                null, new ReadableFile(),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_SSL_KEYSTORE_LOCATION,
+                CONFIG_GROUP_MQ, 14, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_SSL_KEYSTORE_LOCATION);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_SSL_KEYSTORE_PASSWORD,
-                         Type.PASSWORD,
-                         // optional - not needed if SSL keystore isn't provided
-                         null, ANY,
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_SSL_KEYSTORE_PASSWORD,
-                         CONFIG_GROUP_MQ, 15, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_SSL_KEYSTORE_PASSWORD);
+                Type.PASSWORD,
+                // optional - not needed if SSL keystore isn't provided
+                null, ANY,
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_SSL_KEYSTORE_PASSWORD,
+                CONFIG_GROUP_MQ, 15, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_SSL_KEYSTORE_PASSWORD);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_SSL_TRUSTSTORE_LOCATION,
-                         Type.STRING,
-                         // optional - if provided should be the location of a readable file
-                         null, new ReadableFile(),
-                         Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_SSL_TRUSTSTORE_LOCATION,
-                         CONFIG_GROUP_MQ, 16, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_SSL_TRUSTSTORE_LOCATION);
+                Type.STRING,
+                // optional - if provided should be the location of a readable file
+                null, new ReadableFile(),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_SSL_TRUSTSTORE_LOCATION,
+                CONFIG_GROUP_MQ, 16, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_SSL_TRUSTSTORE_LOCATION);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_SSL_TRUSTSTORE_PASSWORD,
-                         Type.PASSWORD,
-                         // optional - not needed if SSL truststore isn't provided
-                         null, Importance.MEDIUM,
-                         CONFIG_DOCUMENTATION_MQ_SSL_TRUSTSTORE_PASSWORD,
-                         CONFIG_GROUP_MQ, 17, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_SSL_TRUSTSTORE_PASSWORD);
+                Type.PASSWORD,
+                // optional - not needed if SSL truststore isn't provided
+                null, Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MQ_SSL_TRUSTSTORE_PASSWORD,
+                CONFIG_GROUP_MQ, 17, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_SSL_TRUSTSTORE_PASSWORD);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_BATCH_SIZE,
-                         Type.INT,
-                         // must be an int greater than min
-                         CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT, ConfigDef.Range.atLeast(CONFIG_VALUE_MQ_BATCH_SIZE_MINIMUM),
-                         Importance.LOW,
-                         CONFIG_DOCUMENTATION_MQ_BATCH_SIZE,
-                         CONFIG_GROUP_MQ, 18, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_BATCH_SIZE);
+                Type.INT,
+                // must be an int greater than min
+                CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT, ConfigDef.Range.atLeast(CONFIG_VALUE_MQ_BATCH_SIZE_MINIMUM),
+                Importance.LOW,
+                CONFIG_DOCUMENTATION_MQ_BATCH_SIZE,
+                CONFIG_GROUP_MQ, 18, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_BATCH_SIZE);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_MESSAGE_MQMD_READ,
-                         Type.BOOLEAN,
-                         // must be a non-null boolean - assume false if not provided
-                         Boolean.FALSE, new ConfigDef.NonNullValidator(),
-                         Importance.LOW,
-                         CONFIG_DOCUMENTATION_MQ_MESSAGE_MQMD_READ,
-                         CONFIG_GROUP_MQ, 19, Width.SHORT,
-                         CONFIG_DISPLAY_MQ_MESSAGE_MQMD_READ);
+                Type.BOOLEAN,
+                // must be a non-null boolean - assume false if not provided
+                Boolean.FALSE, new ConfigDef.NonNullValidator(),
+                Importance.LOW,
+                CONFIG_DOCUMENTATION_MQ_MESSAGE_MQMD_READ,
+                CONFIG_GROUP_MQ, 19, Width.SHORT,
+                CONFIG_DISPLAY_MQ_MESSAGE_MQMD_READ);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_USER_AUTHENTICATION_MQCSP,
-                         Type.BOOLEAN,
-                         // must be a non-null boolean - assume true if not provided
-                         Boolean.TRUE, new ConfigDef.NonNullValidator(),
-                         Importance.LOW,
-                         CONFIG_DOCUMENTATION_MQ_USER_AUTHENTICATION_MQCSP,
-                         CONFIG_GROUP_MQ, 20, Width.SHORT,
-                         CONFIG_DISPLAY_MQ_USER_AUTHENTICATION_MQCSP);
+                Type.BOOLEAN,
+                // must be a non-null boolean - assume true if not provided
+                Boolean.TRUE, new ConfigDef.NonNullValidator(),
+                Importance.LOW,
+                CONFIG_DOCUMENTATION_MQ_USER_AUTHENTICATION_MQCSP,
+                CONFIG_GROUP_MQ, 20, Width.SHORT,
+                CONFIG_DISPLAY_MQ_USER_AUTHENTICATION_MQCSP);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER,
-                         Type.BOOLEAN,
-                         // must be a non-null boolean - assume false if not provided
-                         Boolean.FALSE, new ConfigDef.NonNullValidator(),
-                         Importance.LOW,
-                         CONFIG_DOCUMENTATION_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER,
-                         CONFIG_GROUP_MQ, 21, Width.MEDIUM,
-                         CONFIG_DISPLAY_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
+                Type.BOOLEAN,
+                // must be a non-null boolean - assume false if not provided
+                Boolean.FALSE, new ConfigDef.NonNullValidator(),
+                Importance.LOW,
+                CONFIG_DOCUMENTATION_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER,
+                CONFIG_GROUP_MQ, 21, Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_SSL_USE_IBM_CIPHER_MAPPINGS,
-                         Type.BOOLEAN,
-                         // must be a non-null boolean - assume true if not provided
-                         Boolean.TRUE, new ConfigDef.NonNullValidator(),
-                         Importance.LOW,
-                         CONFIG_DOCUMENTATION_MQ_SSL_USE_IBM_CIPHER_MAPPINGS,
-                         CONFIG_GROUP_MQ, 22, Width.SHORT,
-                         CONFIG_DISPLAY_MQ_SSL_USE_IBM_CIPHER_MAPPINGS);
+                Type.BOOLEAN,
+                // must be a non-null boolean - assume true if not provided
+                Boolean.TRUE, new ConfigDef.NonNullValidator(),
+                Importance.LOW,
+                CONFIG_DOCUMENTATION_MQ_SSL_USE_IBM_CIPHER_MAPPINGS,
+                CONFIG_GROUP_MQ, 22, Width.SHORT,
+                CONFIG_DISPLAY_MQ_SSL_USE_IBM_CIPHER_MAPPINGS);
+
+        CONFIGDEF.define(CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE,
+                Type.STRING,
+                null, ANY,
+                Importance.LOW,
+                CONFIG_DOCUMENTATION_MQ_EXACTLY_ONCE_STATE_QUEUE,
+                CONFIG_GROUP_MQ, 23, Width.LONG,
+                CONFIG_DISPLAY_MQ_EXACTLY_ONCE_STATE_QUEUE);
+
+        // How long the SourceTask will wait for a previous batch of messages to
+        //  be delivered to Kafka before starting a new poll.
+        // It is important that this is less than the time defined for
+        //  task.shutdown.graceful.timeout.ms as that is how long Connect will
+        //  wait for the task to perform lifecycle operations.
+        CONFIGDEF.define(CONFIG_MAX_POLL_BLOCKED_TIME_MS,
+                Type.INT,
+                2000, ConfigDef.Range.atLeast(0),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MAX_POLL_BLOCKED_TIME_MS,
+                null, 24, Width.MEDIUM,
+                CONFIG_DISPLAY_MAX_POLL_BLOCKED_TIME_MS);
 
         CONFIGDEF.define(CONFIG_NAME_TOPIC,
-                         Type.STRING,
-                         // user must specify the topic name
-                         ConfigDef.NO_DEFAULT_VALUE, new ConfigDef.NonEmptyStringWithoutControlChars(),
-                         Importance.HIGH,
-                         CONFIG_DOCUMENTATION_TOPIC,
-                         null, 0, Width.MEDIUM,
-                         CONFIG_DISPLAY_TOPIC);
+                Type.STRING,
+                // user must specify the topic name
+                ConfigDef.NO_DEFAULT_VALUE, new ConfigDef.NonEmptyStringWithoutControlChars(),
+                Importance.HIGH,
+                CONFIG_DOCUMENTATION_TOPIC,
+                null, 0, Width.MEDIUM,
+                CONFIG_DISPLAY_TOPIC);
     }
 
 
@@ -456,13 +488,14 @@ public class MQSourceConnector extends SourceConnector {
                 return;
             }
 
+            final File file;
             try {
-                final File file = new File((String) value);
-                if (!file.isFile() || !file.canRead()) {
-                    throw new ConfigException(name, value, "Value must be the location of a readable file");
-                }
+                file = new File((String) value);
             } catch (final Exception exc) {
                 throw new ConfigException(name, value, "Value must be a valid file location");
+            }
+            if (!file.isFile() || !file.canRead()) {
+                throw new ConfigException(name, value, "Value must be the location of a readable file");
             }
         }
     }
@@ -482,5 +515,50 @@ public class MQSourceConnector extends SourceConnector {
                 throw new ConfigException(name, value, "Value must be a valid URL");
             }
         }
+    }
+
+    /**
+     * Signals that this connector is not capable of defining other transaction boundaries.
+     * A new transaction will be started and committed for every batch of records returned by {@link MQSourceTask#poll()}.
+     *
+     * @param connectorConfig the configuration that will be used for the connector
+     * @return {@link ConnectorTransactionBoundaries#UNSUPPORTED}
+     */
+    @Override
+    public ConnectorTransactionBoundaries canDefineTransactionBoundaries(final Map<String, String> connectorConfig) {
+        // The connector only supports Kafka transaction boundaries on the poll() method
+        return ConnectorTransactionBoundaries.UNSUPPORTED;
+    }
+
+    /**
+     * Signals whether this connector supports exactly-once semantics with the supplied configuration.
+     *
+     * @param connectorConfig the configuration that will be used for the connector.
+     * 'mq.exactly.once.state.queue' must be supplied in the configuration to enable exactly-once semantics.
+     *
+     * @return {@link ExactlyOnceSupport#SUPPORTED} if the configuration supports exactly-once semantics,
+     * {@link ExactlyOnceSupport#UNSUPPORTED} otherwise.
+     */
+    @Override
+    public ExactlyOnceSupport exactlyOnceSupport(final Map<String, String> connectorConfig) {
+        if (configSupportsExactlyOnce(connectorConfig)) {
+            return ExactlyOnceSupport.SUPPORTED;
+        }
+        return ExactlyOnceSupport.UNSUPPORTED;
+    }
+
+    /**
+     * Returns true if the supplied connector configuration supports exactly-once semantics.
+     * Checks that 'mq.exactly.once.state.queue' property is supplied and is not empty and
+     * that 'tasks.max' is 1.
+     *
+     * @param connectorConfig the connector config
+     * @return true if 'mq.exactly.once.state.queue' property is supplied and is not empty and 'tasks.max' is 1.
+     */
+    public static final boolean configSupportsExactlyOnce(final Map<String, String> connectorConfig) {
+        // If there is a state queue configured and tasks.max is 1 we can do exactly-once semantics
+        final String exactlyOnceStateQueue = connectorConfig.get(CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE);
+        final String tasksMax = connectorConfig.get("tasks.max");
+        return exactlyOnceStateQueue != null && !exactlyOnceStateQueue.isEmpty() && (tasksMax == null || "1".equals(tasksMax));
     }
 }
