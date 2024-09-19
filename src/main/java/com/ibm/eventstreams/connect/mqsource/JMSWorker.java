@@ -43,6 +43,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -126,6 +127,7 @@ public class JMSWorker {
                     mqConnFactory.setSSLSocketFactory(sslContext.getSocketFactory());
                 }
             }
+            configureClientReconnectOptions(config, mqConnFactory);
 
             userName = config.getString(MQSourceConnector.CONFIG_NAME_MQ_USER_NAME);
             password = config.getPassword(MQSourceConnector.CONFIG_NAME_MQ_PASSWORD);
@@ -144,6 +146,31 @@ public class JMSWorker {
         log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
     }
 
+    // Configure client reconnect option based on the config
+    private static void configureClientReconnectOptions(final AbstractConfig config,
+            final MQConnectionFactory mqConnFactory) throws JMSException {
+        String clientReconnectOptions = config.getString(MQSourceConnector.CONFIG_NAME_MQ_CLIENT_RECONNECT_OPTIONS);
+
+        clientReconnectOptions = clientReconnectOptions.toUpperCase(Locale.ENGLISH);
+
+        switch (clientReconnectOptions) {
+            case MQSourceConnector.CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ANY:
+                mqConnFactory.setClientReconnectOptions(WMQConstants.WMQ_CLIENT_RECONNECT);
+                break;
+
+            case MQSourceConnector.CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_QMGR:
+                mqConnFactory.setClientReconnectOptions(WMQConstants.WMQ_CLIENT_RECONNECT_Q_MGR);
+                break;
+
+            case MQSourceConnector.CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_DISABLED:
+                mqConnFactory.setClientReconnectOptions(WMQConstants.WMQ_CLIENT_RECONNECT_DISABLED);
+                break;
+
+            default:
+                mqConnFactory.setClientReconnectOptions(WMQConstants.WMQ_CLIENT_RECONNECT_AS_DEF);
+                break;
+        }
+    }
 
     /**
      * Used for tests.
@@ -152,7 +179,7 @@ public class JMSWorker {
         this.recordBuilder = recordBuilder;
     }
 
-    protected JMSContext getContext() { // used to enable testing 
+    protected JMSContext getContext() { // used to enable testing
         if (jmsCtxt == null) maybeReconnect();
         return jmsCtxt;
     }

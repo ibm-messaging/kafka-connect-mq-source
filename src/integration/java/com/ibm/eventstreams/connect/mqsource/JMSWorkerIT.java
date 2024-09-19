@@ -106,5 +106,4 @@ public class JMSWorkerIT extends AbstractJMSContextIT {
     public void testQueueHoldsMoreThanOneMessage_queueNotFound() {
         assertThrows(Exception.class, ()->jmsWorker.queueHoldsMoreThanOneMessage("QUEUE_DOES_NOT_EXIST"));
     }
-
 }

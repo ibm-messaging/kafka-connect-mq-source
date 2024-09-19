@@ -577,4 +577,81 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertThatNoException()
                 .isThrownBy(() -> connectTask.removeDeliveredMessagesFromSourceQueue(Arrays.asList(msgIds)));
     }
+
+
+    @Test
+    public void testConfigureClientReconnectOptions() throws Exception {
+        // setup test condition: put messages on source queue, poll once to read them
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createExactlyOnceConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.client.reconnect.options", "QMGR");
+
+        JMSWorker shared = new JMSWorker();
+        shared.configure(getPropertiesConfig(connectorConfigProps));
+        JMSWorker dedicated = new JMSWorker();
+        dedicated.configure(getPropertiesConfig(connectorConfigProps));
+        SequenceStateClient sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
+
+        connectTask.start(connectorConfigProps, shared, dedicated, sequenceStateClient);
+
+        final List<Message> messages = createAListOfMessages(getJmsContext(), 2, "message ");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
+
+        connectTask.poll();
+
+        List<Message> stateMsgs1 = browseAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
+        assertThat(stateMsgs1.size()).isEqualTo(1);
+        shared.attemptRollback();
+        assertThat(stateMsgs1.size()).isEqualTo(1); //state message is still there even though source message were rolled back
+
+    }
+
+    @Test
+    public void verifyEmptyMessage() throws Exception {
+        connectTask = new MQSourceTask();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        Message emptyMessage = getJmsContext().createMessage();
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(emptyMessage));
+
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
+        assertEquals(1, kafkaMessages.size());
+
+        final SourceRecord kafkaMessage = kafkaMessages.get(0);
+        assertNull(kafkaMessage.value());
+
+        connectTask.commitRecord(kafkaMessage);
+    }
+
+    @Test
+    public void verifyEmptyTextMessage() throws Exception {
+        connectTask = new MQSourceTask();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        TextMessage emptyMessage = getJmsContext().createTextMessage();
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(emptyMessage));
+
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
+        assertEquals(1, kafkaMessages.size());
+
+        final SourceRecord kafkaMessage = kafkaMessages.get(0);
+        assertNull(kafkaMessage.value());
+
+        connectTask.commitRecord(kafkaMessage);
+    }
 }
