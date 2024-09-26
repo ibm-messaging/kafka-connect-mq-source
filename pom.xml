@@ -20,7 +20,7 @@
     <groupId>com.ibm.eventstreams.connect</groupId>
     <artifactId>kafka-connect-mq-source</artifactId>
     <packaging>jar</packaging>
-    <version>2.1.1</version>
+    <version>2.2.0</version>
     <name>kafka-connect-mq-source</name>
     <organization>
         <name>IBM Corporation</name>
@@ -45,13 +45,13 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>connect-api</artifactId>
-            <version>3.6.2</version>
+            <version>3.7.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>connect-json</artifactId>
-            <version>3.6.2</version>
+            <version>3.7.1</version>
             <scope>provided</scope>
         </dependency>
 
@@ -63,7 +63,7 @@
         <dependency>
             <groupId>com.ibm.mq</groupId>
             <artifactId>com.ibm.mq.allclient</artifactId>
-            <version>9.3.3.1</version>
+            <version>9.4.0.5</version>
         </dependency>
 
         <dependency>
@@ -81,12 +81,12 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>2.0.7</version>
+            <version>2.0.16</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
-            <version>2.0.7</version>
+            <version>2.0.16</version>
             <scope>test</scope>
         </dependency>
         <!-- tests in src/integration depend on a running MQ queue manager -->
@@ -94,14 +94,14 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.17.6</version>
+            <version>1.20.1</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.24.2</version>
+            <version>3.26.3</version>
             <scope>test</scope>
         </dependency>
 
@@ -127,7 +127,7 @@
 
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version>
+                <version>3.13.0</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -138,7 +138,7 @@
             <!-- run unit tests -->
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0-M7</version>
+                <version>3.4.0</version>
                 <configuration>
                     <argLine>${surefire.jacoco.args}</argLine>
                     <systemPropertyVariables>
@@ -153,7 +153,7 @@
             <!-- run integration tests -->
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.0.0-M7</version>
+                <version>3.5.0</version>
                 <configuration>
                     <argLine>${failsafe.jacoco.args}</argLine>
                     <systemPropertyVariables>
@@ -174,23 +174,38 @@
                 </executions>
             </plugin>
 
-            <!-- build the release jar -->
+            <!-- build the release jars -->
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.4.1</version>
+                <version>3.7.1</version>
                 <executions>
+                    <!-- an uber jar including all runtime dependencies -->
                     <execution>
+                        <id>dependencies-all</id>
                         <phase>package</phase>
                         <goals>
                             <goal>single</goal>
                         </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/assembly/package.xml</descriptor>
+                            </descriptors>
+                        </configuration>
+                    </execution>
+                    <!-- an uber jar including runtime dependencies other than the MQ client -->
+                    <execution>
+                        <id>dependencies-exc-mq</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/assembly/package-excludemq.xml</descriptor>
+                            </descriptors>
+                        </configuration>
                     </execution>
                 </executions>
-                <configuration>
-                    <descriptors>
-                        <descriptor>src/assembly/package.xml</descriptor>
-                    </descriptors>
-                </configuration>
             </plugin>
 
             <!-- add the src/integration folder as a test folder, which lets us keep -->
@@ -199,7 +214,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.3.0</version>
+                <version>3.6.0</version>
                 <executions>
                     <execution>
                         <id>add-test-source</id>
@@ -220,7 +235,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.8</version>
+                <version>0.8.12</version>
                 <executions>
                     <execution>
                         <id>before-unit-test-execution</id>
@@ -304,7 +319,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>3.5.0</version>
                 <configuration>
                     <consoleOutput>true</consoleOutput>
                     <failsOnError>true</failsOnError>
