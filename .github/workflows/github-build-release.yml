@@ -44,6 +44,16 @@ jobs:
           asset_path: ./target/kafka-connect-mq-source-${{env.VERSION}}-jar-with-dependencies.jar
           asset_name: kafka-connect-mq-source-${{env.VERSION}}-jar-with-dependencies.jar
           asset_content_type: application/java-archive
+      - name: Upload Release Asset With non-MQ Dependencies
+        id: upload-release-asset-with-dependencies-exc-mq
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/kafka-connect-mq-source-${{env.VERSION}}-dependencies-exc-mq.jar
+          asset_name: kafka-connect-mq-source-${{env.VERSION}}-dependencies-exc-mq.jar
+          asset_content_type: application/java-archive
       - name: Upload Release Asset
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
