@@ -70,11 +70,22 @@ public class JMSWorker {
 
     private boolean connected = false; // Whether connected to MQ
     private AtomicBoolean closeNow; // Whether close has been requested
-    private long reconnectDelayMillis = RECONNECT_DELAY_MILLIS_MIN; // Delay between repeated reconnect attempts
+    private AbstractConfig config;
+    private long receiveTimeout; // Receive timeout for the jms consumer
+    private long reconnectDelayMillisMin; // Delay between repeated reconnect attempts min
+    private long reconnectDelayMillisMax; // Delay between repeated reconnect attempts max
 
-    private static final long RECEIVE_TIMEOUT = 2000L;
-    private static final long RECONNECT_DELAY_MILLIS_MIN = 64L;
-    private static final long RECONNECT_DELAY_MILLIS_MAX = 8192L;
+    long getReceiveTimeout() {
+        return receiveTimeout;
+    }
+
+    long getReconnectDelayMillisMin() {
+        return reconnectDelayMillisMin;
+    }
+
+    long getReconnectDelayMillisMax() {
+        return reconnectDelayMillisMax;
+    }
 
     /**
      * Configure this class.
@@ -87,6 +98,7 @@ public class JMSWorker {
         log.trace("[{}] Entry {}.configure, props={}", Thread.currentThread().getId(), this.getClass().getName(),
                 config);
 
+        this.config = config;
         System.setProperty("com.ibm.mq.cfg.useIBMCipherMappings",
                 config.getBoolean(MQSourceConnector.CONFIG_NAME_MQ_SSL_USE_IBM_CIPHER_MAPPINGS).toString());
 
@@ -132,6 +144,9 @@ public class JMSWorker {
             userName = config.getString(MQSourceConnector.CONFIG_NAME_MQ_USER_NAME);
             password = config.getPassword(MQSourceConnector.CONFIG_NAME_MQ_PASSWORD);
             topic = config.getString(MQSourceConnector.CONFIG_NAME_TOPIC);
+            receiveTimeout = config.getLong(MQSourceConnector.CONFIG_MAX_RECEIVE_TIMEOUT);
+            reconnectDelayMillisMin = config.getLong(MQSourceConnector.CONFIG_RECONNECT_DELAY_MIN);
+            reconnectDelayMillisMax = config.getLong(MQSourceConnector.CONFIG_RECONNECT_DELAY_MAX);
         } catch (JMSException | JMSRuntimeException jmse) {
             log.error("JMS exception {}", jmse);
             throw new JMSWorkerConnectionException("JMS connection failed", jmse);
@@ -230,9 +245,9 @@ public class JMSWorker {
 
         Message message = null;
         if (wait) {
-            log.debug("Waiting {} ms for message", RECEIVE_TIMEOUT);
+            log.debug("Waiting {} ms for message", receiveTimeout);
 
-            message = internalConsumer.receive(RECEIVE_TIMEOUT);
+            message = internalConsumer.receive(receiveTimeout);
 
             if (message == null) {
                 log.debug("No message received");
@@ -364,20 +379,23 @@ public class JMSWorker {
         log.trace("[{}] Entry {}.maybeReconnect", Thread.currentThread().getId(), this.getClass().getName());
         try {
             connect();
-            reconnectDelayMillis = RECONNECT_DELAY_MILLIS_MIN;
-            log.info("Connection to MQ established");
+            // Reset reconnect delay to initial minimum after successful connection
+            reconnectDelayMillisMin = config.getLong(MQSourceConnector.CONFIG_RECONNECT_DELAY_MIN);
+            log.info("Successfully reconnected to MQ.");
         } catch (final JMSRuntimeException jmse) {
-            // Delay slightly so that repeated reconnect loops don't run too fast
+            log.error("Failed to reconnect to MQ: {}", jmse);
             try {
-                Thread.sleep(reconnectDelayMillis);
+                log.debug("Waiting for {} ms before next reconnect attempt.", reconnectDelayMillisMin);
+                Thread.sleep(reconnectDelayMillisMin);
             } catch (final InterruptedException ie) {
+                log.warn("Reconnect delay interrupted.", ie);
             }
 
-            if (reconnectDelayMillis < RECONNECT_DELAY_MILLIS_MAX) {
-                reconnectDelayMillis = reconnectDelayMillis * 2;
+            // Exponential backoff: double the delay, but do not exceed the maximum limit
+            if (reconnectDelayMillisMin < reconnectDelayMillisMax) {
+                reconnectDelayMillisMin = Math.min(reconnectDelayMillisMin * 2, reconnectDelayMillisMax);
+                log.debug("Reconnect delay increased to {} ms.", reconnectDelayMillisMin);
             }
-
-            log.error("JMS exception {}", jmse);
             log.trace("[{}]  Exit {}.maybeReconnect, retval=JMSRuntimeException", Thread.currentThread().getId(),
                     this.getClass().getName());
             throw jmse;

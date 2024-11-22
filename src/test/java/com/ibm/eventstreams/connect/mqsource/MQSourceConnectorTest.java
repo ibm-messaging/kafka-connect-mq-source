@@ -16,7 +16,6 @@
 package com.ibm.eventstreams.connect.mqsource;
 
 import org.apache.kafka.common.config.Config;
-import org.apache.kafka.common.config.ConfigValue;
 import org.apache.kafka.connect.connector.Connector;
 import org.apache.kafka.connect.source.ConnectorTransactionBoundaries;
 import org.apache.kafka.connect.source.ExactlyOnceSupport;
@@ -30,11 +29,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class MQSourceConnectorTest {
     @Test
@@ -145,5 +140,50 @@ public class MQSourceConnectorTest {
                 .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_CLIENT_RECONNECT_OPTIONS))
                 .flatMap(cv -> cv.errorMessages().stream())
                 .anyMatch(msg -> msg.contains("When running the MQ source connector with exactly once mode, the client reconnect option 'QMGR' should be provided.")));
+    }
+
+    @Test
+    public void testValidateRetryDelayConfig() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.reconnect.delay.max.ms", "10");
+        configProps.put("mq.reconnect.delay.min.ms", "100");
+        configProps.put("tasks.max", "1");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_RECONNECT_DELAY_MAX))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("The value of 'mq.reconnect.delay.max.ms' must be greater than or equal to the value of 'mq.reconnect.delay.min.ms'.")));
+    }
+
+    @Test
+    public void testValidateRetryDelayConfigWithNoReconnectValues() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("tasks.max", "1");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_RECONNECT_DELAY_MAX))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .allMatch(msg -> msg == null));
+    }
+
+    @Test
+    public void testValidateRetryDelayConfigWithDefaultValues() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.reconnect.delay.min.ms", "1000000");
+        configProps.put("tasks.max", "1");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_RECONNECT_DELAY_MAX))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("The value of 'mq.reconnect.delay.max.ms' must be greater than or equal to the value of 'mq.reconnect.delay.min.ms'.")));
     }
 }
