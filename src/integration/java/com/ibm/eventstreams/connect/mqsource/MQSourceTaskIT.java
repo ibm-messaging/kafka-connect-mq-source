@@ -86,7 +86,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         props.put("mq.queue", DEFAULT_SOURCE_QUEUE);
         props.put("mq.user.authentication.mqcsp", "false");
         props.put("topic", "mytopic");
-        props.put("mq.receive.timeout", "5000");
+        props.put("mq.message.receive.timeout", "5000");
         props.put("mq.reconnect.delay.min.ms", "100");
         props.put("mq.reconnect.delay.max.ms", "10000");
         return props;
