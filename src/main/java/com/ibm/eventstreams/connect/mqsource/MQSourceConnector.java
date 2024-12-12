@@ -163,6 +163,24 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_DISABLED = "DISABLED";
     public static final String CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ASDEF = "ASDEF";
 
+    public static final String CONFIG_MAX_RECEIVE_TIMEOUT = "mq.message.receive.timeout";
+    public static final String CONFIG_DOCUMENTATION_MAX_RECEIVE_TIMEOUT = "How long the connector should wait (in milliseconds) for a message to arrive if no message is available immediately";
+    public static final String CONFIG_DISPLAY_MAX_RECEIVE_TIMEOUT = "message receive timeout";
+    public static final long CONFIG_MAX_RECEIVE_TIMEOUT_DEFAULT = 2000L;
+    public static final long CONFIG_MAX_RECEIVE_TIMEOUT_MINIMUM = 1L;
+
+    public static final String CONFIG_RECONNECT_DELAY_MIN = "mq.reconnect.delay.min.ms";
+    public static final String CONFIG_DOCUMENTATION_RECONNECT_DELAY_MIN = "The minimum delay in milliseconds for reconnect attempts.";
+    public static final String CONFIG_DISPLAY_RECONNECT_DELAY_MIN = "reconnect minimum delay";
+    public static final long CONFIG_RECONNECT_DELAY_MIN_DEFAULT = 64L;
+    public static final long CONFIG_RECONNECT_DELAY_MIN_MINIMUM = 1L;
+
+    public static final String CONFIG_RECONNECT_DELAY_MAX = "mq.reconnect.delay.max.ms";
+    public static final String CONFIG_DOCUMENTATION_RECONNECT_DELAY_MAX = "The maximum delay in milliseconds for reconnect attempts.";
+    public static final String CONFIG_DISPLAY_RECONNECT_DELAY_MAX = "reconnect maximum delay";
+    public static final long CONFIG_RECONNECT_DELAY_MAX_DEFAULT = 8192L;
+    public static final long CONFIG_RECONNECT_DELAY_MAX_MINIMUM = 10L;
+
     // Define valid reconnect options
     public static final String[] CONFIG_VALUE_MQ_VALID_RECONNECT_OPTIONS = {
         CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ASDEF,
@@ -175,7 +193,7 @@ public class MQSourceConnector extends SourceConnector {
         CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_DISABLED.toLowerCase(Locale.ENGLISH)
     };
 
-    public static String version = "2.2.0";
+    public static String version = "2.3.0";
 
     private Map<String, String> configProps;
 
@@ -265,6 +283,7 @@ public class MQSourceConnector extends SourceConnector {
         final Config config = super.validate(connectorConfigs);
 
         MQSourceConnector.validateMQClientReconnectOptions(config);
+        MQSourceConnector.validateRetryDelayConfig(config);
         return config;
     }
 
@@ -288,6 +307,31 @@ public class MQSourceConnector extends SourceConnector {
         if (!isClientReconnectOptionQMGR) {
             clientReconnectOptionsConfigValue.addErrorMessage(
                     "When running the MQ source connector with exactly once mode, the client reconnect option 'QMGR' should be provided. For example: `mq.client.reconnect.options: QMGR`");
+        }
+    }
+
+    /**
+    * Validates if the retry delay max value is greater than or equal to the min value.
+    * Adds an error message if the validation fails.
+    */
+    private static void validateRetryDelayConfig(final Config config) {
+        // Collect all configuration values
+        final Map<String, ConfigValue> configValues = config.configValues().stream()
+                        .collect(Collectors.toMap(ConfigValue::name, v -> v));
+
+        final ConfigValue reconnectDelayMaxConfigValue = configValues.get(MQSourceConnector.CONFIG_RECONNECT_DELAY_MAX);
+        final ConfigValue reconnectDelayMinConfigValue = configValues.get(MQSourceConnector.CONFIG_RECONNECT_DELAY_MIN);
+
+        final long maxReceiveTimeout = (long) reconnectDelayMaxConfigValue.value();
+        final long minReceiveTimeout = (long) reconnectDelayMinConfigValue.value();
+
+        // Validate if the max value is greater than min value
+        if (maxReceiveTimeout < minReceiveTimeout) {
+            reconnectDelayMaxConfigValue.addErrorMessage(String.format(
+                "The value of '%s' must be greater than or equal to the value of '%s'.",
+                MQSourceConnector.CONFIG_RECONNECT_DELAY_MAX,
+                MQSourceConnector.CONFIG_RECONNECT_DELAY_MIN
+            ));
         }
     }
 
@@ -531,6 +575,30 @@ public class MQSourceConnector extends SourceConnector {
                 CONFIG_GROUP_MQ, 25,
                 Width.SHORT,
                 CONFIG_DISPLAY_MQ_CLIENT_RECONNECT_OPTIONS);
+        CONFIGDEF.define(CONFIG_MAX_RECEIVE_TIMEOUT,
+                Type.LONG,
+                CONFIG_MAX_RECEIVE_TIMEOUT_DEFAULT, ConfigDef.Range.atLeast(CONFIG_MAX_RECEIVE_TIMEOUT_MINIMUM),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_MAX_RECEIVE_TIMEOUT,
+                CONFIG_GROUP_MQ, 26,
+                Width.MEDIUM,
+                CONFIG_DISPLAY_MAX_RECEIVE_TIMEOUT);
+        CONFIGDEF.define(CONFIG_RECONNECT_DELAY_MIN,
+                Type.LONG,
+                CONFIG_RECONNECT_DELAY_MIN_DEFAULT, ConfigDef.Range.atLeast(CONFIG_RECONNECT_DELAY_MIN_MINIMUM),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_RECONNECT_DELAY_MIN,
+                CONFIG_GROUP_MQ, 27,
+                Width.MEDIUM,
+                CONFIG_DISPLAY_RECONNECT_DELAY_MIN);
+        CONFIGDEF.define(CONFIG_RECONNECT_DELAY_MAX,
+                Type.LONG,
+                CONFIG_RECONNECT_DELAY_MAX_DEFAULT, ConfigDef.Range.atLeast(CONFIG_RECONNECT_DELAY_MAX_MINIMUM),
+                Importance.MEDIUM,
+                CONFIG_DOCUMENTATION_RECONNECT_DELAY_MAX,
+                CONFIG_GROUP_MQ, 28,
+                Width.MEDIUM,
+                CONFIG_DISPLAY_RECONNECT_DELAY_MAX);
 
         CONFIGDEF.define(CONFIG_NAME_TOPIC,
                 Type.STRING,
