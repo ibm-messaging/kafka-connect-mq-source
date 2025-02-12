@@ -44,7 +44,7 @@ public class JmsToKafkaHeaderConverterTest {
     @Test
     public void convertJmsPropertiesToKafkaHeaders() throws JMSException {
 
-        final List<String> keys = Arrays.asList("facilityCountryCode", "facilityNum");
+        final List<String> keys = Arrays.asList("facilityCountryCode", "facilityNum","nullProperty");
 
         final Enumeration<String> keyEnumeration = Collections.enumeration(keys);
 
@@ -52,6 +52,7 @@ public class JmsToKafkaHeaderConverterTest {
         when(message.getPropertyNames()).thenReturn(keyEnumeration);
         when(message.getObjectProperty("facilityCountryCode")).thenReturn("US");
         when(message.getObjectProperty("facilityNum")).thenReturn("12345");
+        when(message.getObjectProperty("nullProperty")).thenReturn(null);
 
         // Act
         final ConnectHeaders actualConnectHeaders = jmsToKafkaHeaderConverter
@@ -59,7 +60,7 @@ public class JmsToKafkaHeaderConverterTest {
 
 
         //Verify
-        assertEquals("Both custom JMS properties were copied to kafka successfully.", 2, actualConnectHeaders.size());
+        assertEquals("Both custom JMS properties were copied to kafka successfully.", 3, actualConnectHeaders.size());
 
 
     }
