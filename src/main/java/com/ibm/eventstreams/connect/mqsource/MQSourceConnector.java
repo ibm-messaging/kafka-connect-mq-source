@@ -163,11 +163,17 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_DISABLED = "DISABLED";
     public static final String CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ASDEF = "ASDEF";
 
-    public static final String CONFIG_MAX_RECEIVE_TIMEOUT = "mq.message.receive.timeout";
+    public static final String CONFIG_MAX_RECEIVE_TIMEOUT = "mq.receive.timeout.ms";
     public static final String CONFIG_DOCUMENTATION_MAX_RECEIVE_TIMEOUT = "How long the connector should wait (in milliseconds) for a message to arrive if no message is available immediately";
-    public static final String CONFIG_DISPLAY_MAX_RECEIVE_TIMEOUT = "message receive timeout";
+    public static final String CONFIG_DISPLAY_MAX_RECEIVE_TIMEOUT = "Initial receive timeout (ms)";
     public static final long CONFIG_MAX_RECEIVE_TIMEOUT_DEFAULT = 2000L;
     public static final long CONFIG_MAX_RECEIVE_TIMEOUT_MINIMUM = 1L;
+
+    public static final String CONFIG_SUBSEQUENT_RECEIVE_TIMEOUT = "mq.receive.subsequent.timeout.ms";
+    public static final String CONFIG_DOCUMENTATION_SUBSEQUENT_RECEIVE_TIMEOUT = "How long (in milliseconds) the connector should wait for subsequent receives, "
+            + "defaults to 0 (no-wait) and uses receiveNoWait().";
+    public static final String CONFIG_DISPLAY_SUBSEQUENT_RECEIVE_TIMEOUT = "subsequent receive timeout (ms)";
+    public static final long CONFIG_SUBSEQUENT_RECEIVE_TIMEOUT_DEFAULT = 0L;
 
     public static final String CONFIG_RECONNECT_DELAY_MIN = "mq.reconnect.delay.min.ms";
     public static final String CONFIG_DOCUMENTATION_RECONNECT_DELAY_MIN = "The minimum delay in milliseconds for reconnect attempts.";
@@ -576,19 +582,30 @@ public class MQSourceConnector extends SourceConnector {
                 Width.SHORT,
                 CONFIG_DISPLAY_MQ_CLIENT_RECONNECT_OPTIONS);
         CONFIGDEF.define(CONFIG_MAX_RECEIVE_TIMEOUT,
-                Type.LONG,
-                CONFIG_MAX_RECEIVE_TIMEOUT_DEFAULT, ConfigDef.Range.atLeast(CONFIG_MAX_RECEIVE_TIMEOUT_MINIMUM),
-                Importance.MEDIUM,
+                ConfigDef.Type.LONG,
+                CONFIG_MAX_RECEIVE_TIMEOUT_DEFAULT,
+                ConfigDef.Range.atLeast(CONFIG_MAX_RECEIVE_TIMEOUT_MINIMUM),
+                ConfigDef.Importance.MEDIUM,
                 CONFIG_DOCUMENTATION_MAX_RECEIVE_TIMEOUT,
-                CONFIG_GROUP_MQ, 26,
-                Width.MEDIUM,
+                "MQ",
+                26,
+                ConfigDef.Width.MEDIUM,
                 CONFIG_DISPLAY_MAX_RECEIVE_TIMEOUT);
+        CONFIGDEF.define(CONFIG_SUBSEQUENT_RECEIVE_TIMEOUT,
+                ConfigDef.Type.LONG,
+                CONFIG_SUBSEQUENT_RECEIVE_TIMEOUT_DEFAULT,
+                ConfigDef.Importance.LOW,
+                CONFIG_DOCUMENTATION_SUBSEQUENT_RECEIVE_TIMEOUT,
+                "MQ",
+                27,
+                ConfigDef.Width.MEDIUM,
+                CONFIG_DISPLAY_SUBSEQUENT_RECEIVE_TIMEOUT);
         CONFIGDEF.define(CONFIG_RECONNECT_DELAY_MIN,
                 Type.LONG,
                 CONFIG_RECONNECT_DELAY_MIN_DEFAULT, ConfigDef.Range.atLeast(CONFIG_RECONNECT_DELAY_MIN_MINIMUM),
                 Importance.MEDIUM,
                 CONFIG_DOCUMENTATION_RECONNECT_DELAY_MIN,
-                CONFIG_GROUP_MQ, 27,
+                CONFIG_GROUP_MQ, 28,
                 Width.MEDIUM,
                 CONFIG_DISPLAY_RECONNECT_DELAY_MIN);
         CONFIGDEF.define(CONFIG_RECONNECT_DELAY_MAX,
@@ -596,7 +613,7 @@ public class MQSourceConnector extends SourceConnector {
                 CONFIG_RECONNECT_DELAY_MAX_DEFAULT, ConfigDef.Range.atLeast(CONFIG_RECONNECT_DELAY_MAX_MINIMUM),
                 Importance.MEDIUM,
                 CONFIG_DOCUMENTATION_RECONNECT_DELAY_MAX,
-                CONFIG_GROUP_MQ, 28,
+                CONFIG_GROUP_MQ, 29,
                 Width.MEDIUM,
                 CONFIG_DISPLAY_RECONNECT_DELAY_MAX);
 

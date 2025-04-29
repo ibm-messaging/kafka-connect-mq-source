@@ -71,12 +71,17 @@ public class JMSWorker {
     private boolean connected = false; // Whether connected to MQ
     private AtomicBoolean closeNow; // Whether close has been requested
     private AbstractConfig config;
-    private long receiveTimeout; // Receive timeout for the jms consumer
+    private long initialReceiveTimeoutMs; // Receive timeout for the jms consumer
+    private long subsequentReceiveTimeoutMs; // Receive timeout for the jms consumer on the subsequent calls
     private long reconnectDelayMillisMin; // Delay between repeated reconnect attempts min
     private long reconnectDelayMillisMax; // Delay between repeated reconnect attempts max
 
-    long getReceiveTimeout() {
-        return receiveTimeout;
+    long getInitialReceiveTimeoutMs() {
+        return initialReceiveTimeoutMs;
+    }
+
+    long getSubsequentReceiveTimeoutMs() {
+        return subsequentReceiveTimeoutMs;
     }
 
     long getReconnectDelayMillisMin() {
@@ -144,7 +149,8 @@ public class JMSWorker {
             userName = config.getString(MQSourceConnector.CONFIG_NAME_MQ_USER_NAME);
             password = config.getPassword(MQSourceConnector.CONFIG_NAME_MQ_PASSWORD);
             topic = config.getString(MQSourceConnector.CONFIG_NAME_TOPIC);
-            receiveTimeout = config.getLong(MQSourceConnector.CONFIG_MAX_RECEIVE_TIMEOUT);
+            initialReceiveTimeoutMs = config.getLong(MQSourceConnector.CONFIG_MAX_RECEIVE_TIMEOUT);
+            subsequentReceiveTimeoutMs = config.getLong(MQSourceConnector.CONFIG_SUBSEQUENT_RECEIVE_TIMEOUT);
             reconnectDelayMillisMin = config.getLong(MQSourceConnector.CONFIG_RECONNECT_DELAY_MIN);
             reconnectDelayMillisMax = config.getLong(MQSourceConnector.CONFIG_RECONNECT_DELAY_MAX);
         } catch (JMSException | JMSRuntimeException jmse) {
@@ -222,10 +228,14 @@ public class JMSWorker {
      *
      * @param queueName   The name of the queue to get messages from
      * @param queueConfig Any particular queue configuration that should be applied
-     * @param wait        Whether to wait indefinitely for a message
+     * @param initialCall Indicates whether this is the initial receive call in the polling cycle.
+     *                    Determines which configured timeout to use:
+     *                    - If true, uses the initial receive timeout.
+     *                    - If false, uses the subsequent receive timeout.
+     *                    A timeout value of 0 results in a non-blocking receiveNoWait() call.
      * @return The Message retrieved from MQ
      */
-    public Message receive(final String queueName, final QueueConfig queueConfig, final boolean wait) throws JMSRuntimeException, JMSException {
+    public Message receive(final String queueName, final QueueConfig queueConfig, final boolean initialCall) throws JMSRuntimeException, JMSException {
         log.trace("[{}] Entry {}.receive", Thread.currentThread().getId(), this.getClass().getName());
 
         if (!maybeReconnect()) {
@@ -243,21 +253,25 @@ public class JMSWorker {
             jmsConsumers.put(queueName, internalConsumer);
         }
 
-        Message message = null;
-        if (wait) {
-            log.debug("Waiting {} ms for message", receiveTimeout);
 
-            message = internalConsumer.receive(receiveTimeout);
+        final long timeoutMs = initialCall
+            ? initialReceiveTimeoutMs
+            : subsequentReceiveTimeoutMs;
+
+        Message message = null;
+        if (timeoutMs > 0) {
+            // block up to timeoutMs
+            message = internalConsumer.receive(timeoutMs);
 
             if (message == null) {
-                log.debug("No message received");
+                log.debug("No message received within {} ms on queue={}", timeoutMs, queueName);
             }
         } else {
+            // non‐blocking
             message = internalConsumer.receiveNoWait();
         }
 
         log.trace("[{}]  Exit {}.receive, retval={}", Thread.currentThread().getId(), this.getClass().getName(), message);
-
         return message;
     }
 
