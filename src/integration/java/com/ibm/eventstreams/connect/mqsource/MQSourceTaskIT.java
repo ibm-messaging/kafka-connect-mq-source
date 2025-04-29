@@ -86,7 +86,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         props.put("mq.queue", DEFAULT_SOURCE_QUEUE);
         props.put("mq.user.authentication.mqcsp", "false");
         props.put("topic", "mytopic");
-        props.put("mq.receive.timeout.ms", "5000");
+        props.put("mq.message.receive.timeout", "5000");
         props.put("mq.receive.subsequent.timeout.ms", "2000");
         props.put("mq.reconnect.delay.min.ms", "100");
         props.put("mq.reconnect.delay.max.ms", "10000");
@@ -667,7 +667,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put("mq.message.body.jms", "true");
         connectorConfigProps.put("mq.record.builder",
                 "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
-        connectorConfigProps.put("mq.receive.timeout.ms", "2000");
+        connectorConfigProps.put("mq.message.receive.timeout", "2000");
         connectorConfigProps.put("mq.receive.subsequent.timeout.ms", "3000");
         connectorConfigProps.put("mq.reconnect.delay.min.ms", "100");
         connectorConfigProps.put("mq.reconnect.delay.max.ms", "10000");

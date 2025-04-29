@@ -71,7 +71,7 @@ public class JMSWorker {
     private boolean connected = false; // Whether connected to MQ
     private AtomicBoolean closeNow; // Whether close has been requested
     private AbstractConfig config;
-    private long initialReceiveTimeoutMs; // Receive timeout for the jms consumer
+    private long initialReceiveTimeoutMs; // Receive timeout for the jms consumer on the first call in each Connect poll
     private long subsequentReceiveTimeoutMs; // Receive timeout for the jms consumer on the subsequent calls
     private long reconnectDelayMillisMin; // Delay between repeated reconnect attempts min
     private long reconnectDelayMillisMax; // Delay between repeated reconnect attempts max
