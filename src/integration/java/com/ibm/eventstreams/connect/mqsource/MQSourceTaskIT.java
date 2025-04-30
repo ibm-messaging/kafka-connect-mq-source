@@ -87,6 +87,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         props.put("mq.user.authentication.mqcsp", "false");
         props.put("topic", "mytopic");
         props.put("mq.message.receive.timeout", "5000");
+        props.put("mq.receive.subsequent.timeout.ms", "2000");
         props.put("mq.reconnect.delay.min.ms", "100");
         props.put("mq.reconnect.delay.max.ms", "10000");
         return props;
@@ -666,7 +667,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put("mq.message.body.jms", "true");
         connectorConfigProps.put("mq.record.builder",
                 "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
-        connectorConfigProps.put("mq.message.receive.timeout", "5000");
+        connectorConfigProps.put("mq.message.receive.timeout", "2000");
+        connectorConfigProps.put("mq.receive.subsequent.timeout.ms", "3000");
         connectorConfigProps.put("mq.reconnect.delay.min.ms", "100");
         connectorConfigProps.put("mq.reconnect.delay.max.ms", "10000");
 
@@ -688,7 +690,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         shared.attemptRollback();
         assertThat(stateMsgs1.size()).isEqualTo(1);
 
-        assertEquals(5000L, shared.getReceiveTimeout());
+        assertEquals(2000L, shared.getInitialReceiveTimeoutMs());
+        assertEquals(3000L, shared.getSubsequentReceiveTimeoutMs());
         assertEquals(100L, shared.getReconnectDelayMillisMin());
         assertEquals(10000L, shared.getReconnectDelayMillisMax());
     }
