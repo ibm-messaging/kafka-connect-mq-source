@@ -48,7 +48,13 @@ public class JmsToKafkaHeaderConverter {
 
             jmsPropertyKeys.forEach(key -> {
                 try {
-                    connectHeaders.addString(key.toString(), message.getObjectProperty(key.toString()).toString());
+                    String value = "";
+                    if (message.getObjectProperty(key.toString()) != null)
+                    {
+                        value = message.getObjectProperty(key.toString()).toString();
+                    }
+                    connectHeaders.addString(key.toString(), value);
+                   //connectHeaders.addString(key.toString(), message.getObjectProperty(key.toString()).toString());
                 } catch (final JMSException e) {
                     // Not failing the message processing if JMS properties cannot be read for some
                     // reason.
