@@ -18,8 +18,6 @@ package com.ibm.eventstreams.connect.mqsource.builders;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
 
 import javax.jms.BytesMessage;
 import javax.jms.JMSContext;
@@ -29,8 +27,6 @@ import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.json.JsonConverter;
-import org.apache.kafka.connect.runtime.ConnectorConfig;
-import org.apache.kafka.connect.runtime.errors.ToleranceType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +38,6 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
     private static final Logger log = LoggerFactory.getLogger(JsonRecordBuilder.class);
 
     private JsonConverter converter;
-    private ToleranceType toleranceType;
 
     public JsonRecordBuilder() {
         log.info("Building records using com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -54,13 +49,6 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
 
         // Convert the value, not the key (isKey == false)
         converter.configure(m, false);
-    }
-
-    @Override
-    public void configure(final Map<String, String> props) {
-        super.configure(props);
-        final String errorTolerance = props.getOrDefault(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, ConnectorConfig.ERRORS_TOLERANCE_DEFAULT.toString());
-        toleranceType = ToleranceType.valueOf(errorTolerance.toUpperCase(Locale.ROOT));
     }
 
     /**
@@ -90,12 +78,6 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
             throw new RecordBuilderException("Unsupported JMS message type");
         }
 
-        try {
-            return converter.toConnectData(topic, payload);
-        } catch (final Exception e) {
-            if (toleranceType == ToleranceType.NONE)
-                throw e;
-        }
-        return null;
+        return converter.toConnectData(topic, payload);
     }
 }

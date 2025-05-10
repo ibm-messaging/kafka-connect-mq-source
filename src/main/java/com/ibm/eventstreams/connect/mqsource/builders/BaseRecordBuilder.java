@@ -15,21 +15,33 @@
  */
 package com.ibm.eventstreams.connect.mqsource.builders;
 
-import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
-import com.ibm.eventstreams.connect.mqsource.processor.JmsToKafkaHeaderConverter;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.SchemaAndValue;
-import org.apache.kafka.connect.source.SourceRecord;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 
+import javax.jms.BytesMessage;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.Message;
+import javax.jms.TextMessage;
 
-import java.util.Map;
-import java.util.Optional;
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaAndValue;
+import org.apache.kafka.connect.header.ConnectHeaders;
+import org.apache.kafka.connect.header.Headers;
+import org.apache.kafka.connect.runtime.ConnectorConfig;
+import org.apache.kafka.connect.runtime.errors.ToleranceType;
+import org.apache.kafka.connect.source.SourceRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
+import com.ibm.eventstreams.connect.mqsource.processor.JmsToKafkaHeaderConverter;
 
 /**
  * Builds Kafka Connect SourceRecords from messages.
@@ -37,23 +49,32 @@ import java.util.Optional;
 public abstract class BaseRecordBuilder implements RecordBuilder {
     private static final Logger log = LoggerFactory.getLogger(BaseRecordBuilder.class);
 
-    public enum KeyHeader { NONE, MESSAGE_ID, CORRELATION_ID, CORRELATION_ID_AS_BYTES, DESTINATION };
-    protected KeyHeader keyheader = KeyHeader.NONE;
+    public enum KeyHeader {
+        NONE, MESSAGE_ID, CORRELATION_ID, CORRELATION_ID_AS_BYTES, DESTINATION
+    };
 
+    protected KeyHeader keyheader = KeyHeader.NONE;
 
     private boolean copyJmsPropertiesFlag = Boolean.FALSE;
     private JmsToKafkaHeaderConverter jmsToKafkaHeaderConverter;
+    private boolean tolerateErrors;
+    private boolean logErrors;
+    private String dlqTopic = "";
+    private AbstractConfig config;
 
     /**
      * Configure this class.
      *
      * @param props initial configuration
      *
-     * @throws RecordBuilderException   Operation failed and connector should stop.
+     * @throws RecordBuilderException Operation failed and connector should stop.
      */
-    @Override public void configure(final Map<String, String> props) {
+    @Override
+    public void configure(final Map<String, String> props) {
         log.trace("[{}] Entry {}.configure, props={}", Thread.currentThread().getId(), this.getClass().getName(),
                 props);
+
+        initializeErrorTolerance(props);
 
         final String kh = props.get(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER);
         if (kh != null) {
@@ -80,6 +101,33 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
         jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
 
         log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
+    }
+
+    /**
+     * Initializes error tolerance configuration by reading directly from properties
+     * map
+     * instead of using AbstractConfig
+     */
+    private void initializeErrorTolerance(final Map<String, String> props) {
+        // Read tolerateErrors directly from props
+        final String errorToleranceValue = props.getOrDefault(
+                ConnectorConfig.ERRORS_TOLERANCE_CONFIG,
+                ToleranceType.NONE.toString()).toUpperCase(Locale.ROOT);
+
+        tolerateErrors = ToleranceType.valueOf(errorToleranceValue).equals(ToleranceType.ALL);
+
+        // Read logErrors directly from props
+        if (tolerateErrors) {
+            final String logErrorsValue = props.getOrDefault(
+                    ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG,
+                    "false");
+            logErrors = Boolean.parseBoolean(logErrorsValue);
+        } else {
+            logErrors = false;
+        }
+
+        // Read dlqTopic directly from props
+        dlqTopic = props.get(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG);
     }
 
     /**
@@ -161,38 +209,219 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
      * @throws JMSException Message could not be converted
      */
     @Override
-    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms, final Message message) throws JMSException {
+    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms,
+            final Message message) throws JMSException {
         return toSourceRecord(context, topic, messageBodyJms, message, null, null);
     }
 
     @Override
-    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms, final Message message, final Map<String, Long> sourceOffset, final Map<String, String> sourceQueuePartition) throws JMSException {
-        final SchemaAndValue key = this.getKey(context, topic, message);
-        final SchemaAndValue value = this.getValue(context, topic, messageBodyJms, message);
+    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms,
+            final Message message, final Map<String, Long> sourceOffset, final Map<String, String> sourceQueuePartition)
+            throws JMSException {
 
-        if (copyJmsPropertiesFlag && messageBodyJms) {
-            return new SourceRecord(
-                    sourceQueuePartition,
-                    sourceOffset,
-                    topic,
-                    null,
-                    key.schema(),
-                    key.value(),
-                    value.schema(),
-                    value.value(),
-                    message.getJMSTimestamp(),
-                    jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message)
-            );
-        } else {
-            return new SourceRecord(
-                    sourceQueuePartition,
-                    sourceOffset,
-                    topic,
-                    key.schema(),
-                    key.value(),
-                    value.schema(),
-                    value.value()
-            );
+        Optional<SchemaAndValue> key = Optional.empty();
+
+        try {
+            // Extract key and value
+            key = Optional.ofNullable(this.getKey(context, topic, message));
+            final SchemaAndValue value = this.getValue(context, topic, messageBodyJms, message);
+            final SchemaAndValue actualKey = key.orElse(new SchemaAndValue(null, null));
+
+            // Create and return appropriate record based on configuration
+            if (copyJmsPropertiesFlag && messageBodyJms) {
+                return new SourceRecord(
+                        sourceQueuePartition,
+                        sourceOffset,
+                        topic,
+                        null,
+                        actualKey.schema(),
+                        actualKey.value(),
+                        value.schema(),
+                        value.value(),
+                        message.getJMSTimestamp(),
+                        jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message));
+            } else {
+                return new SourceRecord(
+                        sourceQueuePartition,
+                        sourceOffset,
+                        topic,
+                        null,
+                        actualKey.schema(),
+                        actualKey.value(),
+                        value.schema(),
+                        value.value());
+            }
+        } catch (final Exception e) {
+            // Log the error
+            logError(e);
+
+            // If errors are not tolerated, rethrow
+            if (!tolerateErrors) {
+                throw e;
+            }
+
+            // Handle the error based on configured error tolerance
+            return handleConversionError(message, sourceQueuePartition, sourceOffset, topic, key, e);
         }
+    }
+
+    /**
+     *
+     * Logs error based on `errors.log.enable` value
+     *
+     * @param e The exception that needs to logged
+     */
+    private void logError(final Exception e) {
+        log.warn("Exception caught during conversion of JMS message to SourceRecord: {}", e.getMessage());
+        if (logErrors) {
+            log.error("Detailed error information:", e);
+        }
+    }
+
+    /**
+     *
+     * Handles conversion errors based on configuration
+     *
+     * @param message              The actual MQ message
+     * @param sourceQueuePartition The Source Record queue partition
+     * @param sourceOffset         The Source Record offset
+     * @param originalTopic        The original topic name
+     * @param key                  The SchemaAndValue to include in the source
+     *                             record key
+     * @param exception            The exception that needs to be stored in the
+     *                             header
+     * @return SourceRecord
+     */
+    private SourceRecord handleConversionError(final Message message, final Map<String, String> sourceQueuePartition,
+            final Map<String, Long> sourceOffset, final String topic, final Optional<SchemaAndValue> key,
+            final Exception exception) {
+
+        // If errors are tolerated but no DLQ is configured, skip the message
+        if (dlqTopic == null || dlqTopic.isEmpty()) {
+            log.debug("Skipping message due to conversion error (no DLQ configured)");
+            return null;
+        }
+
+        // Create DLQ record
+        return createDlqRecord(message, sourceQueuePartition, sourceOffset, topic, key, exception);
+    }
+
+    /**
+     *
+     * Creates a DLQ record with error information
+     *
+     * @param message              The actual MQ message
+     * @param sourceQueuePartition The Source Record queue partition
+     * @param sourceOffset         The Source Record offset
+     * @param originalTopic        The original topic name
+     * @param key                  The SchemaAndValue to include in the source
+     *                             record key
+     * @param exception            The exception that needs to be stored in the
+     *                             header
+     * @return SourceRecord
+     */
+    private SourceRecord createDlqRecord(final Message message, final Map<String, String> sourceQueuePartition,
+            final Map<String, Long> sourceOffset, final String originalTopic,
+            final Optional<SchemaAndValue> key, final Exception exception) {
+
+        try {
+            // Extract payload or return null if extraction fails
+            final Optional<byte[]> maybePayload = extractPayload(message);
+            if (!maybePayload.isPresent()) {
+                log.error("Skipping message due to payload extraction failure");
+                return null;
+            }
+
+            final byte[] payload = maybePayload.get();
+
+            // Create headers with error information
+            final Headers headers = createErrorHeaders(originalTopic, exception);
+
+            // Create the DLQ record using the actual key or a null key
+            final SchemaAndValue actualKey = key.orElse(new SchemaAndValue(null, null));
+
+            return new SourceRecord(
+                    sourceQueuePartition,
+                    sourceOffset,
+                    dlqTopic,
+                    null,
+                    actualKey.schema(),
+                    actualKey.value(),
+                    Schema.OPTIONAL_BYTES_SCHEMA,
+                    payload,
+                    message.getJMSTimestamp(),
+                    headers);
+        } catch (final Exception dlqException) {
+            // If DLQ processing itself fails, log and skip
+            log.error("Failed to create DLQ record: {}", dlqException.getMessage(), dlqException);
+            return null;
+        }
+    }
+
+    /**
+     *
+     * Extracts payload from a JMS message with improved error handling
+     *
+     * @param message The actual message coming from mq
+     *
+     * @return Optional<byte[]>
+     */
+    private Optional<byte[]> extractPayload(final Message message) {
+        try {
+            if (message instanceof BytesMessage) {
+                return Optional.ofNullable(message.getBody(byte[].class));
+            } else if (message instanceof TextMessage) {
+                final String text = message.getBody(String.class);
+                return Optional.ofNullable(text != null ? text.getBytes(UTF_8) : null);
+            } else {
+                log.error("Unsupported JMS message type {} for DLQ", message.getClass().getName());
+                return Optional.empty();
+            }
+        } catch (final JMSException e) {
+            log.error("Failed to extract payload: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     *
+     * Creates enhanced headers with error information for DLQ records
+     *
+     * @param originalTopic The original topic name
+     * @param exception     The execption that needs to be included in the header
+     *
+     * @return Headers
+     */
+    private Headers createErrorHeaders(final String originalTopic, final Exception exception) {
+        final Headers headers = new ConnectHeaders();
+
+        // Basic error information
+        headers.addString("original_topic", originalTopic);
+        headers.addString("error_message", exception.getMessage());
+        headers.addString("error_class", exception.getClass().getName());
+        headers.addString("error_timestamp", String.valueOf(System.currentTimeMillis()));
+
+        // Add cause if available
+        if (exception.getCause() != null) {
+            headers.addString("error_cause", exception.getCause().getMessage());
+            headers.addString("error_cause_class", exception.getCause().getClass().getName());
+        }
+
+        // Add first few lines of stack trace (full stack trace might be too large)
+        try {
+            final StringWriter sw = new StringWriter();
+            final PrintWriter pw = new PrintWriter(sw);
+            exception.printStackTrace(pw);
+            final String stackTrace = sw.toString();
+
+            // First 500 characters or less to avoid overly large headers
+            final String truncatedStackTrace = stackTrace.length() <= 500 ? stackTrace
+                    : stackTrace.substring(0, 500) + "... [truncated]";
+            headers.addString("error_stack_trace", truncatedStackTrace);
+        } catch (final Exception e) {
+            log.warn("Could not add stack trace to DLQ headers", e);
+        }
+
+        return headers;
     }
 }

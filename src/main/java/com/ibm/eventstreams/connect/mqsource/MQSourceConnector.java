@@ -181,6 +181,14 @@ public class MQSourceConnector extends SourceConnector {
     public static final long CONFIG_RECONNECT_DELAY_MAX_DEFAULT = 8192L;
     public static final long CONFIG_RECONNECT_DELAY_MAX_MINIMUM = 10L;
 
+    public static final String ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG = "errors.deadletterqueue.topic.name";
+    public static final String ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_DISPLAY = "Output errors to the dead letter queue";
+    public static final String ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_DEFAULT = "";
+    public static final String ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_DOC = "Whether to output conversion errors to the dead letter queue. "
+            + "Stops poison messages when using schemas, any message will be outputted as extended json on the specified topic. "
+            + "By default messages are not outputted to the dead letter queue. "
+            + "Also requires `errors.tolerance=all`.";
+
     // Define valid reconnect options
     public static final String[] CONFIG_VALUE_MQ_VALID_RECONNECT_OPTIONS = {
         CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_ASDEF,
