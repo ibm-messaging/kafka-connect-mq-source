@@ -20,7 +20,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -113,8 +112,7 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
         // use the builder to convert it to a Kafka record
         final JsonRecordBuilder builder = new JsonRecordBuilder();
         final DataException exec = assertThrows(DataException.class, () -> builder.toSourceRecord(getJmsContext(), topic, isJMS, message));
-        System.out.println(exec);
-        System.out.println(exec.getMessage());
+        assertEquals("Converting byte[] to Kafka Connect data failed due to serialization error: ", exec.getMessage());
     }
 
     @Test
@@ -124,12 +122,13 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
 
         // use the builder to convert it to a Kafka record
         final JsonRecordBuilder builder = new JsonRecordBuilder();
-        final HashMap<String, String> config = new HashMap<String, String>();
+        final Map<String, String> config = AbstractJMSContextIT.getDefaultConnectorProperties();
         config.put("errors.tolerance", "all");
+        config.put("mq.message.body.jms", "true");
+        config.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
         builder.configure(config);
         final SourceRecord record = builder.toSourceRecord(getJmsContext(), topic, isJMS, message);
-        assertNull(record.key());
-        assertNull(record.valueSchema());
-        verifyJsonMap((Map<?, ?>) record.value());
+        assertNull(record);
     }
 }

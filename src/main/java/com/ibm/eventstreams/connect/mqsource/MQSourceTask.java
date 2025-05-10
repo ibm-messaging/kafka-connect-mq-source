@@ -24,9 +24,6 @@ import com.ibm.eventstreams.connect.mqsource.util.ExceptionProcessor;
 import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.errors.DataException;
-import org.apache.kafka.connect.runtime.ConnectorConfig;
-import org.apache.kafka.connect.runtime.errors.ToleranceType;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.slf4j.Logger;
@@ -40,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -112,7 +108,6 @@ public class MQSourceTask extends SourceTask {
 
     private int startActionPollLimit = 300; // This is a 5 minute time out on the initial start procedure
     private AtomicInteger startActionPollCount = new AtomicInteger(0);
-    private boolean tolerateErrors = false;
 
     private final static String OFFSET_IDENTIFIER = "sequence-id";
     private final static String SOURCE_PARTITION_IDENTIFIER = "source";
@@ -151,7 +146,7 @@ public class MQSourceTask extends SourceTask {
         final JMSWorker reader = new JMSWorker();
         JMSWorker dedicated = null;
         SequenceStateClient client = null;
-        tolerateErrors = tolerateErrors(props);
+
         if (MQSourceConnector.configSupportsExactlyOnce(props)) {
             dedicated = new JMSWorker();
             client = new SequenceStateClient(props.get(CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE), reader, dedicated);
@@ -368,17 +363,7 @@ public class MQSourceTask extends SourceTask {
         final ArrayList<String> msgIds = new ArrayList<>();
         final List<SourceRecord> sourceRecordList = messageList.stream()
                 .peek(saveMessageID(msgIds))
-                .map(message -> {
-                    try {
-                        return reader.toSourceRecord(message, sourceQueueConfig.isMqMessageBodyJms(), sourceOffset, sourceQueuePartition);
-                    } catch (final DataException dataException) {
-                        if (!tolerateErrors) {
-                            throw dataException;
-                        }
-                    }
-                    return null;
-                })
-                .filter(sourceRecord -> sourceRecord != null)
+                .map(message -> reader.toSourceRecord(message, sourceQueueConfig.isMqMessageBodyJms(), sourceOffset, sourceQueuePartition))
                 .collect(Collectors.toList());
 
         // In RE-DELIVER we already have a state on the queue
@@ -600,10 +585,5 @@ public class MQSourceTask extends SourceTask {
         if (isExactlyOnceMode) {
             dedicated.close();
         }
-    }
-
-    public static boolean tolerateErrors(final Map<String, String> sfConnectorConfig) {
-        final String errorsTolerance = sfConnectorConfig.getOrDefault(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, ToleranceType.NONE.toString()).toUpperCase(Locale.ROOT);
-        return ToleranceType.valueOf(errorsTolerance).equals(ToleranceType.ALL);
     }
 }
