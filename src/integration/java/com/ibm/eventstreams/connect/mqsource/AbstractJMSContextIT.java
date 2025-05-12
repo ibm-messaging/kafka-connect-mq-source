@@ -94,7 +94,7 @@ public class AbstractJMSContextIT {
         return jmsContext;
     }
 
-    protected Map<String, String> getDefaultConnectorProperties() {
+    public static Map<String, String> getDefaultConnectorProperties() {
         final Map<String, String> props = new HashMap<>();
         props.put("mq.queue.manager", QMGR_NAME);
         props.put("mq.connection.mode", "client");
@@ -106,7 +106,7 @@ public class AbstractJMSContextIT {
         return props;
     }
 
-    public AbstractConfig getPropertiesConfig(Map<String, String> props) {
+    public AbstractConfig getPropertiesConfig(final Map<String, String> props) {
         final AbstractConfig connectorConfig = new AbstractConfig(MQSourceConnector.CONFIGDEF, props);
         return connectorConfig;
     }

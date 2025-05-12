@@ -27,6 +27,7 @@ import javax.jms.BytesMessage;
 import javax.jms.MapMessage;
 import javax.jms.TextMessage;
 
+import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.Test;
 
@@ -101,5 +102,33 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
 
         // verify the exception
         assertEquals("Unsupported JMS message type", exc.getMessage());
+    }
+
+    @Test
+    public void buildFromJmsTestJsonError() throws Exception {
+        // create MQ message
+        final TextMessage message = getJmsContext().createTextMessage("Not a valid json string");
+
+        // use the builder to convert it to a Kafka record
+        final JsonRecordBuilder builder = new JsonRecordBuilder();
+        final DataException exec = assertThrows(DataException.class, () -> builder.toSourceRecord(getJmsContext(), topic, isJMS, message));
+        assertEquals("Converting byte[] to Kafka Connect data failed due to serialization error: ", exec.getMessage());
+    }
+
+    @Test
+    public void buildFromJmsTestErrorTolerance() throws Exception {
+        // create MQ message
+        final TextMessage message = getJmsContext().createTextMessage("Not a valid json string");
+
+        // use the builder to convert it to a Kafka record
+        final JsonRecordBuilder builder = new JsonRecordBuilder();
+        final Map<String, String> config = AbstractJMSContextIT.getDefaultConnectorProperties();
+        config.put("errors.tolerance", "all");
+        config.put("mq.message.body.jms", "true");
+        config.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        builder.configure(config);
+        final SourceRecord record = builder.toSourceRecord(getJmsContext(), topic, isJMS, message);
+        assertNull(record);
     }
 }

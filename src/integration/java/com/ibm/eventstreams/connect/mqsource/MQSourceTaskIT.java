@@ -22,6 +22,7 @@ import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.putAllMessa
 import static com.ibm.eventstreams.connect.mqsource.utils.MessagesObjectMother.createAListOfMessages;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -37,15 +38,22 @@ import static org.mockito.Mockito.doReturn;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import javax.jms.BytesMessage;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.header.Headers;
+import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.After;
 import org.junit.Before;
@@ -58,8 +66,6 @@ import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
 import com.ibm.eventstreams.connect.mqsource.utils.JsonRestApi;
 import com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil;
 import com.ibm.eventstreams.connect.mqsource.utils.SourceTaskStopper;
-
-
 
 public class MQSourceTaskIT extends AbstractJMSContextIT {
 
@@ -106,7 +112,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
         connectTask.start(connectorConfigProps);
         assertThat(connectTask.startUpAction).isEqualTo(MQSourceTaskStartUpAction.NORMAL_OPERATION);
@@ -133,7 +140,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
 
         connectTask.start(connectorConfigProps);
 
@@ -165,20 +173,23 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
-        connectorConfigProps.put("mq.message.body.jms", "false"); //this could also be absent but if set to true the test should fail
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.message.body.jms", "false"); // this could also be absent but if set to true the
+                                                                  // test should fail
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
         connectTask.start(connectorConfigProps);
 
         final String sent = "Hello World";
-        final String url = "https://localhost:" + REST_API_HOST_PORT + "/ibmmq/rest/v1/messaging/qmgr/" + QMGR_NAME + "/queue/DEV.QUEUE.1/message";
+        final String url = "https://localhost:" + REST_API_HOST_PORT + "/ibmmq/rest/v1/messaging/qmgr/" + QMGR_NAME
+                + "/queue/DEV.QUEUE.1/message";
         JsonRestApi.postString(url, "app", ADMIN_PASSWORD, sent);
 
         final List<SourceRecord> kafkaMessages = connectTask.poll(); // get all the SRs (1)
-        SourceRecord firstMsg = kafkaMessages.get(0);
-        Object received = firstMsg.value();
+        final SourceRecord firstMsg = kafkaMessages.get(0);
+        final Object received = firstMsg.value();
 
-        assertNotEquals(received.getClass(), String.class); //jms messages are retrieved as Strings
+        assertNotEquals(received.getClass(), String.class); // jms messages are retrieved as Strings
         assertEquals(received.getClass(), byte[].class);
         assertEquals(new String((byte[]) received, StandardCharsets.UTF_8), sent);
 
@@ -192,7 +203,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.jms.properties.copy.to.kafka.headers", "true");
 
         connectTask.start(connectorConfigProps);
@@ -226,7 +238,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
 
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.batch.size", "10");
 
         connectTask.start(connectorConfigProps);
@@ -273,7 +286,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.batch.size", "10");
 
         connectTask.start(connectorConfigProps);
@@ -427,28 +441,30 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     @Test
     public void testSequenceStateMsgReadUnderMQTx() throws Exception {
-        JMSWorker spyJMSWorker = Mockito.spy(new JMSWorker());
+        final JMSWorker spyJMSWorker = Mockito.spy(new JMSWorker());
 
         connectTask = getSourceTaskWithEmptyKafkaOffset();
 
         final Map<String, String> connectorConfigProps = createExactlyOnceConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
         spyJMSWorker.configure(getPropertiesConfig(connectorConfigProps));
-        JMSWorker dedicated = new JMSWorker();
+        final JMSWorker dedicated = new JMSWorker();
         dedicated.configure(getPropertiesConfig(connectorConfigProps));
-        SequenceStateClient sequenceStateClient = Mockito.spy(new SequenceStateClient(DEFAULT_STATE_QUEUE, spyJMSWorker, dedicated));
+        final SequenceStateClient sequenceStateClient = Mockito
+                .spy(new SequenceStateClient(DEFAULT_STATE_QUEUE, spyJMSWorker, dedicated));
 
         connectTask.start(connectorConfigProps, spyJMSWorker, dedicated, sequenceStateClient);
 
         final List<Message> messages = createAListOfMessages(getJmsContext(), 2, "message ");
         putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
 
-        List<SourceRecord> kafkaMessages;
+        final List<SourceRecord> kafkaMessages;
         kafkaMessages = connectTask.poll();
 
-        List<Message> stateMsgs1 = browseAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
+        final List<Message> stateMsgs1 = browseAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
         assertThat(stateMsgs1.size()).isEqualTo(1);
 
         for (final SourceRecord m : kafkaMessages) {
@@ -460,22 +476,20 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
             spyJMSWorker.getContext().rollback();
             throw new Exception("such an exception");
 
-            }).when(spyJMSWorker).commit();
+        }).when(spyJMSWorker).commit();
 
         try {
             connectTask.poll();
-        } catch (Exception e) {
+        } catch (final Exception e) {
             System.out.println("exception caught");
         }
 
-
         /// expect statequeue to not be empty
-        List<Message> stateMsgs2 = getAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
+        final List<Message> stateMsgs2 = getAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
         assertThat(stateMsgs2.size()).isEqualTo(1);
 
-        List<Message> sourceMsgs = getAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
+        final List<Message> sourceMsgs = getAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
         assertThat(sourceMsgs.size()).isEqualTo(2);
-
 
     }
 
@@ -486,13 +500,14 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         final Map<String, String> connectorConfigProps = createExactlyOnceConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
-        JMSWorker shared = new JMSWorker();
+        final JMSWorker shared = new JMSWorker();
         shared.configure(getPropertiesConfig(connectorConfigProps));
-        JMSWorker dedicated = new JMSWorker();
+        final JMSWorker dedicated = new JMSWorker();
         dedicated.configure(getPropertiesConfig(connectorConfigProps));
-        SequenceStateClient sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
+        final SequenceStateClient sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
 
         connectTask.start(connectorConfigProps, shared, dedicated, sequenceStateClient);
 
@@ -501,10 +516,11 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         connectTask.poll();
 
-        List<Message> stateMsgs1 = browseAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
+        final List<Message> stateMsgs1 = browseAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
         assertThat(stateMsgs1.size()).isEqualTo(1);
         shared.attemptRollback();
-        assertThat(stateMsgs1.size()).isEqualTo(1); //state message is still there even though source message were rolled back
+        assertThat(stateMsgs1.size()).isEqualTo(1); // state message is still there even though source message were
+                                                    // rolled back
 
     }
 
@@ -513,17 +529,18 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
-        JMSWorker spyJMSWorker = Mockito.spy(new JMSWorker());
-        JMSWorker spyDedicated = Mockito.spy(new JMSWorker());
-        JMSWorker spyShared = Mockito.spy(new JMSWorker());
+        final JMSWorker spyJMSWorker = Mockito.spy(new JMSWorker());
+        final JMSWorker spyDedicated = Mockito.spy(new JMSWorker());
+        final JMSWorker spyShared = Mockito.spy(new JMSWorker());
 
         spyJMSWorker.configure(getPropertiesConfig(connectorConfigProps));
         spyDedicated.configure(getPropertiesConfig(connectorConfigProps));
         spyShared.configure(getPropertiesConfig(connectorConfigProps));
 
-        Message messageSpy = Mockito.spy(getJmsContext().createTextMessage("Spy Injected Message"));
+        final Message messageSpy = Mockito.spy(getJmsContext().createTextMessage("Spy Injected Message"));
 
         doReturn("6")
                 .when(messageSpy)
@@ -536,32 +553,32 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
                         anyBoolean());
 
         connectTask = getSourceTaskWithEmptyKafkaOffset();
-        connectTask.start(connectorConfigProps, spyJMSWorker, spyDedicated, new SequenceStateClient(DEFAULT_STATE_QUEUE, spyShared, spyJMSWorker));
+        connectTask.start(connectorConfigProps, spyJMSWorker, spyDedicated,
+                new SequenceStateClient(DEFAULT_STATE_QUEUE, spyShared, spyJMSWorker));
 
-        String[] msgIds = new String[] {"1", "2"};
+        final String[] msgIds = new String[] { "1", "2" };
 
         assertThrows(SequenceStateException.class,
-                () -> connectTask.removeDeliveredMessagesFromSourceQueue(Arrays.asList(msgIds))
-        );
+                () -> connectTask.removeDeliveredMessagesFromSourceQueue(Arrays.asList(msgIds)));
     }
-
 
     @Test
     public void testRemoveDeliveredMessagesFromSourceQueueDoesNotThrowException() throws Exception {
 
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
 
-        JMSWorker spyJMSWorker = Mockito.spy(new JMSWorker());
-        JMSWorker spyDedicated = Mockito.spy(new JMSWorker());
-        JMSWorker spyShared = Mockito.spy(new JMSWorker());
+        final JMSWorker spyJMSWorker = Mockito.spy(new JMSWorker());
+        final JMSWorker spyDedicated = Mockito.spy(new JMSWorker());
+        final JMSWorker spyShared = Mockito.spy(new JMSWorker());
 
         spyJMSWorker.configure(getPropertiesConfig(connectorConfigProps));
         spyDedicated.configure(getPropertiesConfig(connectorConfigProps));
         spyShared.configure(getPropertiesConfig(connectorConfigProps));
 
-        Message messageSpy = Mockito.spy(getJmsContext().createTextMessage("Spy Injected Message"));
+        final Message messageSpy = Mockito.spy(getJmsContext().createTextMessage("Spy Injected Message"));
 
         doReturn("1")
                 .when(messageSpy)
@@ -574,14 +591,14 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
                         anyBoolean());
 
         connectTask = getSourceTaskWithEmptyKafkaOffset();
-        connectTask.start(connectorConfigProps, spyJMSWorker, spyDedicated, new SequenceStateClient(DEFAULT_STATE_QUEUE, spyShared, spyJMSWorker));
+        connectTask.start(connectorConfigProps, spyJMSWorker, spyDedicated,
+                new SequenceStateClient(DEFAULT_STATE_QUEUE, spyShared, spyJMSWorker));
 
-        String[] msgIds = new String[] {"1", "2"};
+        final String[] msgIds = new String[] { "1", "2" };
 
         assertThatNoException()
                 .isThrownBy(() -> connectTask.removeDeliveredMessagesFromSourceQueue(Arrays.asList(msgIds)));
     }
-
 
     @Test
     public void testConfigureClientReconnectOptions() throws Exception {
@@ -590,14 +607,15 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         final Map<String, String> connectorConfigProps = createExactlyOnceConnectorProperties();
         connectorConfigProps.put("mq.message.body.jms", "true");
-        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
         connectorConfigProps.put("mq.client.reconnect.options", "QMGR");
 
-        JMSWorker shared = new JMSWorker();
+        final JMSWorker shared = new JMSWorker();
         shared.configure(getPropertiesConfig(connectorConfigProps));
-        JMSWorker dedicated = new JMSWorker();
+        final JMSWorker dedicated = new JMSWorker();
         dedicated.configure(getPropertiesConfig(connectorConfigProps));
-        SequenceStateClient sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
+        final SequenceStateClient sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
 
         connectTask.start(connectorConfigProps, shared, dedicated, sequenceStateClient);
 
@@ -606,10 +624,11 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         connectTask.poll();
 
-        List<Message> stateMsgs1 = browseAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
+        final List<Message> stateMsgs1 = browseAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
         assertThat(stateMsgs1.size()).isEqualTo(1);
         shared.attemptRollback();
-        assertThat(stateMsgs1.size()).isEqualTo(1); //state message is still there even though source message were rolled back
+        assertThat(stateMsgs1.size()).isEqualTo(1); // state message is still there even though source message were
+                                                    // rolled back
 
     }
 
@@ -624,7 +643,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         connectTask.start(connectorConfigProps);
 
-        Message emptyMessage = getJmsContext().createMessage();
+        final Message emptyMessage = getJmsContext().createMessage();
         putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(emptyMessage));
 
         final List<SourceRecord> kafkaMessages = connectTask.poll();
@@ -647,7 +666,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         connectTask.start(connectorConfigProps);
 
-        TextMessage emptyMessage = getJmsContext().createTextMessage();
+        final TextMessage emptyMessage = getJmsContext().createTextMessage();
         putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(emptyMessage));
 
         final List<SourceRecord> kafkaMessages = connectTask.poll();
@@ -694,5 +713,300 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals(3000L, shared.getSubsequentReceiveTimeoutMs());
         assertEquals(100L, shared.getReconnectDelayMillisMin());
         assertEquals(10000L, shared.getReconnectDelayMillisMax());
+    }
+
+    @Test
+    public void verifyErrorToleranceMessages() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        // Both invalid and valid messages are received
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createTextMessage("Invalid JSON message"), // Poison message
+                getJmsContext().createTextMessage("{ \"i\": 0 }"), // Valid message
+                getJmsContext().createTextMessage("{ \"i\": 1 }"), // Valid message
+                getJmsContext().createTextMessage("{ \"i\": 2 }") // Valid message
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        // All messages are processed, with poison message routed to DLQ
+        final List<SourceRecord> processedRecords = connectTask.poll();
+        assertThat(processedRecords).hasSize(4);
+        assertThat(processedRecords.stream().filter(record -> record != null)).hasSize(3);
+
+        final List<SourceRecord> nonNullProcesssedRecord = processedRecords.stream().filter(record -> record != null)
+                .collect(Collectors.toList());
+
+        for (int i = 0; i < 3; i++) {
+            final SourceRecord validRecord = nonNullProcesssedRecord.get(i);
+            assertThat(validRecord.topic()).isEqualTo("mytopic");
+            assertThat(validRecord.valueSchema()).isNull();
+
+            final Map<?, ?> value = (Map<?, ?>) validRecord.value();
+            assertThat(value.get("i")).isEqualTo(Long.valueOf(i));
+
+            connectTask.commitRecord(validRecord);
+        }
+    }
+
+    @Test
+    public void shouldRoutePoisonMessagesToDeadLetterQueueWhenErrorToleranceIsAll() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        // When: Both invalid and valid messages are received
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createTextMessage("Invalid JSON message"), // Poison message
+                getJmsContext().createTextMessage("{ \"i\": 0 }"), // Valid message
+                getJmsContext().createTextMessage("{ \"i\": 1 }"), // Valid message
+                getJmsContext().createTextMessage("{ \"i\": 2 }") // Valid message
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+        assertThat(processedRecords).hasSize(4);
+
+        // Verify poison message goes to DLQ
+        final SourceRecord poisonRecord = processedRecords.get(0);
+        assertThat(poisonRecord.topic()).isEqualTo("__dlq.mq.source");
+        assertThat(poisonRecord.valueSchema().type()).isEqualTo(Schema.Type.BYTES);
+        assertThat(poisonRecord.value()).isEqualTo("Invalid JSON message".getBytes(StandardCharsets.UTF_8));
+
+        // Verify valid messages are processed correctly
+        for (int i = 1; i < 4; i++) {
+            final SourceRecord validRecord = processedRecords.get(i);
+            assertThat(validRecord.topic()).isEqualTo("mytopic");
+            assertThat(validRecord.valueSchema()).isNull();
+
+            final Map<?, ?> value = (Map<?, ?>) validRecord.value();
+            assertThat(value.get("i")).isEqualTo(Long.valueOf(i - 1));
+
+            connectTask.commitRecord(validRecord);
+        }
+    }
+
+    @Test
+    public void shouldFailWhenErrorToleranceIsNone() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "none");
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        // Both invalid and valid messages are received
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createTextMessage("Invalid JSON message"), // Poison message
+                getJmsContext().createTextMessage("{ \"i\": 0 }") // Valid message
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        // Processing should fail on the poison message
+        assertThatThrownBy(() -> connectTask.poll())
+                .isInstanceOfAny(ConnectException.class, RuntimeException.class)
+                .hasMessageContaining("Converting byte[] to Kafka Connect data failed due to serialization error:");
+    }
+
+    @Test
+    public void shouldPreserveDlqHeadersWithErrorInformation() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        // An invalid message is received
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE,
+                Collections.singletonList(getJmsContext().createTextMessage("Invalid JSON message")));
+
+        // The message should be routed to DLQ with error headers
+        final List<SourceRecord> processedRecords = connectTask.poll();
+        assertThat(processedRecords).hasSize(1);
+
+        final SourceRecord dlqRecord = processedRecords.get(0);
+        assertThat(dlqRecord.topic()).isEqualTo("__dlq.mq.source");
+
+        // Verify error headers are present
+        final Headers headers = dlqRecord.headers();
+        assertThat(headers.lastWithName("original_topic").value()).isEqualTo("mytopic");
+        assertThat(headers.lastWithName("error_message")).isNotNull();
+        assertThat(headers.lastWithName("error_class")).isNotNull();
+        assertThat(headers.lastWithName("error_timestamp")).isNotNull();
+        assertThat(headers.lastWithName("error_stack_trace")).isNotNull();
+
+        connectTask.commitRecord(dlqRecord);
+    }
+
+    @Test
+    public void shouldHandleDifferentMessageTypesToDlq() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        // When different types of invalid messages are received
+        final List<Message> testMessages = new ArrayList<>();
+        // Text message with invalid JSON
+        testMessages.add(getJmsContext().createTextMessage("Invalid JSON message"));
+        // BytesMessage with invalid content
+        final BytesMessage bytesMsg = getJmsContext().createBytesMessage();
+        bytesMsg.writeBytes("Invalid binary data".getBytes(StandardCharsets.UTF_8));
+        testMessages.add(bytesMsg);
+
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+        assertThat(processedRecords).hasSize(2);
+
+        for (final SourceRecord dlqRecord : processedRecords) {
+            assertThat(dlqRecord.topic()).isEqualTo("__dlq.mq.source");
+            assertThat(dlqRecord.valueSchema().type()).isEqualTo(Schema.Type.BYTES);
+            connectTask.commitRecord(dlqRecord);
+        }
+    }
+
+    @Test
+    public void shouldPreserveJmsPropertiesInDlqMessages() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        final TextMessage invalidMessage = getJmsContext().createTextMessage("Invalid JSON message");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Collections.singletonList(invalidMessage));
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+        assertThat(processedRecords).hasSize(1);
+
+        final SourceRecord dlqRecord = processedRecords.get(0);
+        assertThat(dlqRecord.topic()).isEqualTo("__dlq.mq.source");
+
+        final Headers headers = dlqRecord.headers();
+        assertThat(headers.lastWithName("error_message").value())
+                .isEqualTo("Converting byte[] to Kafka Connect data failed due to serialization error: ");
+
+        connectTask.commitRecord(dlqRecord);
+    }
+
+    @Test
+    public void shouldHandleMixOfValidAndInvalidMessagesWithDifferentFormats() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        // When: Mix of valid and invalid messages received
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createTextMessage("Invalid JSON message"), // Invalid JSON
+                getJmsContext().createTextMessage("{ \"i\": 0 }"), // Valid JSON
+                getJmsContext().createTextMessage("{ malformed json"), // Malformed JSON
+                getJmsContext().createTextMessage("{ \"i\": 1, \"text\": \"valid\" }"), // Valid JSON
+                getJmsContext().createTextMessage("{}") // Valid but empty JSON
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+        assertThat(processedRecords).hasSize(5);
+
+        int validCount = 0;
+        int dlqCount = 0;
+
+        for (final SourceRecord record : processedRecords) {
+            if (record.topic().equals("__dlq.mq.source")) {
+                dlqCount++;
+                assertThat(record.valueSchema().type()).isEqualTo(Schema.Type.BYTES);
+            } else {
+                validCount++;
+                assertThat(record.topic()).isEqualTo("mytopic");
+            }
+            connectTask.commitRecord(record);
+        }
+
+        assertThat(validCount).isEqualTo(3);
+        assertThat(dlqCount).isEqualTo(2);
+    }
+
+    @Test
+    public void shouldContinueProcessingAfterUnhandleableDlqError() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        // When: Multiple messages are received
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createTextMessage("First invalid message"), // Invalid message
+                getJmsContext().createTextMessage("{ \"i\": 0 }"), // Valid message
+                getJmsContext().createTextMessage("Second invalid message"), // Invalid message
+                getJmsContext().createTextMessage("{ \"i\": 1 }") // Valid message
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        // Then: Processing should continue despite DLQ failure
+        final List<SourceRecord> processedRecords = connectTask.poll();
+
+        assertThat(processedRecords).hasSize(4);
+
+        assertThat(processedRecords.get(0).topic()).isEqualTo("__dlq.mq.source");
+        assertThat(processedRecords.get(1).topic()).isEqualTo("mytopic");
+        assertThat(processedRecords.get(2).topic()).isEqualTo("__dlq.mq.source");
+        assertThat(processedRecords.get(3).topic()).isEqualTo("mytopic");
     }
 }
