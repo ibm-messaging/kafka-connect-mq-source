@@ -29,12 +29,12 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.TextMessage;
 
-import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.header.ConnectHeaders;
 import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.runtime.ConnectorConfig;
+import org.apache.kafka.connect.runtime.errors.DeadLetterQueueReporter;
 import org.apache.kafka.connect.runtime.errors.ToleranceType;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
@@ -59,8 +59,12 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
     private JmsToKafkaHeaderConverter jmsToKafkaHeaderConverter;
     private boolean tolerateErrors;
     private boolean logErrors;
+    private boolean logIncludeMessages;
     private String dlqTopic = "";
-    private AbstractConfig config;
+
+    public static final String ERROR_HEADER_EXCEPTION_TIMESTAMP = DeadLetterQueueReporter.HEADER_PREFIX + "timestamp";
+    public static final String ERROR_HEADER_EXCEPTION_CAUSE_CLASS = DeadLetterQueueReporter.HEADER_PREFIX + "cause.class";
+    public static final String ERROR_HEADER_EXCEPTION_CAUSE_MESSAGE = DeadLetterQueueReporter.HEADER_PREFIX + "cause.message";
 
     /**
      * Configure this class.
@@ -120,14 +124,21 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
         if (tolerateErrors) {
             final String logErrorsValue = props.getOrDefault(
                     ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG,
-                    "false");
+                    String.valueOf(ConnectorConfig.ERRORS_LOG_ENABLE_DEFAULT));
             logErrors = Boolean.parseBoolean(logErrorsValue);
+            final String logIncludeMessagesValue = props.getOrDefault(
+                    ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_CONFIG,
+                    String.valueOf(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_DEFAULT));
+            logIncludeMessages = Boolean.parseBoolean(logIncludeMessagesValue);
+
+            dlqTopic = props.get(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG);
+            if (dlqTopic != null && !dlqTopic.isEmpty()) {
+                dlqTopic = dlqTopic.trim();
+            }
         } else {
             logErrors = false;
+            logIncludeMessages = false;
         }
-
-        // Read dlqTopic directly from props
-        dlqTopic = props.get(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG);
     }
 
     /**
@@ -219,13 +230,12 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             final Message message, final Map<String, Long> sourceOffset, final Map<String, String> sourceQueuePartition)
             throws JMSException {
 
-        Optional<SchemaAndValue> key = Optional.empty();
+        SchemaAndValue key = new SchemaAndValue(null, null);
 
         try {
             // Extract key and value
-            key = Optional.ofNullable(this.getKey(context, topic, message));
             final SchemaAndValue value = this.getValue(context, topic, messageBodyJms, message);
-            final SchemaAndValue actualKey = key.orElse(new SchemaAndValue(null, null));
+            key = this.getKey(context, topic, message);
 
             // Create and return appropriate record based on configuration
             if (copyJmsPropertiesFlag && messageBodyJms) {
@@ -234,8 +244,8 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
                         sourceOffset,
                         topic,
                         null,
-                        actualKey.schema(),
-                        actualKey.value(),
+                        key.schema(),
+                        key.value(),
                         value.schema(),
                         value.value(),
                         message.getJMSTimestamp(),
@@ -246,14 +256,14 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
                         sourceOffset,
                         topic,
                         null,
-                        actualKey.schema(),
-                        actualKey.value(),
+                        key.schema(),
+                        key.value(),
                         value.schema(),
                         value.value());
             }
         } catch (final Exception e) {
             // Log the error
-            logError(e);
+            logError(e, topic, message);
 
             // If errors are not tolerated, rethrow
             if (!tolerateErrors) {
@@ -261,22 +271,45 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             }
 
             // Handle the error based on configured error tolerance
-            return handleConversionError(message, sourceQueuePartition, sourceOffset, topic, key, e);
+            return handleBuildException(message, sourceQueuePartition, sourceOffset, topic, key, e);
         }
     }
 
     /**
+     * Logs error based on `errors.log.enable` and `errors.log.include.messages` configurations.
      *
-     * Logs error based on `errors.log.enable` value
-     *
-     * @param e The exception that needs to logged
+     * @param exception       The exception that needs to be logged.
+     * @param topic           The Kafka topic associated with the message.
+     * @param message         The JMS message that caused the error.
      */
-    private void logError(final Exception e) {
-        log.warn("Exception caught during conversion of JMS message to SourceRecord: {}", e.getMessage());
+    private void logError(final Exception exception, final String topic, final Message message) {
         if (logErrors) {
-            log.error("Detailed error information:", e);
+            if (logIncludeMessages) {
+                log.error("Failed to process message on topic '{}'. Message content: {}. \nException: {}",
+                        topic, message, exception.toString(), exception);
+            } else {
+                log.error("Failed to process message on topic '{}'. \nException: {}", topic, exception.toString(), exception);
+            }
+        } else {
+            log.warn("Error during message processing on topic '{}', but logging is suppressed. \nReason: {}",
+                    topic, extractReason(exception));
         }
     }
+
+    private String extractReason(final Exception exception) {
+        if (exception == null) {
+            return "Unknown error";
+        }
+
+        final String message = exception.getMessage();
+        if (message == null || message.trim().isEmpty()) {
+            return "Unknown error";
+        }
+
+        // Clean up trailing punctuation or whitespace (e.g., "error:" → "error")
+        return message.replaceAll("[:\\s]+$", "");
+    }
+
 
     /**
      *
@@ -292,13 +325,14 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
      *                             header
      * @return SourceRecord
      */
-    private SourceRecord handleConversionError(final Message message, final Map<String, String> sourceQueuePartition,
-            final Map<String, Long> sourceOffset, final String topic, final Optional<SchemaAndValue> key,
+    private SourceRecord handleBuildException(final Message message, final Map<String, String> sourceQueuePartition,
+            final Map<String, Long> sourceOffset, final String topic, final SchemaAndValue key,
             final Exception exception) {
 
         // If errors are tolerated but no DLQ is configured, skip the message
-        if (dlqTopic == null || dlqTopic.isEmpty()) {
-            log.debug("Skipping message due to conversion error (no DLQ configured)");
+        if (dlqTopic == null) {
+            log.debug(
+                    "Skipping message due to conversion error: error tolerance is enabled but DLQ is not configured. Message will not be processed further.");
             return null;
         }
 
@@ -322,7 +356,7 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
      */
     private SourceRecord createDlqRecord(final Message message, final Map<String, String> sourceQueuePartition,
             final Map<String, Long> sourceOffset, final String originalTopic,
-            final Optional<SchemaAndValue> key, final Exception exception) {
+            final SchemaAndValue key, final Exception exception) {
 
         try {
             // Extract payload or return null if extraction fails
@@ -335,18 +369,15 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             final byte[] payload = maybePayload.get();
 
             // Create headers with error information
-            final Headers headers = createErrorHeaders(originalTopic, exception);
-
-            // Create the DLQ record using the actual key or a null key
-            final SchemaAndValue actualKey = key.orElse(new SchemaAndValue(null, null));
+            final Headers headers = createErrorHeaders(message, originalTopic, exception);
 
             return new SourceRecord(
                     sourceQueuePartition,
                     sourceOffset,
                     dlqTopic,
                     null,
-                    actualKey.schema(),
-                    actualKey.value(),
+                    key.schema(),
+                    key.value(),
                     Schema.OPTIONAL_BYTES_SCHEMA,
                     payload,
                     message.getJMSTimestamp(),
@@ -369,45 +400,60 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
     private Optional<byte[]> extractPayload(final Message message) {
         try {
             if (message instanceof BytesMessage) {
+                log.debug("Extracting payload from BytesMessage for DLQ");
                 return Optional.ofNullable(message.getBody(byte[].class));
             } else if (message instanceof TextMessage) {
+                log.debug("Extracting payload from TextMessage for DLQ");
                 final String text = message.getBody(String.class);
                 return Optional.ofNullable(text != null ? text.getBytes(UTF_8) : null);
             } else {
-                log.error("Unsupported JMS message type {} for DLQ", message.getClass().getName());
-                return Optional.empty();
+                log.warn("Unsupported JMS message type '{}' encountered while extracting payload for DLQ. Falling back to message.toString().",
+                        message.getClass().getName());
+                return Optional.ofNullable(message.toString().getBytes(UTF_8));
             }
         } catch (final JMSException e) {
-            log.error("Failed to extract payload: {}", e.getMessage());
-            return Optional.empty();
+            log.error("JMSException while extracting payload from message type '{}': {} for DLQ. Falling back to message.toString().",
+                    message.getClass().getName(), e.getMessage(), e);
+            return Optional.ofNullable(message.toString().getBytes(UTF_8));
         }
     }
+
 
     /**
      *
      * Creates enhanced headers with error information for DLQ records
+     * @param message       The orginal message
      *
      * @param originalTopic The original topic name
      * @param exception     The execption that needs to be included in the header
      *
      * @return Headers
      */
-    private Headers createErrorHeaders(final String originalTopic, final Exception exception) {
-        final Headers headers = new ConnectHeaders();
+    private Headers createErrorHeaders(final Message message, final String originalTopic, final Exception exception) {
+        Headers headers = new ConnectHeaders();
+        if (copyJmsPropertiesFlag) {
+            headers = jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message);
+        }
 
         // Basic error information
-        headers.addString("original_topic", originalTopic);
-        headers.addString("error_message", exception.getMessage());
-        headers.addString("error_class", exception.getClass().getName());
-        headers.addString("error_timestamp", String.valueOf(System.currentTimeMillis()));
+        headers.addString(DeadLetterQueueReporter.ERROR_HEADER_ORIG_TOPIC, originalTopic);
+        headers.addString(DeadLetterQueueReporter.ERROR_HEADER_EXECUTING_CLASS, exception.getClass().getName());
+        headers.addString(DeadLetterQueueReporter.ERROR_HEADER_EXCEPTION_MESSAGE, exception.getMessage());
+        headers.addLong(ERROR_HEADER_EXCEPTION_TIMESTAMP, System.currentTimeMillis());
 
         // Add cause if available
         if (exception.getCause() != null) {
-            headers.addString("error_cause", exception.getCause().getMessage());
-            headers.addString("error_cause_class", exception.getCause().getClass().getName());
+            headers.addString(ERROR_HEADER_EXCEPTION_CAUSE_MESSAGE, exception.getCause().getMessage());
+            headers.addString(ERROR_HEADER_EXCEPTION_CAUSE_CLASS, exception.getCause().getClass().getName());
         }
 
         // Add first few lines of stack trace (full stack trace might be too large)
+        headers.addString(DeadLetterQueueReporter.ERROR_HEADER_EXCEPTION_STACK_TRACE, stacktrace(exception));
+
+        return headers;
+    }
+
+    private String stacktrace(final Exception exception) {
         try {
             final StringWriter sw = new StringWriter();
             final PrintWriter pw = new PrintWriter(sw);
@@ -417,11 +463,10 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             // First 500 characters or less to avoid overly large headers
             final String truncatedStackTrace = stackTrace.length() <= 500 ? stackTrace
                     : stackTrace.substring(0, 500) + "... [truncated]";
-            headers.addString("error_stack_trace", truncatedStackTrace);
+            return truncatedStackTrace;
         } catch (final Exception e) {
             log.warn("Could not add stack trace to DLQ headers", e);
         }
-
-        return headers;
+        return null;
     }
 }

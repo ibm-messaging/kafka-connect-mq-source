@@ -43,7 +43,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import javax.jms.BytesMessage;
 import javax.jms.JMSException;
@@ -856,11 +855,21 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         // Verify error headers are present
         final Headers headers = dlqRecord.headers();
-        assertThat(headers.lastWithName("original_topic").value()).isEqualTo("mytopic");
-        assertThat(headers.lastWithName("error_message")).isNotNull();
-        assertThat(headers.lastWithName("error_class")).isNotNull();
-        assertThat(headers.lastWithName("error_timestamp")).isNotNull();
-        assertThat(headers.lastWithName("error_stack_trace")).isNotNull();
+        assertThat(headers.lastWithName("__connect.errors.topic").value())
+                .isEqualTo("mytopic");
+        assertThat(headers.lastWithName("__connect.errors.class.name").value())
+                .isEqualTo("org.apache.kafka.connect.errors.DataException");
+        assertThat(headers.lastWithName("__connect.errors.exception.message").value())
+                .isEqualTo("Converting byte[] to Kafka Connect data failed due to serialization error: ");
+        assertThat(headers.lastWithName("__connect.errors.timestamp").value().toString()
+                .isEmpty()).isFalse();
+        assertThat(headers.lastWithName("__connect.errors.cause.message").value().toString())
+                .contains(
+                        "com.fasterxml.jackson.core.JsonParseException: Unrecognized token 'Invalid': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')");
+        assertThat(headers.lastWithName("__connect.errors.cause.class").value())
+                .isEqualTo("org.apache.kafka.common.errors.SerializationException");
+        assertThat(headers.lastWithName("__connect.errors.exception.stacktrace").value()
+                .toString().contains("com.ibm.eventstreams.connect.mqsource.JMSWorker.toSourceRecord")).isTrue();
 
         connectTask.commitRecord(dlqRecord);
     }
@@ -925,7 +934,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertThat(dlqRecord.topic()).isEqualTo("__dlq.mq.source");
 
         final Headers headers = dlqRecord.headers();
-        assertThat(headers.lastWithName("error_message").value())
+        assertThat(headers.lastWithName("__connect.errors.exception.message").value())
                 .isEqualTo("Converting byte[] to Kafka Connect data failed due to serialization error: ");
 
         connectTask.commitRecord(dlqRecord);
@@ -1008,5 +1017,229 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertThat(processedRecords.get(1).topic()).isEqualTo("mytopic");
         assertThat(processedRecords.get(2).topic()).isEqualTo("__dlq.mq.source");
         assertThat(processedRecords.get(3).topic()).isEqualTo("mytopic");
+    }
+
+    @Test
+    public void verifyHeadersWithErrorTolerance() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER, "true");
+
+        connectTask.start(connectorConfigProps);
+
+        final TextMessage message = getJmsContext().createTextMessage("Invalid JSON message");
+        message.setStringProperty("teststring", "myvalue");
+        message.setIntProperty("volume", 11);
+        message.setDoubleProperty("decimalmeaning", 42.0);
+
+        // Both invalid and valid messages are received
+        final List<Message> testMessages = Arrays.asList(
+                message, // Poison message
+                getJmsContext().createTextMessage("{ \"i\": 0 }") // Valid message
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+
+        assertThat(processedRecords).hasSize(2);
+
+        assertThat(processedRecords.get(0).topic()).isEqualTo("__dlq.mq.source");
+
+        final Headers headers = processedRecords.get(0).headers();
+
+        // Actual headers
+        assertThat(headers.lastWithName("teststring").value()).isEqualTo("myvalue");
+        assertThat(headers.lastWithName("volume").value()).isEqualTo("11");
+        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo("42.0");
+
+        // Expected DLQ Headers
+        // ConnectHeaders(headers=[ConnectHeader(key=__connect.errors.topic,
+        // value=mytopic, schema=Schema{STRING}),
+        // ConnectHeader(key=__connect.errors.class.name,
+        // value=org.apache.kafka.connect.errors.DataException, schema=Schema{STRING}),
+        // ConnectHeader(key=__connect.errors.exception.message, value=Converting byte[]
+        // to Kafka Connect data failed due to serialization error: ,
+        // schema=Schema{STRING}), ConnectHeader(key=__connect.errors.timestamp,
+        // value=1749036171558, schema=Schema{STRING}),
+        // ConnectHeader(key=__connect.errors.cause.message,
+        // value=com.fasterxml.jackson.core.JsonParseException: Unrecognized token
+        // 'Invalid': was expecting (JSON String, Number, Array, Object or token 'null',
+        // 'true' or 'false')
+        // at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION`
+        // disabled); line: 1, column: 9], schema=Schema{STRING}),
+        // ConnectHeader(key=__connect.errors.cause.class,
+        // value=org.apache.kafka.common.errors.SerializationException,
+        // schema=Schema{STRING}),
+        // ConnectHeader(key=__connect.errors.exception.stacktrace,
+        // value=org.apache.kafka.connect.errors.DataException: Converting byte[] to
+        // Kafka Connect data failed due to serialization error:
+        // at
+        // org.apache.kafka.connect.json.JsonConverter.toConnectData(JsonConverter.java:333)
+        // at
+        // com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder.getValue(JsonRecordBuilder.java:81)
+        // at
+        // com.ibm.eventstreams.connect.mqsource.builders.BaseRecordBuilder.toSourceRecord(BaseRecordBuilder.java:238)
+        // at com.ibm.eventstreams.connect.mqsource.JMSWorker.toSourceRecord(JMSWork...
+        // [truncated], schema=Schema{STRING})])
+        assertThat(headers.lastWithName("__connect.errors.topic").value())
+                .isEqualTo("mytopic");
+        assertThat(headers.lastWithName("__connect.errors.class.name").value())
+                .isEqualTo("org.apache.kafka.connect.errors.DataException");
+        assertThat(headers.lastWithName("__connect.errors.exception.message").value())
+                .isEqualTo("Converting byte[] to Kafka Connect data failed due to serialization error: ");
+        assertThat(headers.lastWithName("__connect.errors.timestamp").value().toString()
+                .isEmpty()).isFalse();
+        assertThat(headers.lastWithName("__connect.errors.cause.message").value().toString())
+                .contains(
+                        "com.fasterxml.jackson.core.JsonParseException: Unrecognized token 'Invalid': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')");
+        assertThat(headers.lastWithName("__connect.errors.cause.class").value())
+                .isEqualTo("org.apache.kafka.common.errors.SerializationException");
+        assertThat(headers.lastWithName("__connect.errors.exception.stacktrace").value()
+                .toString().contains("com.ibm.eventstreams.connect.mqsource.JMSWorker.toSourceRecord")).isTrue();
+    }
+
+    @Test
+    public void verifyLoggingWarningWithErrorTolerance() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG, "false"); // default; Do not log errors
+        // default; Do not log errors with message
+        connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, "false");
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        // Both invalid and valid messages are received
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createTextMessage("Invalid JSON message"), // Poison message
+                getJmsContext().createTextMessage("{ \"i\": 0 }"), // Valid message
+                getJmsContext().createTextMessage("{ \"i\": 1 }"), // Valid message
+                getJmsContext().createTextMessage("{ \"i\": 2 }") // Valid message
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+
+        assertThat(processedRecords).hasSize(4);
+
+        assertThat(processedRecords.get(0).topic()).isEqualTo("__dlq.mq.source");
+        assertThat(processedRecords.get(1).topic()).isEqualTo("mytopic");
+        assertThat(processedRecords.get(2).topic()).isEqualTo("mytopic");
+        assertThat(processedRecords.get(3).topic()).isEqualTo("mytopic");
+    }
+
+    @Test
+    public void verifyLoggingErrorsWithErrorTolerance() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG, "true"); // Log errors enabled
+        connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, "false");
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        // Both invalid and valid messages are received
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createTextMessage("Invalid JSON message"), // Poison message
+                getJmsContext().createTextMessage("{ \"i\": 0 }"), // Valid message
+                getJmsContext().createTextMessage("{ \"i\": 1 }"), // Valid message
+                getJmsContext().createTextMessage("{ \"i\": 2 }") // Valid message
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+
+        assertThat(processedRecords).hasSize(4);
+
+        assertThat(processedRecords.get(0).topic()).isEqualTo("__dlq.mq.source");
+        assertThat(processedRecords.get(1).topic()).isEqualTo("mytopic");
+        assertThat(processedRecords.get(2).topic()).isEqualTo("mytopic");
+        assertThat(processedRecords.get(3).topic()).isEqualTo("mytopic");
+    }
+
+    @Test
+    public void verifyLoggingErrorsWithMessage() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG, "true"); // Log errors
+        connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, "true"); // Log errors with message
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        // Both invalid and valid messages are received
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createTextMessage("Invalid JSON message"), // Poison message
+                getJmsContext().createTextMessage("{ \"i\": 0 }"), // Valid message
+                getJmsContext().createTextMessage("{ \"i\": 1 }"), // Valid message
+                getJmsContext().createTextMessage("{ \"i\": 2 }") // Valid message
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+
+        assertThat(processedRecords).hasSize(4);
+
+        assertThat(processedRecords.get(0).topic()).isEqualTo("__dlq.mq.source");
+        assertThat(processedRecords.get(1).topic()).isEqualTo("mytopic");
+        assertThat(processedRecords.get(2).topic()).isEqualTo("mytopic");
+        assertThat(processedRecords.get(3).topic()).isEqualTo("mytopic");
+    }
+
+    @Test
+    public void verifyLoggingErrorsWithMessageHavingDefaultRecordBuilder() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG, "true"); // Log errors
+        connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, "true"); // Log errors with message
+        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put("value.converter", "org.apache.kafka.connect.converters.ByteArrayConverter");
+        connectTask.start(connectorConfigProps);
+
+        // Both invalid and valid messages are received
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createObjectMessage("Invalid message"), // Poison message
+                getJmsContext().createTextMessage("Text") // Valid
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+
+        assertThat(processedRecords).hasSize(2);
+
+        assertThat(processedRecords.get(0).topic()).isEqualTo("__dlq.mq.source");
+        assertThat(processedRecords.get(1).topic()).isEqualTo("mytopic");
     }
 }
