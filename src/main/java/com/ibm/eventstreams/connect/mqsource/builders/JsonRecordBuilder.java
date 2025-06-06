@@ -18,7 +18,6 @@ package com.ibm.eventstreams.connect.mqsource.builders;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.HashMap;
-
 import javax.jms.BytesMessage;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
