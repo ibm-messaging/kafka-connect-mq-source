@@ -61,10 +61,14 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
     private boolean logErrors;
     private boolean logIncludeMessages;
     private String dlqTopic = "";
+    private String queueName = "";
 
     public static final String ERROR_HEADER_EXCEPTION_TIMESTAMP = DeadLetterQueueReporter.HEADER_PREFIX + "timestamp";
     public static final String ERROR_HEADER_EXCEPTION_CAUSE_CLASS = DeadLetterQueueReporter.HEADER_PREFIX + "cause.class";
     public static final String ERROR_HEADER_EXCEPTION_CAUSE_MESSAGE = DeadLetterQueueReporter.HEADER_PREFIX + "cause.message";
+    public static final String ERROR_HEADER_JMS_MESSAGE_ID = DeadLetterQueueReporter.HEADER_PREFIX + "jms.message.id";
+    public static final String ERROR_HEADER_JMS_TIMESTAMP = DeadLetterQueueReporter.HEADER_PREFIX + "jms.timestamp";
+    public static final String ERROR_HEADER_QUEUE = DeadLetterQueueReporter.HEADER_PREFIX + "mq.queue";
 
     /**
      * Configure this class.
@@ -131,9 +135,14 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
                     String.valueOf(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_DEFAULT));
             logIncludeMessages = Boolean.parseBoolean(logIncludeMessagesValue);
 
-            dlqTopic = props.get(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG);
+            dlqTopic = props.get(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG);
             if (dlqTopic != null && !dlqTopic.isEmpty()) {
                 dlqTopic = dlqTopic.trim();
+            }
+
+            queueName = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE);
+            if (queueName != null && !queueName.isEmpty()) {
+                queueName = queueName.trim();
             }
         } else {
             logErrors = false;
@@ -439,6 +448,15 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
         headers.addString(DeadLetterQueueReporter.ERROR_HEADER_ORIG_TOPIC, originalTopic);
         headers.addString(DeadLetterQueueReporter.ERROR_HEADER_EXECUTING_CLASS, exception.getClass().getName());
         headers.addString(DeadLetterQueueReporter.ERROR_HEADER_EXCEPTION_MESSAGE, exception.getMessage());
+
+        try {
+            headers.addString(ERROR_HEADER_JMS_MESSAGE_ID, message.getJMSMessageID());
+            headers.addLong(ERROR_HEADER_JMS_TIMESTAMP, message.getJMSTimestamp());
+        } catch (final JMSException jmsException) {
+            jmsException.printStackTrace();
+        }
+
+        headers.addString(ERROR_HEADER_QUEUE, queueName);
         headers.addLong(ERROR_HEADER_EXCEPTION_TIMESTAMP, System.currentTimeMillis());
 
         // Add cause if available

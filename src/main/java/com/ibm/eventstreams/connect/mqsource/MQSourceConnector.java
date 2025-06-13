@@ -187,13 +187,26 @@ public class MQSourceConnector extends SourceConnector {
     public static final long CONFIG_RECONNECT_DELAY_MAX_DEFAULT = 8192L;
     public static final long CONFIG_RECONNECT_DELAY_MAX_MINIMUM = 10L;
 
-    public static final String ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG = "errors.deadletterqueue.topic.name";
-    public static final String ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_DISPLAY = "Output errors to the dead letter queue";
-    public static final String ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_DEFAULT = "";
-    public static final String ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_DOC = "Whether to output conversion errors to the dead letter queue. "
-            + "Stops poison messages when using schemas, any message will be outputted as extended json on the specified topic. "
-            + "By default messages are not outputted to the dead letter queue. "
-            + "Also requires `errors.tolerance=all`.";
+    public static final String DLQ_PREFIX = "errors.deadletterqueue.";
+
+    public static final String DLQ_TOPIC_NAME_CONFIG = DLQ_PREFIX + "topic.name";
+    public static final String DLQ_TOPIC_NAME_DOC = "The name of the topic to be used as the dead letter queue (DLQ) for messages that " +
+        "result in an error when processed by this source connector, or its transformations or converters. The topic name is blank by default, " +
+        "which means that no messages are to be recorded in the DLQ.";
+    public static final String DLQ_TOPIC_DEFAULT = "";
+    private static final String DLQ_TOPIC_DISPLAY = "Dead Letter Queue Topic Name";
+
+    public static final String DLQ_TOPIC_REPLICATION_FACTOR_CONFIG = DLQ_PREFIX + "topic.replication.factor";
+    private static final String DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DOC = "Replication factor used to create the dead letter queue topic when it doesn't already exist.";
+    public static final short DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DEFAULT = 3;
+    private static final String DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DISPLAY = "Dead Letter Queue Topic Replication Factor";
+
+    public static final String DLQ_CONTEXT_HEADERS_ENABLE_CONFIG = DLQ_PREFIX + "context.headers.enable";
+    public static final boolean DLQ_CONTEXT_HEADERS_ENABLE_DEFAULT = false;
+    public static final String DLQ_CONTEXT_HEADERS_ENABLE_DOC = "If true, add headers containing error context to the messages " +
+            "written to the dead letter queue. To avoid clashing with headers from the original record, all error context header " +
+            "keys, all error context header keys will start with <code>__connect.errors.</code>";
+    private static final String DLQ_CONTEXT_HEADERS_ENABLE_DISPLAY = "Enable Error Context Headers";
 
     // Define valid reconnect options
     public static final String[] CONFIG_VALUE_MQ_VALID_RECONNECT_OPTIONS = {
@@ -624,6 +637,30 @@ public class MQSourceConnector extends SourceConnector {
                 CONFIG_GROUP_MQ, 29,
                 Width.MEDIUM,
                 CONFIG_DISPLAY_RECONNECT_DELAY_MAX);
+        CONFIGDEF.define(DLQ_TOPIC_NAME_CONFIG,
+                Type.STRING,
+                DLQ_TOPIC_DEFAULT,
+                Importance.MEDIUM,
+                DLQ_TOPIC_NAME_DOC,
+                CONFIG_GROUP_MQ, 29,
+                Width.MEDIUM,
+                DLQ_TOPIC_DISPLAY);
+        CONFIGDEF.define(DLQ_TOPIC_REPLICATION_FACTOR_CONFIG,
+                Type.SHORT,
+                DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DEFAULT,
+                Importance.MEDIUM,
+                DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DOC,
+                CONFIG_GROUP_MQ, 30,
+                Width.MEDIUM,
+                DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DISPLAY);
+        CONFIGDEF.define(DLQ_CONTEXT_HEADERS_ENABLE_CONFIG,
+                Type.BOOLEAN,
+                DLQ_CONTEXT_HEADERS_ENABLE_DEFAULT,
+                Importance.MEDIUM,
+                DLQ_CONTEXT_HEADERS_ENABLE_DOC,
+                CONFIG_GROUP_MQ, 31,
+                Width.MEDIUM,
+                DLQ_CONTEXT_HEADERS_ENABLE_DISPLAY);
 
         CONFIGDEF.define(CONFIG_NAME_TOPIC,
                 Type.STRING,

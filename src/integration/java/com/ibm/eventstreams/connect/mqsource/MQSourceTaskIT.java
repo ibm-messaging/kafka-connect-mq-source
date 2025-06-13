@@ -763,7 +763,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -808,7 +808,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "none");
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -835,7 +835,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -843,8 +843,10 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectTask.start(connectorConfigProps);
 
         // An invalid message is received
+        final TextMessage message = getJmsContext().createTextMessage("Invalid JSON message");
+        message.setJMSMessageID("message_id");
         putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE,
-                Collections.singletonList(getJmsContext().createTextMessage("Invalid JSON message")));
+                Collections.singletonList(message));
 
         // The message should be routed to DLQ with error headers
         final List<SourceRecord> processedRecords = connectTask.poll();
@@ -870,7 +872,9 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
                 .isEqualTo("org.apache.kafka.common.errors.SerializationException");
         assertThat(headers.lastWithName("__connect.errors.exception.stacktrace").value()
                 .toString().contains("com.ibm.eventstreams.connect.mqsource.JMSWorker.toSourceRecord")).isTrue();
-
+        assertEquals(headers.lastWithName("__connect.errors.jms.message.id").value(), message.getJMSMessageID());
+        assertEquals(headers.lastWithName("__connect.errors.jms.timestamp").value(), message.getJMSTimestamp());
+        assertEquals(headers.lastWithName("__connect.errors.mq.queue").value(), DEFAULT_SOURCE_QUEUE);
         connectTask.commitRecord(dlqRecord);
     }
 
@@ -881,7 +885,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -916,7 +920,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
@@ -947,7 +951,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -992,7 +996,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -1026,7 +1030,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -1115,7 +1119,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG, "false"); // default; Do not log errors
         // default; Do not log errors with message
         connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, "false");
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -1150,7 +1154,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
         connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG, "true"); // Log errors enabled
         connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, "false");
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -1185,7 +1189,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
         connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG, "true"); // Log errors
         connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, "true"); // Log errors with message
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -1220,7 +1224,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
         connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG, "true"); // Log errors
         connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, "true"); // Log errors with message
-        connectorConfigProps.put(MQSourceConnector.ERRORS_DEAD_LETTER_QUEUE_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
