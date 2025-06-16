@@ -190,11 +190,6 @@ public class MQSourceConnector extends SourceConnector {
     public static final String DLQ_TOPIC_DEFAULT = "";
     private static final String DLQ_TOPIC_DISPLAY = "Dead Letter Queue Topic Name";
 
-    public static final String DLQ_TOPIC_REPLICATION_FACTOR_CONFIG = DLQ_PREFIX + "topic.replication.factor";
-    private static final String DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DOC = "Replication factor used to create the dead letter queue topic when it doesn't already exist.";
-    public static final short DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DEFAULT = 3;
-    private static final String DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DISPLAY = "Dead Letter Queue Topic Replication Factor";
-
     public static final String DLQ_CONTEXT_HEADERS_ENABLE_CONFIG = DLQ_PREFIX + "context.headers.enable";
     public static final boolean DLQ_CONTEXT_HEADERS_ENABLE_DEFAULT = false;
     public static final String DLQ_CONTEXT_HEADERS_ENABLE_DOC = "If true, add headers containing error context to the messages " +
@@ -628,20 +623,12 @@ public class MQSourceConnector extends SourceConnector {
                 CONFIG_GROUP_MQ, 29,
                 Width.MEDIUM,
                 DLQ_TOPIC_DISPLAY);
-        CONFIGDEF.define(DLQ_TOPIC_REPLICATION_FACTOR_CONFIG,
-                Type.SHORT,
-                DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DEFAULT,
-                Importance.MEDIUM,
-                DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DOC,
-                CONFIG_GROUP_MQ, 30,
-                Width.MEDIUM,
-                DLQ_TOPIC_REPLICATION_FACTOR_CONFIG_DISPLAY);
         CONFIGDEF.define(DLQ_CONTEXT_HEADERS_ENABLE_CONFIG,
                 Type.BOOLEAN,
                 DLQ_CONTEXT_HEADERS_ENABLE_DEFAULT,
                 Importance.MEDIUM,
                 DLQ_CONTEXT_HEADERS_ENABLE_DOC,
-                CONFIG_GROUP_MQ, 31,
+                CONFIG_GROUP_MQ, 30,
                 Width.MEDIUM,
                 DLQ_CONTEXT_HEADERS_ENABLE_DISPLAY);
 

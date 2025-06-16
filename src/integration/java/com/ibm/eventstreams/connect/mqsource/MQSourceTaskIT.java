@@ -833,6 +833,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
         connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_CONTEXT_HEADERS_ENABLE_CONFIG, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -918,6 +919,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
         connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_CONTEXT_HEADERS_ENABLE_CONFIG, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
@@ -1028,6 +1030,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
         connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
         connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.DLQ_CONTEXT_HEADERS_ENABLE_CONFIG, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
         connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
                 "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -1104,6 +1107,56 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
                 .isEqualTo("org.apache.kafka.common.errors.SerializationException");
         assertThat(headers.lastWithName("__connect.errors.exception.stacktrace").value()
                 .toString().contains("com.ibm.eventstreams.connect.mqsource.JMSWorker.toSourceRecord")).isTrue();
+    }
+
+    @Test
+    public void verifyHeadersWithErrorTolerance_WithDLQHeaderContextDisabled() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER, "true");
+
+        connectTask.start(connectorConfigProps);
+
+        final TextMessage message = getJmsContext().createTextMessage("Invalid JSON message");
+        message.setStringProperty("teststring", "myvalue");
+        message.setIntProperty("volume", 11);
+        message.setDoubleProperty("decimalmeaning", 42.0);
+
+        // Both invalid and valid messages are received
+        final List<Message> testMessages = Arrays.asList(
+                message, // Poison message
+                getJmsContext().createTextMessage("{ \"i\": 0 }") // Valid message
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+
+        assertThat(processedRecords).hasSize(2);
+
+        final SourceRecord dlqRecord = processedRecords.get(0);
+        assertThat(dlqRecord.topic()).isEqualTo("__dlq.mq.source");
+
+        final Headers headers = dlqRecord.headers();
+
+        // Actual headers
+        assertThat(headers.lastWithName("teststring").value()).isEqualTo("myvalue");
+        assertThat(headers.lastWithName("volume").value()).isEqualTo("11");
+        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo("42.0");
+
+        assertThat(headers.lastWithName("__connect.errors.topic")).isNull();
+        assertThat(headers.lastWithName("__connect.errors.class.name")).isNull();
+        assertThat(headers.lastWithName("__connect.errors.exception.message")).isNull();
+        assertThat(headers.lastWithName("__connect.errors.timestamp")).isNull();
+        assertThat(headers.lastWithName("__connect.errors.cause.message")).isNull();
+        assertThat(headers.lastWithName("__connect.errors.cause.class")).isNull();
+        assertThat(headers.lastWithName("__connect.errors.exception.stacktrace")).isNull();
     }
 
     @Test
