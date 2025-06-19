@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="root">
+        <xs:complexType>
+            <xs:all>
+                <xs:element name="test-1" type="xs:integer"/>
+                <xs:element name="test-2" type="xs:float" />
+                <xs:element name="test-3" type="xs:string" />
+                <xs:element name="test-4" type="xs:boolean" />
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

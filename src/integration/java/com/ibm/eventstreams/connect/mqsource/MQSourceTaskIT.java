@@ -36,6 +36,10 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 
 import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -65,6 +69,7 @@ import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
 import com.ibm.eventstreams.connect.mqsource.utils.JsonRestApi;
 import com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil;
 import com.ibm.eventstreams.connect.mqsource.utils.SourceTaskStopper;
+import org.testcontainers.utility.MountableFile;
 
 public class MQSourceTaskIT extends AbstractJMSContextIT {
 
@@ -1296,4 +1301,86 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertThat(processedRecords.get(0).topic()).isEqualTo("__dlq.mq.source");
         assertThat(processedRecords.get(1).topic()).isEqualTo("mytopic");
     }
+
+    @Test
+    public void verifyMessageHavingXmlMQRecordBuilder() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.kafkaconnect.plugins.xml.XmlMQRecordBuilder");
+        connectorConfigProps.put("mq.record.builder.schemas.enable", "true");
+        connectorConfigProps.put("mq.record.builder.xsd.schema.path", MountableFile.forClasspathResource("test.xsd").getResolvedPath());
+        connectTask.start(connectorConfigProps);
+
+        // Both invalid and valid messages are received
+        String content = "";
+        try {
+            content = readClasspathFileContent("test.xml");
+        } catch (final IOException e) {
+            e.printStackTrace();
+        }
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createTextMessage(content) // Valid
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+
+        assertThat(processedRecords).hasSize(1);
+        assertThat(processedRecords.get(0).topic()).isEqualTo("mytopic");
+        assertThat(processedRecords.get(0).value().toString()).isEqualTo("Struct{test-1=123,test-2=1.23,test-3=xyz,test-4=true}");
+    }
+
+    @Test
+    public void verifyLoggingErrorsWithMessageHavingXmlMQRecordBuilder() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_TOLERANCE_CONFIG, "all");
+        connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_ENABLE_CONFIG, "true"); // Log errors
+        connectorConfigProps.put(ConnectorConfig.ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, "true"); // Log errors with message
+        connectorConfigProps.put(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG, "__dlq.mq.source");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.kafkaconnect.plugins.xml.XmlMQRecordBuilder");
+        connectorConfigProps.put("mq.record.builder.schemas.enable", "true");
+        connectorConfigProps.put("mq.record.builder.root.element.name", "Person");
+        connectorConfigProps.put("mq.record.builder.xsd.schema.path", MountableFile.forClasspathResource("person.xsd").getResolvedPath());
+        connectTask.start(connectorConfigProps);
+
+        // Both invalid and valid messages are received
+        String content = "";
+        try {
+            content = readClasspathFileContent("person.xml");
+        } catch (final IOException e) {
+            e.printStackTrace();
+        }
+        final List<Message> testMessages = Arrays.asList(
+                getJmsContext().createTextMessage(content) // Valid
+        );
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, testMessages);
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+
+        assertThat(processedRecords).hasSize(1);
+        assertThat(processedRecords.get(0).topic()).isEqualTo("__dlq.mq.source");
+    }
+
+    public String readClasspathFileContent(final String resourceName) throws IOException {
+        final ClassLoader classLoader = MQSourceTaskIT.class.getClassLoader();
+        try (InputStream inputStream = classLoader.getResourceAsStream(resourceName)) {
+            if (inputStream == null) {
+                throw new IOException("Resource not found: " + resourceName);
+            }
+            try (InputStreamReader isr = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+                BufferedReader reader = new BufferedReader(isr)) {
+                return reader.lines().collect(Collectors.joining(System.lineSeparator()));
+            }
+        }
+    }
+
 }
