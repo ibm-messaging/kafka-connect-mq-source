@@ -860,7 +860,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final Headers headers = dlqRecord.headers();
         assertThat(headers.lastWithName("__connect.errors.topic").value())
                 .isEqualTo("mytopic");
-        assertThat(headers.lastWithName("__connect.errors.class.name").value())
+        assertThat(headers.lastWithName("__connect.errors.exception.class.name").value())
                 .isEqualTo("org.apache.kafka.connect.errors.DataException");
         assertThat(headers.lastWithName("__connect.errors.exception.message").value())
                 .isEqualTo("Converting byte[] to Kafka Connect data failed due to serialization error: ");
@@ -1097,7 +1097,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         // [truncated], schema=Schema{STRING})])
         assertThat(headers.lastWithName("__connect.errors.topic").value())
                 .isEqualTo("mytopic");
-        assertThat(headers.lastWithName("__connect.errors.class.name").value())
+        assertThat(headers.lastWithName("__connect.errors.exception.class.name").value())
                 .isEqualTo("org.apache.kafka.connect.errors.DataException");
         assertThat(headers.lastWithName("__connect.errors.exception.message").value())
                 .isEqualTo("Converting byte[] to Kafka Connect data failed due to serialization error: ");

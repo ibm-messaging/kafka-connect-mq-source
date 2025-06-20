@@ -1,3 +1,18 @@
+/**
+ * Copyright 2025 IBM Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.ibm.eventstreams.connect.mqsource.util;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -17,7 +32,6 @@ import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.header.ConnectHeaders;
 import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.runtime.ConnectorConfig;
-import org.apache.kafka.connect.runtime.errors.DeadLetterQueueReporter;
 import org.apache.kafka.connect.runtime.errors.ToleranceType;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
@@ -35,12 +49,6 @@ public class ErrorHandler {
 
     public static final String HEADER_PREFIX = "__connect.errors.";
     public static final String ERROR_HEADER_ORIG_TOPIC = HEADER_PREFIX + "topic";
-    public static final String ERROR_HEADER_ORIG_PARTITION = HEADER_PREFIX + "partition";
-    public static final String ERROR_HEADER_ORIG_OFFSET = HEADER_PREFIX + "offset";
-    public static final String ERROR_HEADER_CONNECTOR_NAME = HEADER_PREFIX + "connector.name";
-    public static final String ERROR_HEADER_TASK_ID = HEADER_PREFIX + "task.id";
-    public static final String ERROR_HEADER_STAGE = HEADER_PREFIX + "stage";
-    public static final String ERROR_HEADER_EXECUTING_CLASS = HEADER_PREFIX + "class.name";
     public static final String ERROR_HEADER_EXCEPTION = HEADER_PREFIX + "exception.class.name";
     public static final String ERROR_HEADER_EXCEPTION_MESSAGE = HEADER_PREFIX + "exception.message";
     public static final String ERROR_HEADER_EXCEPTION_STACK_TRACE = HEADER_PREFIX + "exception.stacktrace";
@@ -113,7 +121,6 @@ public class ErrorHandler {
             dlqTopic = props.get(MQSourceConnector.DLQ_TOPIC_NAME_CONFIG);
             if (dlqTopic != null && !dlqTopic.isEmpty()) {
                 dlqTopic = dlqTopic.trim();
-                // TODO: Check if DLQ topic exists
             }
 
             queueName = props.get(MQSourceConnector.CONFIG_NAME_MQ_QUEUE);
@@ -282,9 +289,9 @@ public class ErrorHandler {
         }
 
         // Basic error information
-        headers.addString(DeadLetterQueueReporter.ERROR_HEADER_ORIG_TOPIC, originalTopic);
-        headers.addString(DeadLetterQueueReporter.ERROR_HEADER_EXECUTING_CLASS, exception.getClass().getName());
-        headers.addString(DeadLetterQueueReporter.ERROR_HEADER_EXCEPTION_MESSAGE, exception.getMessage());
+        headers.addString(ERROR_HEADER_ORIG_TOPIC, originalTopic);
+        headers.addString(ERROR_HEADER_EXCEPTION, exception.getClass().getName());
+        headers.addString(ERROR_HEADER_EXCEPTION_MESSAGE, exception.getMessage());
 
         try {
             headers.addString(ERROR_HEADER_JMS_MESSAGE_ID, message.getJMSMessageID());
@@ -298,14 +305,14 @@ public class ErrorHandler {
 
         // Add cause if available
         if (exception.getCause() != null) {
-            headers.addString(ERROR_HEADER_EXCEPTION_CAUSE_MESSAGE, exception.getCause().getMessage());
             headers.addString(ERROR_HEADER_EXCEPTION_CAUSE_CLASS, exception.getCause().getClass().getName());
+            headers.addString(ERROR_HEADER_EXCEPTION_CAUSE_MESSAGE, exception.getCause().getMessage());
         }
 
         // Add first few lines of stack trace (full stack trace might be too large)
         final String stackTrace = getStackTrace(exception);
         if (stackTrace != null) {
-            headers.addString(DeadLetterQueueReporter.ERROR_HEADER_EXCEPTION_STACK_TRACE, stackTrace);
+            headers.addString(ERROR_HEADER_EXCEPTION_STACK_TRACE, stackTrace);
         }
 
         return headers;

@@ -637,7 +637,7 @@ public class MQSourceConnector extends SourceConnector {
                 DLQ_TOPIC_DEFAULT,
                 Importance.MEDIUM,
                 DLQ_TOPIC_NAME_DOC,
-                CONFIG_GROUP_MQ, 29,
+                CONFIG_GROUP_MQ, 30,
                 Width.MEDIUM,
                 DLQ_TOPIC_DISPLAY);
         CONFIGDEF.define(DLQ_CONTEXT_HEADERS_ENABLE_CONFIG,
@@ -645,7 +645,7 @@ public class MQSourceConnector extends SourceConnector {
                 DLQ_CONTEXT_HEADERS_ENABLE_DEFAULT,
                 Importance.MEDIUM,
                 DLQ_CONTEXT_HEADERS_ENABLE_DOC,
-                CONFIG_GROUP_MQ, 30,
+                CONFIG_GROUP_MQ, 31,
                 Width.MEDIUM,
                 DLQ_CONTEXT_HEADERS_ENABLE_DISPLAY);
 
