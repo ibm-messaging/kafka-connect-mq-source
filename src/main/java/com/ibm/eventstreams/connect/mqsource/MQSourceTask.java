@@ -15,23 +15,18 @@
  */
 package com.ibm.eventstreams.connect.mqsource;
 
-import com.ibm.eventstreams.connect.mqsource.builders.RecordBuilderException;
-import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceState;
-import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateClient;
-import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateException;
-import com.ibm.eventstreams.connect.mqsource.util.LogMessages;
-import com.ibm.eventstreams.connect.mqsource.util.ExceptionProcessor;
-import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
-import org.apache.kafka.common.config.AbstractConfig;
-import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.source.SourceRecord;
-import org.apache.kafka.connect.source.SourceTask;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.jms.JMSException;
-import javax.jms.JMSRuntimeException;
-import javax.jms.Message;
+import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_MAX_POLL_BLOCKED_TIME_MS;
+import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_MAX_POLL_TIME;
+import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_BATCH_SIZE;
+import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE;
+import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_QUEUE;
+import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_QUEUE_MANAGER;
+import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT;
+import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskStartUpAction.NORMAL_OPERATION;
+import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskStartUpAction.REDELIVER_UNSENT_BATCH;
+import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskStartUpAction.REMOVE_DELIVERED_MESSAGES_FROM_SOURCE_QUEUE;
+import static com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceState.LastKnownState.DELIVERED;
+import static com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceState.LastKnownState.IN_FLIGHT;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,24 +42,32 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_MAX_POLL_BLOCKED_TIME_MS;
-import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_BATCH_SIZE;
-import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE;
-import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_QUEUE;
-import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_NAME_MQ_QUEUE_MANAGER;
-import static com.ibm.eventstreams.connect.mqsource.MQSourceConnector.CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT;
+import javax.jms.JMSException;
+import javax.jms.JMSRuntimeException;
+import javax.jms.Message;
 
-import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskStartUpAction.REMOVE_DELIVERED_MESSAGES_FROM_SOURCE_QUEUE;
-import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskStartUpAction.NORMAL_OPERATION;
-import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskStartUpAction.REDELIVER_UNSENT_BATCH;
-import static com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceState.LastKnownState.DELIVERED;
-import static com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceState.LastKnownState.IN_FLIGHT;
+import org.apache.kafka.common.config.AbstractConfig;
+import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.source.SourceRecord;
+import org.apache.kafka.connect.source.SourceTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.ibm.eventstreams.connect.mqsource.builders.RecordBuilderException;
+import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceState;
+import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateClient;
+import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateException;
+import com.ibm.eventstreams.connect.mqsource.util.ExceptionProcessor;
+import com.ibm.eventstreams.connect.mqsource.util.LogMessages;
+import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
 
 public class MQSourceTask extends SourceTask {
     private static final Logger log = LoggerFactory.getLogger(MQSourceTask.class);
 
     // The maximum number of records returned per call to poll()
     private int batchSize = CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT;
+    // The maximum time to spend polling messages before returning a batch
+    private long maxPollTime = CONFIG_VALUE_MQ_BATCH_SIZE_DEFAULT;
 
     // Used to signal completion of a batch
     //  After returning a batch of messages to Connect, the SourceTask waits
@@ -174,6 +177,7 @@ public class MQSourceTask extends SourceTask {
         startUpAction = NORMAL_OPERATION;
 
         batchSize = config.getInt(CONFIG_NAME_MQ_BATCH_SIZE);
+        maxPollTime = config.getLong(CONFIG_MAX_POLL_TIME);
         try {
             reader.configure(config);
             reader.connect();
@@ -415,21 +419,30 @@ public class MQSourceTask extends SourceTask {
 
     private List<Message> pollSourceQueue(final int numberOfMessagesToBePolled) throws JMSException {
         final List<Message> localList = new ArrayList<>();
-
-        if (!stopNow.get()) {
-            log.debug("Polling for records");
-            Message message;
-            do {
-                message = reader.receive(sourceQueue, sourceQueueConfig, localList.size() == 0);
-                if (message != null) {
-                    localList.add(message);
-                }
-            } while (message != null && localList.size() < numberOfMessagesToBePolled && !stopNow.get());
-        } else {
+        if (stopNow.get()) {
             log.info("Stopping polling for records");
+            return localList;
         }
+
+        log.debug("Polling for records");
+        final long startTime = System.currentTimeMillis();
+
+        Message message;
+        do {
+            message = reader.receive(sourceQueue, sourceQueueConfig, localList.isEmpty());
+            if (message != null) {
+                localList.add(message);
+            }
+        } while (
+            message != null &&
+            localList.size() < numberOfMessagesToBePolled &&
+            !stopNow.get() &&
+            (maxPollTime <= 0 || (System.currentTimeMillis() - startTime) < maxPollTime)
+        );
+
         return localList;
     }
+
 
     private boolean isFirstMsgOnSourceQueueARequiredMsg(final List<String> msgIds) throws JMSException {
         final Message message = reader.browse(sourceQueue).get();

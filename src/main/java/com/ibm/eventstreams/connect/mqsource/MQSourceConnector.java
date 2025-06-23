@@ -187,6 +187,15 @@ public class MQSourceConnector extends SourceConnector {
     public static final long CONFIG_RECONNECT_DELAY_MAX_DEFAULT = 8192L;
     public static final long CONFIG_RECONNECT_DELAY_MAX_MINIMUM = 10L;
 
+    public static final String CONFIG_MAX_POLL_TIME = "mq.receive.max.poll.time.ms";
+    public static final String CONFIG_DOCUMENTATION_MAX_POLL_TIME = "Maximum time (in milliseconds) to poll for messages during a single Kafka Connect poll cycle. "
+            + "Acts as a hard upper bound on how long the task will try to accumulate a batch. "
+            + "If set to 0 or not defined, polling continues until either a message receive returns null or the batch size is met. "
+            + "Note: It is recommended to keep this value less than or equal to both 'mq.message.receive.timeout' "
+            + "and 'mq.receive.subsequent.timeout.ms' to avoid unexpected delays due to long blocking receive calls.";
+    public static final String CONFIG_DISPLAY_MAX_POLL_TIME = "Max poll time (ms)";
+    public static final long CONFIG_MAX_POLL_TIME_DEFAULT = 0L;
+
     public static final String DLQ_PREFIX = "errors.deadletterqueue.";
 
     public static final String DLQ_TOPIC_NAME_CONFIG = DLQ_PREFIX + "topic.name";
@@ -609,7 +618,7 @@ public class MQSourceConnector extends SourceConnector {
                 CONFIG_DISPLAY_MAX_RECEIVE_TIMEOUT);
         CONFIGDEF.define(CONFIG_SUBSEQUENT_RECEIVE_TIMEOUT,
                 ConfigDef.Type.LONG,
-                CONFIG_SUBSEQUENT_RECEIVE_TIMEOUT_DEFAULT,
+                CONFIG_SUBSEQUENT_RECEIVE_TIMEOUT_DEFAULT, ConfigDef.Range.atLeast(CONFIG_SUBSEQUENT_RECEIVE_TIMEOUT_DEFAULT),
                 ConfigDef.Importance.LOW,
                 CONFIG_DOCUMENTATION_SUBSEQUENT_RECEIVE_TIMEOUT,
                 CONFIG_GROUP_MQ,
@@ -648,6 +657,15 @@ public class MQSourceConnector extends SourceConnector {
                 CONFIG_GROUP_MQ, 31,
                 Width.MEDIUM,
                 DLQ_CONTEXT_HEADERS_ENABLE_DISPLAY);
+        CONFIGDEF.define(CONFIG_MAX_POLL_TIME,
+                ConfigDef.Type.LONG,
+                CONFIG_MAX_POLL_TIME_DEFAULT, ConfigDef.Range.atLeast(CONFIG_MAX_POLL_TIME_DEFAULT),
+                ConfigDef.Importance.LOW,
+                CONFIG_DOCUMENTATION_MAX_POLL_TIME,
+                CONFIG_GROUP_MQ,
+                32,
+                ConfigDef.Width.MEDIUM,
+                CONFIG_DISPLAY_MAX_POLL_TIME);
 
         CONFIGDEF.define(CONFIG_NAME_TOPIC,
                 Type.STRING,
