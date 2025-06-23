@@ -26,7 +26,6 @@ import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.json.JsonConverter;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

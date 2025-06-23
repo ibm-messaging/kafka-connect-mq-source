@@ -146,6 +146,7 @@ public class MQSourceTask extends SourceTask {
         final JMSWorker reader = new JMSWorker();
         JMSWorker dedicated = null;
         SequenceStateClient client = null;
+
         if (MQSourceConnector.configSupportsExactlyOnce(props)) {
             dedicated = new JMSWorker();
             client = new SequenceStateClient(props.get(CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE), reader, dedicated);

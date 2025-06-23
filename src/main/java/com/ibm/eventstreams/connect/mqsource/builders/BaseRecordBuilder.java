@@ -15,20 +15,22 @@
  */
 package com.ibm.eventstreams.connect.mqsource.builders;
 
-import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
-import com.ibm.eventstreams.connect.mqsource.processor.JmsToKafkaHeaderConverter;
-import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.SchemaAndValue;
-import org.apache.kafka.connect.source.SourceRecord;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Map;
+import java.util.Optional;
 
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.Message;
-import java.util.Map;
-import java.util.Optional;
+
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaAndValue;
+import org.apache.kafka.connect.source.SourceRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
+import com.ibm.eventstreams.connect.mqsource.processor.JmsToKafkaHeaderConverter;
+import com.ibm.eventstreams.connect.mqsource.util.ErrorHandler;
 
 /**
  * Builds Kafka Connect SourceRecords from messages.
@@ -36,24 +38,39 @@ import java.util.Optional;
 public abstract class BaseRecordBuilder implements RecordBuilder {
     private static final Logger log = LoggerFactory.getLogger(BaseRecordBuilder.class);
 
-    public enum KeyHeader { NONE, MESSAGE_ID, CORRELATION_ID, CORRELATION_ID_AS_BYTES, DESTINATION };
-    protected KeyHeader keyheader = KeyHeader.NONE;
+    public enum KeyHeader {
+        NONE, MESSAGE_ID, CORRELATION_ID, CORRELATION_ID_AS_BYTES, DESTINATION
+    };
 
+    protected KeyHeader keyheader = KeyHeader.NONE;
 
     private boolean copyJmsPropertiesFlag = Boolean.FALSE;
     private JmsToKafkaHeaderConverter jmsToKafkaHeaderConverter;
+    private ErrorHandler errorHandler = new ErrorHandler();
 
     /**
      * Configure this class.
      *
      * @param props initial configuration
      *
-     * @throws RecordBuilderException   Operation failed and connector should stop.
+     * @throws RecordBuilderException Operation failed and connector should stop.
      */
-    @Override public void configure(final Map<String, String> props) {
+    @Override
+    public void configure(final Map<String, String> props) {
         log.trace("[{}] Entry {}.configure, props={}", Thread.currentThread().getId(), this.getClass().getName(),
                 props);
 
+        configureKeyHeader(props);
+        configureJmsProperties(props);
+        configureErrorHandler(props);
+
+        log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
+    }
+
+    /**
+     * Configure key header settings.
+     */
+    private void configureKeyHeader(final Map<String, String> props) {
         final String kh = props.get(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER);
         if (kh != null) {
             if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSMESSAGEID)) {
@@ -73,12 +90,22 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
                 throw new RecordBuilderException("Unsupported MQ record builder key header value");
             }
         }
+    }
 
+    /**
+     * Configure JMS properties settings.
+     */
+    private void configureJmsProperties(final Map<String, String> props) {
         final String str = props.get(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
         copyJmsPropertiesFlag = Boolean.parseBoolean(Optional.ofNullable(str).orElse("false"));
         jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
+    }
 
-        log.trace("[{}]  Exit {}.configure", Thread.currentThread().getId(), this.getClass().getName());
+    /**
+     * Configure error handler.
+     */
+    public void configureErrorHandler(final Map<String, String> props) {
+        errorHandler.configure(props, copyJmsPropertiesFlag, jmsToKafkaHeaderConverter);
     }
 
     /**
@@ -160,38 +187,58 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
      * @throws JMSException Message could not be converted
      */
     @Override
-    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms, final Message message) throws JMSException {
+    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms,
+            final Message message) throws JMSException {
         return toSourceRecord(context, topic, messageBodyJms, message, null, null);
     }
 
     @Override
-    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms, final Message message, final Map<String, Long> sourceOffset, final Map<String, String> sourceQueuePartition) throws JMSException {
-        final SchemaAndValue key = this.getKey(context, topic, message);
-        final SchemaAndValue value = this.getValue(context, topic, messageBodyJms, message);
+    public SourceRecord toSourceRecord(final JMSContext context, final String topic, final boolean messageBodyJms,
+            final Message message, final Map<String, Long> sourceOffset, final Map<String, String> sourceQueuePartition)
+            throws JMSException {
 
-        if (copyJmsPropertiesFlag && messageBodyJms) {
-            return new SourceRecord(
-                    sourceQueuePartition,
-                    sourceOffset,
-                    topic,
-                    null,
-                    key.schema(),
-                    key.value(),
-                    value.schema(),
-                    value.value(),
-                    message.getJMSTimestamp(),
-                    jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message)
-            );
-        } else {
-            return new SourceRecord(
-                    sourceQueuePartition,
-                    sourceOffset,
-                    topic,
-                    key.schema(),
-                    key.value(),
-                    value.schema(),
-                    value.value()
-            );
+        SchemaAndValue key = new SchemaAndValue(null, null);
+
+        try {
+            // Extract key and value
+            final SchemaAndValue value = this.getValue(context, topic, messageBodyJms, message);
+            key = this.getKey(context, topic, message);
+
+            // Create and return appropriate record based on configuration
+            if (copyJmsPropertiesFlag && messageBodyJms) {
+                return new SourceRecord(
+                        sourceQueuePartition,
+                        sourceOffset,
+                        topic,
+                        null,
+                        key.schema(),
+                        key.value(),
+                        value.schema(),
+                        value.value(),
+                        message.getJMSTimestamp(),
+                        jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message));
+            } else {
+                return new SourceRecord(
+                        sourceQueuePartition,
+                        sourceOffset,
+                        topic,
+                        null,
+                        key.schema(),
+                        key.value(),
+                        value.schema(),
+                        value.value());
+            }
+        } catch (final Exception e) {
+            // Log the error using error handler
+            errorHandler.logError(e, topic, message);
+
+            // If errors are not tolerated, rethrow
+            if (!errorHandler.shouldTolerateErrors()) {
+                throw e;
+            }
+
+            // Handle the error based on configured error tolerance
+            return errorHandler.handleBuildException(message, sourceQueuePartition, sourceOffset, topic, key, e);
         }
     }
 }
