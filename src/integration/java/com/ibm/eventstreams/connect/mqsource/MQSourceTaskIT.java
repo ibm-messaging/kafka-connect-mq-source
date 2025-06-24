@@ -1299,4 +1299,53 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertThat(processedRecords.get(0).topic()).isEqualTo("__dlq.mq.source");
         assertThat(processedRecords.get(1).topic()).isEqualTo("mytopic");
     }
+
+    @Test
+    public void verifyJmsMessageWithNullHeaders() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.jms.properties.copy.to.kafka.headers", "true");
+
+        connectTask.start(connectorConfigProps);
+
+        final TextMessage message = getJmsContext().createTextMessage("hello");
+        message.setStringProperty("teststring", "myvalue");
+        message.setObjectProperty("testObject", null);
+
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message));
+
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
+        assertEquals(1, kafkaMessages.size());
+
+        final SourceRecord kafkaMessage = kafkaMessages.get(0);
+
+        assertThat(kafkaMessage.value()).isEqualTo("hello");
+        assertThat(kafkaMessage.headers().lastWithName("teststring").value()).isEqualTo("myvalue");
+        assertThat(kafkaMessage.headers().lastWithName("testObject").value()).isNull();
+    }
+
+    @Test
+    public void verifyJmsMessageNoHeaderCopied_WhenCopyDisabledHavingNullHeader() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.jms.properties.copy.to.kafka.headers", "false");
+
+        connectTask.start(connectorConfigProps);
+
+        final TextMessage message = getJmsContext().createTextMessage("hello");
+        message.setStringProperty("teststring", "myvalue");
+        message.setObjectProperty("testObject", null);
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message));
+
+        final SourceRecord kafkaMessage = connectTask.poll().get(0);
+
+        assertThat(kafkaMessage.value()).isEqualTo("hello");
+        assertThat(kafkaMessage.headers()).isEmpty();
+    }
 }
