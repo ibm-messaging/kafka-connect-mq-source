@@ -24,6 +24,7 @@ import javax.jms.Message;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Single responsibility class to copy JMS properties to Kafka headers.
@@ -48,7 +49,10 @@ public class JmsToKafkaHeaderConverter {
 
             jmsPropertyKeys.forEach(key -> {
                 try {
-                    connectHeaders.addString(key.toString(), message.getObjectProperty(key.toString()).toString());
+                    final Object prop = message.getObjectProperty(key.toString());
+                    // this will yield `null` if prop is null, otherwise its toString()
+                    final String headerValue = Objects.toString(prop, null);
+                    connectHeaders.addString(key.toString(), headerValue);
                 } catch (final JMSException e) {
                     // Not failing the message processing if JMS properties cannot be read for some
                     // reason.
