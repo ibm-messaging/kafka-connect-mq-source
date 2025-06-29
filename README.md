@@ -408,6 +408,92 @@ Once the MQ source connector has delivered messages to Kafka with exactly-once s
 The MQ source connector is designed to fail on start-up in certain cases to ensure that exactly-once delivery is not compromised.
 In some of these failure scenarios, it will be necessary for an MQ administrator to remove messages from the exactly-once state queue before the MQ source connector can start up and begin to deliver messages from the source queue again. In these cases, the MQ source connector will have the `FAILED` status and the Kafka Connect logs will describe any required administrative action.
 
+## Using the XML Record Builder
+
+The MQ Source Connector now supports processing JMS messages using an XML record builder. This builder parses XML payloads, validates them against an XSD schema, and produces Kafka records with structured data.
+
+### Prerequisites
+
+Download and install the XML converter JAR:
+
+```bash
+curl -L -o kafka-connect-xml-converter-{VERSION}.jar https://github.com/ibm-messaging/kafka-connect-xml-converter/releases/download/v{VERSION}/kafka-connect-xml-converter-{VERSION}-jar-with-dependencies.jar
+
+Or, if using Maven:
+
+mvn install:install-file \
+  -Dfile=kafka-connect-xml-converter-{VERSION}-jar-with-dependencies.jar \
+  -DgroupId=com.ibm.eventstreams.kafkaconnect.plugins \
+  -DartifactId=kafka-connect-xml-converter \
+  -Dversion={VERSION} \
+  -Dpackaging=jar
+```
+
+```xml
+<dependency>
+  <groupId>com.ibm.eventstreams.kafkaconnect.plugins</groupId>
+  <artifactId>kafka-connect-xml-converter</artifactId>
+  <version>{VERSION}</version>
+</dependency>
+```
+
+Replace `{VERSION}` with the desired version number.
+
+---
+
+### Connector Configuration
+
+To enable the XML record builder, add the following properties to your connector configuration:
+
+```java
+"mq.record.builder": "com.ibm.eventstreams.kafkaconnect.plugins.xml.XmlMQRecordBuilder";
+"mq.record.builder.schemas.enable": "true";
+"mq.record.builder.root.element.name": "Person";
+"mq.record.builder.xsd.schema.path": "/path/to/person.xsd";
+```
+
+- `mq.record.builder`: Class name of the XML record builder.
+- `mq.record.builder.schemas.enable`: Enables schema generation and validation.
+- `mq.record.builder.root.element.name`: The expected root element name in the XML payload.
+- `mq.record.builder.xsd.schema.path`: Path to the XSD schema file used for validation.
+
+---
+
+### Example XML Message (`person.xml`)
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Person>
+    <Name>John Doe</Name>
+    <Age>30</Age>
+    <Email>john.doe@example.com</Email>
+</Person>
+```
+
+---
+
+### Example XSD Schema (`person.xsd`)
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="Person">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="Name" type="xs:string" />
+                <xs:element name="Age" type="xs:int" />
+                <xs:element name="Email" type="xs:string" />
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
+```
+
+- The `XmlMQRecordBuilder` is packaged within the Kafka XML converter JAR.
+- Ensure that the XSD file (`person.xsd`) is accessible to the connector runtime, e.g., mounted in the container or available on the classpath.
+- Poison messages due to XML parsing or schema validation errors can be routed to a dead letter queue (DLQ) if configured.
+
+
 ## Troubleshooting
 
 ### Connector in a `FAILED` state
