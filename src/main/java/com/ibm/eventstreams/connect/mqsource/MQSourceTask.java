@@ -426,7 +426,7 @@ public class MQSourceTask extends SourceTask {
         }
 
         log.debug("Polling for records");
-        final long startTime = System.currentTimeMillis();
+        final long pollEndTime = System.currentTimeMillis() + maxPollTime;
 
         Message message;
         do {
@@ -438,7 +438,7 @@ public class MQSourceTask extends SourceTask {
             message != null &&
             localList.size() < numberOfMessagesToBePolled &&
             !stopNow.get() &&
-            (maxPollTime <= 0 || (System.currentTimeMillis() - startTime) < maxPollTime)
+            (maxPollTime <= 0 || System.currentTimeMillis() < pollEndTime)
         );
 
         return localList;
