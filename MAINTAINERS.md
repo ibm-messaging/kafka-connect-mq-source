@@ -1,4 +1,4 @@
 # MAINTAINERS
 
-Andrew Schofield - andrew_schofield@uk.ibm.com
-Kate Stanley - katheris@uk.ibm.com
+Dale Lane - dale.lane@uk.ibm.com
+Joel Hanson - joel.hanson2@ibm.com
