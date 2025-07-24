@@ -1348,4 +1348,47 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertThat(kafkaMessage.value()).isEqualTo("hello");
         assertThat(kafkaMessage.headers()).isEmpty();
     }
+
+    @Test
+    public void testMaxPollTimeTerminatesBatchEarly() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createExactlyOnceConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.message.receive.timeout", "150");
+        connectorConfigProps.put("mq.receive.subsequent.timeout.ms", "10");
+        connectorConfigProps.put("mq.receive.max.poll.time.ms", "200"); // stop after 200ms
+        connectorConfigProps.put("mq.batch.size", "5000");
+
+        final JMSWorker shared = new JMSWorker();
+        shared.configure(getPropertiesConfig(connectorConfigProps));
+        final JMSWorker dedicated = new JMSWorker();
+        dedicated.configure(getPropertiesConfig(connectorConfigProps));
+        final SequenceStateClient sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
+
+        connectTask.start(connectorConfigProps, shared, dedicated, sequenceStateClient);
+
+        List<Message> messages = createAListOfMessages(getJmsContext(), 10, "msg ");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
+        messages = createAListOfMessages(getJmsContext(), 10, "msg ");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
+        messages = createAListOfMessages(getJmsContext(), 10, "msg ");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
+
+        final long start = System.nanoTime();
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
+        final long durationMs = (System.nanoTime() - start) / 1_000_000;
+
+        System.out.println(durationMs);
+        // Poll should end close to 200ms
+        assertThat(durationMs >= 180 && durationMs <= 500).isTrue();
+
+        final List<Message> stateMsgs1 = browseAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
+        assertThat(stateMsgs1.size()).isEqualTo(1);
+        final List<Message> sourceMsgs = getAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
+        assertThat(sourceMsgs.size()).isEqualTo(0);
+        assertEquals(30, kafkaMessages.size());
+    }
 }
