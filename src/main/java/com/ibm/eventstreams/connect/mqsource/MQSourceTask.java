@@ -22,6 +22,8 @@ import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateExceptio
 import com.ibm.eventstreams.connect.mqsource.util.LogMessages;
 import com.ibm.eventstreams.connect.mqsource.util.ExceptionProcessor;
 import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
+
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -533,7 +535,7 @@ public class MQSourceTask extends SourceTask {
      * @throws InterruptedException
      */
     @Override
-    public void commitRecord(final SourceRecord record) throws InterruptedException {
+    public void commitRecord(final SourceRecord record, final RecordMetadata metadata) throws InterruptedException {
         log.trace("[{}] Entry {}.commitRecord, record={}", Thread.currentThread().getId(), this.getClass().getName(),
                 record);
 

@@ -128,7 +128,7 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessages = connectTask.poll();
 
         for (final SourceRecord kafkaMessage : kafkaMessages) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         // Check that MQ has been read from
@@ -169,7 +169,7 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessages = connectTask.poll();
 
         for (final SourceRecord kafkaMessage : kafkaMessages) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         // Check that MQ has been read from
@@ -500,7 +500,7 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
         assertThat(kafkaMessagesRoundOne.size()).isEqualTo(2);
 
         for (final SourceRecord kafkaMessage : kafkaMessagesRoundOne) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         assertThat(kafkaMessagesRoundOne)
@@ -518,7 +518,7 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
         assertThat(kafkaMessagesRoundTwo.size()).isEqualTo(2);
 
         for (final SourceRecord kafkaMessage : kafkaMessagesRoundTwo) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         assertThat(kafkaMessagesRoundTwo)
@@ -540,7 +540,7 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessagesRoundThree = connectTask.poll();
 
         for (final SourceRecord kafkaMessage : kafkaMessagesRoundThree) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         // These messages would have been returned if onlyOnce wasn't implemented.

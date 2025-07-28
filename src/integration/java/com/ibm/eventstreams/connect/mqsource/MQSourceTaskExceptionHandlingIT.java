@@ -221,7 +221,7 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         assertThat(exc).isNotNull();
         assertThat(exc).isInstanceOf(RetriableException.class);
         for (SourceRecord record : sourceRecords) {
-            connectTask.commitRecord(record);
+            connectTask.commitRecord(record, null);
         }
 
         assertThat(sourceRecords.size()).isEqualTo(0);
@@ -341,7 +341,7 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         try {
             sourceRecords = connectTask.poll();
             for (SourceRecord record : sourceRecords) {
-                connectTask.commitRecord(record);
+                connectTask.commitRecord(record, null);
             }
 
         } catch(Exception e) {
