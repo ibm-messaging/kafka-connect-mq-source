@@ -110,7 +110,7 @@ public class MQSourceTaskAuthIT {
             assertNull(kafkaMessage.key());
             assertEquals(Schema.OPTIONAL_BYTES_SCHEMA, kafkaMessage.valueSchema());
 
-            newConnectTask.commitRecord(kafkaMessage);
+            newConnectTask.commitRecord(kafkaMessage, null);
         }
 
         assertArrayEquals("hello".getBytes(), (byte[]) kafkaMessages.get(0).value());

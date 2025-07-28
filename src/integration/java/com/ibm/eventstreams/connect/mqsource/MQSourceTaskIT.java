@@ -126,7 +126,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
             assertNull(kafkaMessage.key());
             assertNull(kafkaMessage.valueSchema());
 
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         assertEquals("hello", kafkaMessages.get(0).value());
@@ -163,7 +163,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
             final Map<?, ?> value = (Map<?, ?>) kafkaMessage.value();
             assertEquals(Long.valueOf(i), value.get("i"));
 
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
     }
 
@@ -192,7 +192,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals(received.getClass(), byte[].class);
         assertEquals(new String((byte[]) received, StandardCharsets.UTF_8), sent);
 
-        connectTask.commitRecord(firstMsg);
+        connectTask.commitRecord(firstMsg, null);
         connectTask.poll();
     }
 
@@ -227,7 +227,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals("11", kafkaMessage.headers().lastWithName("volume").value());
         assertEquals("42.0", kafkaMessage.headers().lastWithName("decimalmeaning").value());
 
-        connectTask.commitRecord(kafkaMessage);
+        connectTask.commitRecord(kafkaMessage, null);
     }
 
     @Test
@@ -254,28 +254,28 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals(10, kafkaMessages.size());
         for (final SourceRecord kafkaMessage : kafkaMessages) {
             assertEquals("batch message " + (nextExpectedMessage++), kafkaMessage.value());
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
         for (final SourceRecord kafkaMessage : kafkaMessages) {
             assertEquals("batch message " + (nextExpectedMessage++), kafkaMessage.value());
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
         for (final SourceRecord kafkaMessage : kafkaMessages) {
             assertEquals("batch message " + (nextExpectedMessage++), kafkaMessage.value());
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(5, kafkaMessages.size());
         for (final SourceRecord kafkaMessage : kafkaMessages) {
             assertEquals("batch message " + (nextExpectedMessage++), kafkaMessage.value());
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
     }
 
@@ -299,25 +299,25 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
         for (final SourceRecord m : kafkaMessages) {
-            connectTask.commitRecord(m);
+            connectTask.commitRecord(m, null);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
         for (final SourceRecord m : kafkaMessages) {
-            connectTask.commitRecord(m);
+            connectTask.commitRecord(m, null);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
         for (final SourceRecord m : kafkaMessages) {
-            connectTask.commitRecord(m);
+            connectTask.commitRecord(m, null);
         }
 
         kafkaMessages = connectTask.poll();
         assertEquals(5, kafkaMessages.size());
         for (final SourceRecord m : kafkaMessages) {
-            connectTask.commitRecord(m);
+            connectTask.commitRecord(m, null);
         }
     }
 
@@ -346,7 +346,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         assertEquals("testmessage", kafkaMessage.value());
 
-        connectTask.commitRecord(kafkaMessage);
+        connectTask.commitRecord(kafkaMessage, null);
     }
 
     @Test
@@ -374,13 +374,13 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals("verifycorrel", kafkaMessage1.key());
         assertEquals(Schema.OPTIONAL_STRING_SCHEMA, kafkaMessage1.keySchema());
         assertEquals("first message", kafkaMessage1.value());
-        connectTask.commitRecord(kafkaMessage1);
+        connectTask.commitRecord(kafkaMessage1, null);
 
         final SourceRecord kafkaMessage2 = kafkaMessages.get(1);
         assertEquals("5fb4a18030154fe4b09a1dfe8075bc101dfe8075bc104fe4", kafkaMessage2.key());
         assertEquals(Schema.OPTIONAL_STRING_SCHEMA, kafkaMessage2.keySchema());
         assertEquals("second message", kafkaMessage2.value());
-        connectTask.commitRecord(kafkaMessage2);
+        connectTask.commitRecord(kafkaMessage2, null);
     }
 
     @Test
@@ -408,7 +408,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         assertEquals("testmessagewithcorrelbytes", kafkaMessage.value());
 
-        connectTask.commitRecord(kafkaMessage);
+        connectTask.commitRecord(kafkaMessage, null);
     }
 
     @Test
@@ -435,7 +435,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         assertEquals("testmessagewithdest", kafkaMessage.value());
 
-        connectTask.commitRecord(kafkaMessage);
+        connectTask.commitRecord(kafkaMessage, null);
     }
 
     @Test
@@ -467,7 +467,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertThat(stateMsgs1.size()).isEqualTo(1);
 
         for (final SourceRecord m : kafkaMessages) {
-            connectTask.commitRecord(m);
+            connectTask.commitRecord(m, null);
         }
 
         /// make commit do rollback when poll is called
@@ -651,7 +651,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final SourceRecord kafkaMessage = kafkaMessages.get(0);
         assertNull(kafkaMessage.value());
 
-        connectTask.commitRecord(kafkaMessage);
+        connectTask.commitRecord(kafkaMessage, null);
     }
 
     @Test
@@ -674,7 +674,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         final SourceRecord kafkaMessage = kafkaMessages.get(0);
         assertNull(kafkaMessage.value());
 
-        connectTask.commitRecord(kafkaMessage);
+        connectTask.commitRecord(kafkaMessage, null);
     }
 
     @Test
@@ -752,7 +752,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
             final Map<?, ?> value = (Map<?, ?>) validRecord.value();
             assertThat(value.get("i")).isEqualTo(Long.valueOf(i));
 
-            connectTask.commitRecord(validRecord);
+            connectTask.commitRecord(validRecord, null);
         }
     }
 
@@ -797,7 +797,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
             final Map<?, ?> value = (Map<?, ?>) validRecord.value();
             assertThat(value.get("i")).isEqualTo(Long.valueOf(i - 1));
 
-            connectTask.commitRecord(validRecord);
+            connectTask.commitRecord(validRecord, null);
         }
     }
 
@@ -876,7 +876,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals(headers.lastWithName("__connect.errors.jms.message.id").value(), message.getJMSMessageID());
         assertEquals(headers.lastWithName("__connect.errors.jms.timestamp").value(), message.getJMSTimestamp());
         assertEquals(headers.lastWithName("__connect.errors.mq.queue").value(), DEFAULT_SOURCE_QUEUE);
-        connectTask.commitRecord(dlqRecord);
+        connectTask.commitRecord(dlqRecord, null);
     }
 
     @Test
@@ -910,7 +910,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         for (final SourceRecord dlqRecord : processedRecords) {
             assertThat(dlqRecord.topic()).isEqualTo("__dlq.mq.source");
             assertThat(dlqRecord.valueSchema().type()).isEqualTo(Schema.Type.BYTES);
-            connectTask.commitRecord(dlqRecord);
+            connectTask.commitRecord(dlqRecord, null);
         }
     }
 
@@ -943,7 +943,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertThat(headers.lastWithName("__connect.errors.exception.message").value())
                 .isEqualTo("Converting byte[] to Kafka Connect data failed due to serialization error: ");
 
-        connectTask.commitRecord(dlqRecord);
+        connectTask.commitRecord(dlqRecord, null);
     }
 
     @Test
@@ -984,7 +984,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
                 validCount++;
                 assertThat(record.topic()).isEqualTo("mytopic");
             }
-            connectTask.commitRecord(record);
+            connectTask.commitRecord(record, null);
         }
 
         assertThat(validCount).isEqualTo(3);
