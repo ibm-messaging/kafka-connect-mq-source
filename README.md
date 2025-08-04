@@ -6,7 +6,7 @@ The connector is supplied as source code which you can easily build into a JAR f
 
 **Note**: A sink connector for IBM MQ is also available on [GitHub](https://github.com/ibm-messaging/kafka-connect-mq-sink).
 
-**Compatibility:**: This Connector supports Kafka versions upto 3.9. It is not compatible with Kafka 4.x.
+**Kafka version support:**: This connector supports Kafka versions upto 3.9. It is not compatible with Kafka 4.x.
 
 ## Contents
 
