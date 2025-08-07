@@ -240,7 +240,7 @@ public class MQSourceTaskTest {
                 assertThat(pollDuringCommits).isNull();
             }
 
-            mqSourceTask.commitRecord(firstConnectMessagesBatch.get(i));
+            mqSourceTask.commitRecord(firstConnectMessagesBatch.get(i), null);
         }
 
         // now all messages are committed, a poll should return messages

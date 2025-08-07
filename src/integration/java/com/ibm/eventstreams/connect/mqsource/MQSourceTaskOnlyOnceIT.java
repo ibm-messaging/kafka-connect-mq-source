@@ -126,7 +126,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessages = connectTask.poll();
 
         for (final SourceRecord kafkaMessage : kafkaMessages) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         assertThat(kafkaMessages)
@@ -145,7 +145,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessages = connectTask.poll();
 
         for (final SourceRecord kafkaMessage : kafkaMessages) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         assertThat(kafkaMessages)
@@ -166,7 +166,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessages = connectTask.poll();
 
         for (final SourceRecord kafkaMessage : kafkaMessages) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         assertThat(getSequenceStateAndAssertNotEmpty()).isEqualTo(new SequenceState(
@@ -215,7 +215,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
                 .contains(sequenceId);
 
         for (final SourceRecord m : kafkaMessages) {
-            connectTask.commitRecord(m);
+            connectTask.commitRecord(m, null);
         }
 
         assertThat(getSequenceStateAndAssertNotEmpty()).isEqualTo(new SequenceState(
@@ -246,7 +246,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         final List<SourceRecord> sourceRecords = connectTask.poll();
 
         for (final SourceRecord sourceRecord : sourceRecords) {
-            connectTask.commitRecord(sourceRecord);
+            connectTask.commitRecord(sourceRecord, null);
         }
 
         assertThat(sourceRecords)
@@ -275,7 +275,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessages = connectTask.poll();
 
         for (final SourceRecord kafkaMessage : kafkaMessages) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         assertThat(kafkaMessages)
@@ -298,7 +298,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         final List<SourceRecord> kafkaMessages = connectTask.poll();
 
         for (final SourceRecord kafkaMessage : kafkaMessages) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         assertThat(kafkaMessages)
@@ -329,7 +329,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         kafkaMessages = connectTask.poll();
 
         for (final SourceRecord kafkaMessage : kafkaMessages) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         assertThat(kafkaMessages)
@@ -349,7 +349,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         kafkaMessages = connectTask.poll();
 
         for (final SourceRecord kafkaMessage : kafkaMessages) {
-            connectTask.commitRecord(kafkaMessage);
+            connectTask.commitRecord(kafkaMessage, null);
         }
 
         assertThat(kafkaMessages)
