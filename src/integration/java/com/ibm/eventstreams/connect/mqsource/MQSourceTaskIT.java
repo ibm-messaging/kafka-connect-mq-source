@@ -411,6 +411,35 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         connectTask.commitRecord(kafkaMessage, null);
     }
 
+
+    @Test
+    public void verifyCorrelationIdBytesAsKey_WithJMSDisabled() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "false");
+        connectorConfigProps.put("mq.record.builder",
+                "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorConfigProps.put("mq.record.builder.key.header", "JMSCorrelationIDAsBytes");
+
+        connectTask.start(connectorConfigProps);
+
+        final TextMessage message = getJmsContext().createTextMessage("testmessagewithcorrelbytes");
+        message.setJMSCorrelationID("verifycorrelbytes");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message));
+
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
+        assertEquals(1, kafkaMessages.size());
+
+        final SourceRecord kafkaMessage = kafkaMessages.get(0);
+        assertArrayEquals("verifycorrelbytes".getBytes(), (byte[]) kafkaMessage.key());
+        assertEquals(Schema.OPTIONAL_BYTES_SCHEMA, kafkaMessage.keySchema());
+        assertEquals(Schema.OPTIONAL_BYTES_SCHEMA, kafkaMessage.valueSchema());
+
+        assertThat(new String((byte[]) kafkaMessage.value(), StandardCharsets.UTF_8).endsWith("testmessagewithcorrelbytes")).isTrue();
+        connectTask.commitRecord(kafkaMessage, null);
+    }
+
     @Test
     public void verifyDestinationAsKey() throws Exception {
         connectTask = getSourceTaskWithEmptyKafkaOffset();
@@ -1726,5 +1755,49 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertThat(headers.lastWithName("createdAt").value()).isEqualTo("1609459200000");
         assertThat(headers.lastWithName("threshold").value()).isEqualTo("0.95");
         assertThat(headers.lastWithName("enabled").value()).isEqualTo("true");
+    }
+
+    @Test
+    public void shouldSetJmsPropertiesWithJsonRecordBuilderWhenJMSIsDisabled_InvalidJSON() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_TOPIC, "mytopic");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_MESSAGE_BODY_JMS, "false");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER, "true");
+        connectorConfigProps.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER,
+                "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        connectTask.start(connectorConfigProps);
+
+        final TextMessage message = getJmsContext()
+                .createTextMessage("{ \"id\": 123, \"name\": \"test\", \"active\": true }");
+        message.setStringProperty("source", "system-a");
+        message.setIntProperty("version", 2);
+        message.setLongProperty("timestamp", 1234567890L);
+
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message));
+
+        final List<SourceRecord> processedRecords = connectTask.poll();
+        SourceRecord record = processedRecords.get(0);
+        assertThat(processedRecords).hasSize(1);
+        assertThat(record).isNotNull();
+        assertThat(record.topic()).isEqualTo("mytopic");
+        assertThat(record.value()).isInstanceOf(Map.class);
+        assertNull(record.valueSchema()); // JSON with no schema
+
+        // Verify JSON data
+        @SuppressWarnings("unchecked")
+        Map<String, Object> value = (Map<String, Object>) record.value();
+        assertEquals(123L, value.get("id"));
+        assertEquals("test", value.get("name"));
+        assertEquals(true, value.get("active"));
+
+        final Headers headers = record.headers();
+
+        // Verify JMS properties are copied even when JMS body processing is disabled
+        assertThat(headers.lastWithName("source").value()).isEqualTo("system-a");
+        assertThat(headers.lastWithName("version").value()).isEqualTo("2");
+        assertThat(headers.lastWithName("timestamp").value()).isEqualTo("1234567890");
     }
 }

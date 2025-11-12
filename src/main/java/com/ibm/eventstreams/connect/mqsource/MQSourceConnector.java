@@ -17,7 +17,8 @@ package com.ibm.eventstreams.connect.mqsource;
 
 import java.io.File;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -244,7 +245,7 @@ public class MQSourceConnector extends SourceConnector {
      * @param props configuration settings
      */
     @Override public void start(final Map<String, String> props) {
-        log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
+        log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().threadId(), this.getClass().getName(), props);
 
         configProps = props;
         for (final Entry<String, String> entry : props.entrySet()) {
@@ -257,7 +258,7 @@ public class MQSourceConnector extends SourceConnector {
             log.debug("Connector props entry {} : {}", entry.getKey(), value);
         }
 
-        log.trace("[{}]  Exit {}.start", Thread.currentThread().getId(), this.getClass().getName());
+        log.trace("[{}]  Exit {}.start", Thread.currentThread().threadId(), this.getClass().getName());
     }
 
     /**
@@ -277,7 +278,7 @@ public class MQSourceConnector extends SourceConnector {
      */
     @Override
     public List<Map<String, String>> taskConfigs(final int maxTasks) {
-        log.trace("[{}] Entry {}.taskConfigs, maxTasks={}", Thread.currentThread().getId(), this.getClass().getName(),
+        log.trace("[{}] Entry {}.taskConfigs, maxTasks={}", Thread.currentThread().threadId(), this.getClass().getName(),
                 maxTasks);
 
         final List<Map<String, String>> taskConfigs = new ArrayList<>();
@@ -285,7 +286,7 @@ public class MQSourceConnector extends SourceConnector {
             taskConfigs.add(configProps);
         }
 
-        log.trace("[{}]  Exit {}.taskConfigs, retval={}", Thread.currentThread().getId(), this.getClass().getName(),
+        log.trace("[{}]  Exit {}.taskConfigs, retval={}", Thread.currentThread().threadId(), this.getClass().getName(),
                 taskConfigs);
         return taskConfigs;
     }
@@ -295,8 +296,8 @@ public class MQSourceConnector extends SourceConnector {
      */
     @Override
     public void stop() {
-        log.trace("[{}] Entry {}.stop", Thread.currentThread().getId(), this.getClass().getName());
-        log.trace("[{}]  Exit {}.stop", Thread.currentThread().getId(), this.getClass().getName());
+        log.trace("[{}] Entry {}.stop", Thread.currentThread().threadId(), this.getClass().getName());
+        log.trace("[{}]  Exit {}.stop", Thread.currentThread().threadId(), this.getClass().getName());
     }
 
     /**
@@ -709,8 +710,8 @@ public class MQSourceConnector extends SourceConnector {
             }
 
             try {
-                new URL(strValue);
-            } catch (final MalformedURLException exc) {
+                new URI(strValue).toURL();
+            } catch (final MalformedURLException | URISyntaxException exc) {
                 throw new ConfigException(name, value, "Value must be a valid URL");
             }
         }
