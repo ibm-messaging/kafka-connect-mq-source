@@ -15,6 +15,7 @@
  */
 package com.ibm.eventstreams.connect.mqsource.builders;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -29,10 +30,12 @@ import javax.jms.MapMessage;
 import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.errors.DataException;
+import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.Test;
 
 import com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT;
+import com.ibm.eventstreams.connect.mqsource.JMSWorker;
 
 public class JsonRecordBuilderIT extends AbstractJMSContextIT {
 
@@ -149,5 +152,57 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
         assertThrows(DataException.class, () -> {
             builder.toSourceRecord(getJmsContext(), topic, isJMS, message);
         });
+    }
+
+
+    @Test
+    public void testToSourceRecord_JsonRecordBuilder_JsonMessage() throws Exception {
+        // Test: JsonRecordBuilder with JSON message and JsonConverter
+        // Expected: JSON output with no schema
+        Map<String, String> connectorProps = getDefaultConnectorProperties();
+        connectorProps.put("mq.message.body.jms", "true"); // Not used by JsonRecordBuilder
+        connectorProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+        connectorProps.put("mq.jms.properties.copy.to.kafka.headers", "true");
+
+        JMSWorker worker = new JMSWorker();
+        worker.configure(getPropertiesConfig(connectorProps));
+        worker.connect();
+
+        try {
+            String jsonText = "{ \"id\": 123, \"name\": \"test\", \"active\": true }";
+            TextMessage textMessage = getJmsContext().createTextMessage(jsonText);
+            textMessage.setStringProperty("source", "system-a");
+            textMessage.setIntProperty("retryCount", 3);
+            textMessage.setDoubleProperty("threshold", 0.95);
+            textMessage.setBooleanProperty("enabled", true);
+
+            Map<String, Long> sourceOffset = new HashMap<>();
+            sourceOffset.put("sequence-id", 4L);
+
+            Map<String, String> sourcePartition = new HashMap<>();
+            sourcePartition.put("source", "myqmgr/myq");
+
+            SourceRecord sourceRecord = worker.toSourceRecord(textMessage, true, sourceOffset, sourcePartition);
+
+            assertThat(sourceRecord).isNotNull();
+            assertThat(sourceRecord.value()).isInstanceOf(Map.class);
+            assertNull(sourceRecord.valueSchema()); // JSON with no schema
+            
+            // Verify JSON data
+            @SuppressWarnings("unchecked")
+            Map<String, Object> value = (Map<String, Object>) sourceRecord.value();
+            assertEquals(123L, value.get("id"));
+            assertEquals("test", value.get("name"));
+            assertEquals(true, value.get("active"));
+
+            // Verify JMS properties are copied to Kafka headers
+            Headers headers = sourceRecord.headers();
+            assertThat(headers.lastWithName("source").value()).isEqualTo("system-a");
+            assertThat(headers.lastWithName("retryCount").value()).isEqualTo("3");
+            assertThat(headers.lastWithName("threshold").value()).isEqualTo("0.95");
+            assertThat(headers.lastWithName("enabled").value()).isEqualTo("true");
+        } finally {
+            worker.stop();
+        }
     }
 }
