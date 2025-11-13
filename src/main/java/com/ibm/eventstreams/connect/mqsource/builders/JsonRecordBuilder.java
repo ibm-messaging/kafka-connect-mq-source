@@ -46,7 +46,8 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
     // RFH2 header constants
     private static final String RFH2_STRUC_ID = "RFH ";
     private static final int RFH2_STRUCT_ID_LENGTH = 4;
-    private static final int RFH2_STRUC_LENGTH_OFFSET = 8;
+    private static final int RFH2_STRUC_LENGTH = 4;
+    private static final int RFH2_STRUC_LENGTH_OFFSET = RFH2_STRUCT_ID_LENGTH + RFH2_STRUC_LENGTH;
     private static final int RFH2_MIN_HEADER_SIZE = 36;
 
     public JsonRecordBuilder() {
@@ -114,6 +115,7 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
      * - Variable length folders containing name-value pairs
      * 
      * Inspired from https://github.com/CommunityHiQ/Frends.Community.IBMMQ/blob/master/Frends.Community.IBMMQ/Helpers/IBMMQHelpers.cs
+     * Header structure https://www.ibm.com/docs/en/integration-bus/10.0.0?topic=header-mqrfh2-structure
      *
      * @param payload the original message payload
      * @return the payload with RFH2 header removed if present, otherwise the original payload

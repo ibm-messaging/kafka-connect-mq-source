@@ -245,7 +245,7 @@ public class MQSourceConnector extends SourceConnector {
      * @param props configuration settings
      */
     @Override public void start(final Map<String, String> props) {
-        log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().threadId(), this.getClass().getName(), props);
+        log.trace("[{}] Entry {}.start, props={}", Thread.currentThread().getId(), this.getClass().getName(), props);
 
         configProps = props;
         for (final Entry<String, String> entry : props.entrySet()) {
@@ -258,7 +258,7 @@ public class MQSourceConnector extends SourceConnector {
             log.debug("Connector props entry {} : {}", entry.getKey(), value);
         }
 
-        log.trace("[{}]  Exit {}.start", Thread.currentThread().threadId(), this.getClass().getName());
+        log.trace("[{}]  Exit {}.start", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**
@@ -278,7 +278,7 @@ public class MQSourceConnector extends SourceConnector {
      */
     @Override
     public List<Map<String, String>> taskConfigs(final int maxTasks) {
-        log.trace("[{}] Entry {}.taskConfigs, maxTasks={}", Thread.currentThread().threadId(), this.getClass().getName(),
+        log.trace("[{}] Entry {}.taskConfigs, maxTasks={}", Thread.currentThread().getId(), this.getClass().getName(),
                 maxTasks);
 
         final List<Map<String, String>> taskConfigs = new ArrayList<>();
@@ -286,7 +286,7 @@ public class MQSourceConnector extends SourceConnector {
             taskConfigs.add(configProps);
         }
 
-        log.trace("[{}]  Exit {}.taskConfigs, retval={}", Thread.currentThread().threadId(), this.getClass().getName(),
+        log.trace("[{}]  Exit {}.taskConfigs, retval={}", Thread.currentThread().getId(), this.getClass().getName(),
                 taskConfigs);
         return taskConfigs;
     }
@@ -296,8 +296,8 @@ public class MQSourceConnector extends SourceConnector {
      */
     @Override
     public void stop() {
-        log.trace("[{}] Entry {}.stop", Thread.currentThread().threadId(), this.getClass().getName());
-        log.trace("[{}]  Exit {}.stop", Thread.currentThread().threadId(), this.getClass().getName());
+        log.trace("[{}] Entry {}.stop", Thread.currentThread().getId(), this.getClass().getName());
+        log.trace("[{}]  Exit {}.stop", Thread.currentThread().getId(), this.getClass().getName());
     }
 
     /**
