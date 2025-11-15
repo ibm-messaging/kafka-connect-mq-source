@@ -1,5 +1,5 @@
 /**
- * Copyright 2018, 2019, 2023, 2024 IBM Corporation
+ * Copyright 2018, 2019, 2023, 2024, 2025 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import javax.jms.Message;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
+import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -203,31 +204,23 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             // Extract key and value
             final SchemaAndValue value = this.getValue(context, topic, messageBodyJms, message);
             key = this.getKey(context, topic, message);
-
             // Create and return appropriate record based on configuration
-            if (copyJmsPropertiesFlag && messageBodyJms) {
-                return new SourceRecord(
-                        sourceQueuePartition,
-                        sourceOffset,
-                        topic,
-                        null,
-                        key.schema(),
-                        key.value(),
-                        value.schema(),
-                        value.value(),
-                        message.getJMSTimestamp(),
-                        jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message));
-            } else {
-                return new SourceRecord(
-                        sourceQueuePartition,
-                        sourceOffset,
-                        topic,
-                        null,
-                        key.schema(),
-                        key.value(),
-                        value.schema(),
-                        value.value());
-            }
+            final Long timestamp = messageBodyJms ? message.getJMSTimestamp() : null;
+            final Iterable<Header> headers = copyJmsPropertiesFlag
+                    ? jmsToKafkaHeaderConverter.convertJmsPropertiesToKafkaHeaders(message)
+                    : null;
+
+            return new SourceRecord(
+                    sourceQueuePartition,
+                    sourceOffset,
+                    topic,
+                    null,
+                    key.schema(),
+                    key.value(),
+                    value.schema(),
+                    value.value(),
+                    timestamp,
+                    headers);
         } catch (final Exception e) {
             // Log the error using error handler
             errorHandler.logError(e, topic, message);

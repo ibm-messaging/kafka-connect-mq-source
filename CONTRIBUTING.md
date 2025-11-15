@@ -11,6 +11,10 @@ To contribute code or documentation, please submit a [pull request](https://gith
 A good way to familiarize yourself with the codebase and contribution process is
 to look for and tackle low-hanging fruit in the [issue tracker](https://github.com/ibm-messaging/kafka-connect-mq-source/issues).
 
+## Testing with ARM64
+
+For instructions on testing with ARM64, see [IBM MQ 9.3.3.0 container image now available for Apple Silicon](https://community.ibm.com/community/user/blogs/richard-coppen/2023/06/30/ibm-mq-9330-container-image-now-available-for-appl).
+
 ## Create issues
 
 If you would like to implement a new feature, please [raise an issue](https://github.com/ibm-messaging/kafka-connect-mq-source/issues)

@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,10 +32,12 @@ import javax.jms.MessageFormatException;
 import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.junit.Test;
 
 import com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT;
+import com.ibm.eventstreams.connect.mqsource.JMSWorker;
 
 public class DefaultRecordBuilderIT extends AbstractJMSContextIT {
 
@@ -169,4 +172,144 @@ public class DefaultRecordBuilderIT extends AbstractJMSContextIT {
         assertNull(record.valueSchema());
     }
 
+    @Test
+    public void testToSourceRecord_DefaultRecordBuilder_AnyMessage_JmsFalse_ByteArrayConverter() throws Exception {
+        // Test: DefaultRecordBuilder with mq.message.body.jms=false
+        // Expected: String data output
+        Map<String, String> connectorProps = getDefaultConnectorProperties();
+        connectorProps.put("mq.message.body.jms", "false");
+        connectorProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorProps.put("mq.jms.properties.copy.to.kafka.headers", "true");
+
+        JMSWorker worker = new JMSWorker();
+        worker.configure(getPropertiesConfig(connectorProps));
+        worker.connect();
+
+        try {
+            TextMessage textMessage = getJmsContext().createTextMessage("Text message");
+            textMessage.setStringProperty("customHeader", "headerValue");
+            textMessage.setIntProperty("priority", 5);
+            textMessage.setDoubleProperty("price", 99.99);
+
+            Map<String, Long> sourceOffset = new HashMap<>();
+            sourceOffset.put("sequence-id", 1L);
+
+            Map<String, String> sourcePartition = new HashMap<>();
+            sourcePartition.put("source", "myqmgr/myq");
+
+            SourceRecord sourceRecord = worker.toSourceRecord(textMessage, true, sourceOffset, sourcePartition);
+
+            assertThat(sourceRecord).isNotNull();
+            assertThat(sourceRecord.value()).isInstanceOf(String.class);
+            assertThat(sourceRecord.valueSchema()).isNull();
+            
+            // Verify data
+            String value = (String) sourceRecord.value();
+            assertThat(value).isNotNull();
+
+            // Verify JMS properties are copied to Kafka headers
+            Headers headers = sourceRecord.headers();
+            assertThat(headers.lastWithName("customHeader").value()).isEqualTo("headerValue");
+            assertThat(headers.lastWithName("priority").value()).isEqualTo("5");
+            assertThat(headers.lastWithName("price").value()).isEqualTo("99.99");
+        } finally {
+            worker.stop();
+        }
+    }
+
+    @Test
+    public void testToSourceRecord_DefaultRecordBuilder_BytesMessage_JmsTrue() throws Exception {
+        // Test: DefaultRecordBuilder with JMS BytesMessage, mq.message.body.jms=true
+        // Expected: Binary data output
+        Map<String, String> connectorProps = getDefaultConnectorProperties();
+        connectorProps.put("mq.message.body.jms", "true");
+        connectorProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorProps.put("mq.jms.properties.copy.to.kafka.headers", "true");
+
+        JMSWorker worker = new JMSWorker();
+        worker.configure(getPropertiesConfig(connectorProps));
+        worker.connect();
+
+        try {
+            BytesMessage bytesMessage = getJmsContext().createBytesMessage();
+            byte[] testData = "Binary bytes message".getBytes(StandardCharsets.UTF_8);
+            bytesMessage.writeBytes(testData);
+            bytesMessage.setStringProperty("messageType", "binary");
+            bytesMessage.setIntProperty("version", 2);
+            bytesMessage.setLongProperty("timestamp", 1234567890L);
+            bytesMessage.reset(); // Reset to make the message readable
+
+            Map<String, Long> sourceOffset = new HashMap<>();
+            sourceOffset.put("sequence-id", 2L);
+
+            Map<String, String> sourcePartition = new HashMap<>();
+            sourcePartition.put("source", "myqmgr/myq");
+
+            SourceRecord sourceRecord = worker.toSourceRecord(bytesMessage, true, sourceOffset, sourcePartition);
+
+            assertThat(sourceRecord).isNotNull();
+            assertThat(sourceRecord.value()).isInstanceOf(byte[].class);
+            assertThat(sourceRecord.valueSchema()).isNull();
+            
+            // Verify binary data matches
+            byte[] value = (byte[]) sourceRecord.value();
+            assertArrayEquals(testData, value);
+
+            // Verify JMS properties are copied to Kafka headers
+            Headers headers = sourceRecord.headers();
+            assertThat(headers.lastWithName("messageType").value()).isEqualTo("binary");
+            assertThat(headers.lastWithName("version").value()).isEqualTo("2");
+            assertThat(headers.lastWithName("timestamp").value()).isEqualTo("1234567890");
+        } finally {
+            worker.stop();
+        }
+    }
+
+    @Test
+    public void testToSourceRecord_DefaultRecordBuilder_TextMessage_JmsTrue() throws Exception {
+        // Test: DefaultRecordBuilder with JMS TextMessage, mq.message.body.jms=true and StringConverter
+        // Expected: String data output
+        Map<String, String> connectorProps = getDefaultConnectorProperties();
+        connectorProps.put("mq.message.body.jms", "true");
+        connectorProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        connectorProps.put("mq.jms.properties.copy.to.kafka.headers", "true");
+
+        JMSWorker worker = new JMSWorker();
+        worker.configure(getPropertiesConfig(connectorProps));
+        worker.connect();
+
+        try {
+            String testText = "This is a text message";
+            TextMessage textMessage = getJmsContext().createTextMessage(testText);
+            textMessage.setStringProperty("source", "system-a");
+            textMessage.setIntProperty("retryCount", 3);
+            textMessage.setDoubleProperty("threshold", 0.95);
+            textMessage.setBooleanProperty("enabled", true);
+
+            Map<String, Long> sourceOffset = new HashMap<>();
+            sourceOffset.put("sequence-id", 3L);
+
+            Map<String, String> sourcePartition = new HashMap<>();
+            sourcePartition.put("source", "myqmgr/myq");
+
+            SourceRecord sourceRecord = worker.toSourceRecord(textMessage, true, sourceOffset, sourcePartition);
+
+            assertThat(sourceRecord).isNotNull();
+            assertThat(sourceRecord.value()).isInstanceOf(String.class);
+            assertNull(sourceRecord.valueSchema());
+            
+            // Verify string data matches
+            String value = (String) sourceRecord.value();
+            assertEquals(testText, value);
+
+            // Verify JMS properties are copied to Kafka headers
+            Headers headers = sourceRecord.headers();
+            assertThat(headers.lastWithName("source").value()).isEqualTo("system-a");
+            assertThat(headers.lastWithName("retryCount").value()).isEqualTo("3");
+            assertThat(headers.lastWithName("threshold").value()).isEqualTo("0.95");
+            assertThat(headers.lastWithName("enabled").value()).isEqualTo("true");
+        } finally {
+            worker.stop();
+        }
+    }
 }
