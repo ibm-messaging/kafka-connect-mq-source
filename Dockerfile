@@ -1,30 +1,13 @@
-# This dockerfile expects Connector jars to have been built under a `connectors` directory
-#
-FROM alpine as builder
+FROM apache/kafka:4.0.0
 
-RUN apk update
-RUN apk --no-cache add curl
+COPY --chown=appuser:appuser target/kafka-connect-*-jar-with-dependencies.jar /opt/kafka/plugins/
 
-RUN curl -L "https://downloads.apache.org/kafka/3.6.2/kafka_2.12-3.6.2.tgz" -o kafka.tgz
-RUN mkdir /opt/kafka \
-    && tar -xf kafka.tgz -C /opt/kafka --strip-components=1
+COPY --chown=appuser:appuser target/kafka-connect-*-jar-with-dependencies.jar /opt/kafka/plugins/
 
-FROM ibmjava:11
-
-RUN addgroup --gid 5000 --system esgroup && \
-    adduser --uid 5000 --ingroup esgroup --system esuser
-
-COPY --chown=esuser:esgroup --from=builder /opt/kafka/bin/ /opt/kafka/bin/
-COPY --chown=esuser:esgroup --from=builder /opt/kafka/libs/ /opt/kafka/libs/
-COPY --chown=esuser:esgroup --from=builder /opt/kafka/config/ /opt/kafka/config/
-RUN mkdir /opt/kafka/logs && chown esuser:esgroup /opt/kafka/logs
-
-COPY --chown=esuser:esgroup target/kafka-connect-*-jar-with-dependencies.jar /opt/connectors/
+RUN mkdir -p /opt/kafka/logs && chown -R appuser:appuser /opt/kafka/logs
 
 WORKDIR /opt/kafka
 
 EXPOSE 8083
-
-USER esuser
 
 ENTRYPOINT ["./bin/connect-distributed.sh", "config/connect-distributed.properties"]
