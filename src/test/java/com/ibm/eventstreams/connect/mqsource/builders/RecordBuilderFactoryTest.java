@@ -18,32 +18,42 @@ package com.ibm.eventstreams.connect.mqsource.builders;
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
+import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
+
 import java.util.HashMap;
 import java.util.Map;
 
 public class RecordBuilderFactoryTest {
 
-    final Map<String, String> emptyProps = new HashMap<>();
+    final Map<String, String> placeholderProps = Map.of(
+        "mq.queue.manager", "placeholder",
+        "mq.queue", "placeholder",
+        "topic", "placeholder"
+    );
 
     @Test
     public void testGetRecordBuilder_ForJsonRecordBuilder() {
-        RecordBuilder recordBuilder = RecordBuilderFactory.getRecordBuilder("com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder", emptyProps);
+        Map<String, String> props = new HashMap<>(placeholderProps);
+        props.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER, "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+
+        RecordBuilder recordBuilder = RecordBuilderFactory.getRecordBuilder(props);
         Assertions.assertThat(recordBuilder).isInstanceOf(JsonRecordBuilder.class);
     }
 
     @Test
     public void testGetRecordBuilder_ForDefaultRecordBuilder() {
-        RecordBuilder recordBuilder = RecordBuilderFactory.getRecordBuilder("com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder", emptyProps);
+        Map<String, String> props = new HashMap<>(placeholderProps);
+        props.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER, "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+
+        RecordBuilder recordBuilder = RecordBuilderFactory.getRecordBuilder(props);
         Assertions.assertThat(recordBuilder).isInstanceOf(DefaultRecordBuilder.class);
     }
 
     @Test(expected = RecordBuilderException.class)
     public void testGetRecordBuilder_JunkClass() {
-        RecordBuilderFactory.getRecordBuilder("casjsajhasdhusdo;iasd", emptyProps);
-    }
+        Map<String, String> props = new HashMap<>(placeholderProps);
+        props.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER, "casjsajhasdhusdo;iasd");
 
-    @Test(expected = RecordBuilderException.class)
-    public void testGetRecordBuilder_NullProps() {
-        RecordBuilderFactory.getRecordBuilder("casjsajhasdhusdo;iasd", null);
+        RecordBuilderFactory.getRecordBuilder(props);
     }
 }

@@ -32,7 +32,7 @@ public class RecordBuilderFactory {
         );
     }
 
-    protected static RecordBuilder getRecordBuilder(final String builderClass, final Map<String, String> props) {
+    private static RecordBuilder getRecordBuilder(final String builderClass, final Map<String, String> props) {
 
         final RecordBuilder builder;
 
@@ -40,7 +40,7 @@ public class RecordBuilderFactory {
             final Class<? extends RecordBuilder> c = Class.forName(builderClass).asSubclass(RecordBuilder.class);
             builder = c.newInstance();
             builder.configure(props);
-        } catch (ClassNotFoundException | ClassCastException | IllegalAccessException | InstantiationException | NullPointerException exc) {
+        } catch (ClassNotFoundException | ClassCastException | IllegalAccessException | InstantiationException exc) {
             log.error("Could not instantiate message builder {}", builderClass);
             throw new RecordBuilderException("Could not instantiate message builder", exc);
         }
