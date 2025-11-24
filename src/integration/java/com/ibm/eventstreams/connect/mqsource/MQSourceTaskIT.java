@@ -50,6 +50,7 @@ import javax.jms.Message;
 import javax.jms.TextMessage;
 
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.runtime.ConnectorConfig;
@@ -162,6 +163,189 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
             final Map<?, ?> value = (Map<?, ?>) kafkaMessage.value();
             assertEquals(Long.valueOf(i), value.get("i"));
+
+            connectTask.commitRecord(kafkaMessage, null);
+        }
+    }
+
+    // verify that user can use the standard approach for the JsonConverter
+    //  of embedding schemas in message payloads (enabling this using a
+    //  record builder config option)
+    @Test
+    public void verifyJmsSchemaMessages() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+        connectorConfigProps.put("mq.record.builder.json.schemas.enable", "true");
+
+        connectTask.start(connectorConfigProps);
+
+        final List<Message> messages = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            messages.add(getJmsContext().createTextMessage(
+                "{\n" +
+                        "\"schema\": {\n" +
+                        "    \"type\": \"struct\", \n" +
+                        "    \"fields\": [\n" +
+                        "        {\n" +
+                        "            \"field\": \"idx\", \n" +
+                        "            \"type\": \"int64\"\n" +
+                        "        },\n" +
+                        "        {\n" +
+                        "            \"field\": \"test\", \n" +
+                        "            \"type\": \"string\"\n" +
+                        "        }" +
+                        "    ]\n" +
+                        "}, " +
+                        "\"payload\": { " +
+                        "    \"idx\": " + i + ", " +
+                        "    \"test\" : \"abcdef\" " +
+                        "}" +
+                "}"));
+        }
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
+
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
+        assertEquals(5, kafkaMessages.size());
+
+        for (int i = 0; i < 5; i++) {
+            final SourceRecord kafkaMessage = kafkaMessages.get(i);
+            assertNull(kafkaMessage.key());
+
+            assertNotNull(kafkaMessage.valueSchema());
+            assertEquals(Schema.INT64_SCHEMA, kafkaMessage.valueSchema().field("idx").schema());
+            assertEquals(Schema.STRING_SCHEMA, kafkaMessage.valueSchema().field("test").schema());
+
+            final Struct value = (Struct) kafkaMessage.value();
+            assertEquals(Long.valueOf(i), value.getInt64("idx"));
+            assertEquals("abcdef", value.getString("test"));
+
+            connectTask.commitRecord(kafkaMessage, null);
+        }
+    }
+
+    // verify that a reusable schema can be provided to the JSON record builder
+    //  as part of the connector config, so that this can be reused across
+    //  multiple MQ messages
+    @Test
+    public void verifyJmsReusableSchemaMessages() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final String SCHEMA = "{\n" +
+                "    \"type\": \"struct\", \n" +
+                "    \"fields\": [\n" +
+                "        {\n" +
+                "            \"field\": \"idx\", \n" +
+                "            \"type\": \"int32\"\n" +
+                "        },\n" +
+                "        {\n" +
+                "            \"field\": \"a\", \n" +
+                "            \"type\": \"string\"\n" +
+                "        },\n" +
+                "        {\n" +
+                "            \"field\": \"b\", \n" +
+                "            \"type\": \"int64\"\n" +
+                "        },\n" +
+                "        {\n" +
+                "            \"field\": \"c\", \n" +
+                "            \"type\": \"double\"\n" +
+                "        },\n" +
+                "        {\n" +
+                "            \"field\": \"d\", \n" +
+                "            \"type\": \"boolean\"\n" +
+                "        },\n" +
+                "        {\n" +
+                "            \"field\": \"e\", \n" +
+                "            \"type\": \"float\"\n" +
+                "        },\n" +
+                "        {\n" +
+                "            \"field\": \"f\", \n" +
+                "            \"type\": \"array\",\n" +
+                "            \"items\": {\n" +
+                "                \"type\": \"string\"\n" +
+                "            }\n" +
+                "        },\n" +
+                "        {\n" +
+                "            \"field\": \"g\", \n" +
+                "            \"type\": \"array\", \n" +
+                "            \"items\": {\n" +
+                "                \"type\": \"int32\"\n" +
+                "            }\n" +
+                "        },\n" +
+                "        {\n" +
+                "            \"field\": \"h\", \n" +
+                "            \"type\": \"struct\", \n" +
+                "            \"fields\": [\n" +
+                "                {\n" +
+                "                    \"field\": \"innerstr\", \n" +
+                "                    \"type\": \"string\"\n" +
+                "                },\n" +
+                "                {\n" +
+                "                    \"field\": \"innernum\", \n" +
+                "                    \"type\": \"int64\"\n" +
+                "                }\n" +
+                "            ]\n" +
+                "        }\n" +
+                "    ]\n" +
+                "}";
+
+        final Map<String, String> connectorConfigProps = createDefaultConnectorProperties();
+        connectorConfigProps.put("mq.message.body.jms", "true");
+        connectorConfigProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+        connectorConfigProps.put("mq.record.builder.json.schemas.enable", "true");
+        connectorConfigProps.put("mq.record.builder.json.schema.content", SCHEMA);
+
+        connectTask.start(connectorConfigProps);
+
+        final List<Message> messages = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            messages.add(getJmsContext().createTextMessage(
+                "{ " +
+                    "\"idx\": " + i + ", \n" +
+                    "\"a\" : \"test\", \n" +
+                    "\"b\" : 1234, \n" +
+                    "\"c\" : 5.67, \n" +
+                    "\"d\" : false, \n" +
+                    "\"e\" : 12.34, \n" +
+                    "\"f\" : [ \"a\", \"b\", \"c\" ], \n" +
+                    "\"g\" : [ 1, 2, 3 ], \n" +
+                    "\"h\" : { \"innerstr\" : \"testing\", \"innernum\" : 89 }" +
+                "}"));
+        }
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
+
+        final List<SourceRecord> kafkaMessages = connectTask.poll();
+        assertEquals(5, kafkaMessages.size());
+
+        for (int i = 0; i < 5; i++) {
+            final SourceRecord kafkaMessage = kafkaMessages.get(i);
+            assertNull(kafkaMessage.key());
+
+            assertNotNull(kafkaMessage.valueSchema());
+            assertEquals(Schema.INT32_SCHEMA, kafkaMessage.valueSchema().field("idx").schema());
+            assertEquals(Schema.STRING_SCHEMA, kafkaMessage.valueSchema().field("a").schema());
+            assertEquals(Schema.INT64_SCHEMA, kafkaMessage.valueSchema().field("b").schema());
+            assertEquals(Schema.FLOAT64_SCHEMA, kafkaMessage.valueSchema().field("c").schema());
+            assertEquals(Schema.BOOLEAN_SCHEMA, kafkaMessage.valueSchema().field("d").schema());
+            assertEquals(Schema.FLOAT32_SCHEMA, kafkaMessage.valueSchema().field("e").schema());
+            assertEquals(Schema.STRING_SCHEMA, kafkaMessage.valueSchema().field("f").schema().valueSchema());
+            assertEquals(Schema.INT32_SCHEMA, kafkaMessage.valueSchema().field("g").schema().valueSchema());
+            assertEquals(Schema.STRING_SCHEMA, kafkaMessage.valueSchema().field("h").schema().field("innerstr").schema());
+            assertEquals(Schema.INT64_SCHEMA, kafkaMessage.valueSchema().field("h").schema().field("innernum").schema());
+
+            final Struct value = (Struct) kafkaMessage.value();
+            assertEquals(Integer.valueOf(i), value.getInt32("idx"));
+            assertEquals("test", value.getString("a"));
+            assertEquals(Long.valueOf(1234), value.getInt64("b"));
+            assertEquals(Double.valueOf(5.67), value.getFloat64("c"));
+            assertEquals(false, value.getBoolean("d"));
+            assertEquals(Float.valueOf(12.34f), value.getFloat32("e"));
+            assertArrayEquals(new String[]{ "a", "b", "c"}, value.getArray("f").toArray(new String[]{}));
+            assertArrayEquals(new Integer[] { 1, 2, 3 }, value.getArray("g").toArray(new Integer[]{}));
+            assertEquals("testing", value.getStruct("h").getString("innerstr"));
+            assertEquals(Long.valueOf(89), value.getStruct("h").getInt64("innernum"));
 
             connectTask.commitRecord(kafkaMessage, null);
         }
