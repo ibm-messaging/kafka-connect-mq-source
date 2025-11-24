@@ -240,7 +240,7 @@ public class MQSourceConnector extends SourceConnector {
         CONFIG_VALUE_MQ_CLIENT_RECONNECT_OPTION_DISABLED.toLowerCase(Locale.ENGLISH)
     };
 
-    public static String version = "2.6.0";
+    public static String version = "2.7.0";
 
     private Map<String, String> configProps;
 
