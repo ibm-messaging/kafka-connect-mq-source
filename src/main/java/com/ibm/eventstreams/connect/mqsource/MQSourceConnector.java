@@ -33,11 +33,18 @@ import org.apache.kafka.common.config.ConfigDef.Width;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.ConfigValue;
 import org.apache.kafka.connect.connector.Task;
+import org.apache.kafka.connect.errors.DataException;
+import org.apache.kafka.connect.json.JsonConverter;
+import org.apache.kafka.connect.json.JsonConverterConfig;
+import org.apache.kafka.connect.json.JsonDeserializer;
 import org.apache.kafka.connect.source.ConnectorTransactionBoundaries;
 import org.apache.kafka.connect.source.ExactlyOnceSupport;
 import org.apache.kafka.connect.source.SourceConnector;
+import org.apache.kafka.connect.storage.ConverterType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 public class MQSourceConnector extends SourceConnector {
     private static final Logger log = LoggerFactory.getLogger(MQSourceConnector.class);
@@ -211,6 +218,15 @@ public class MQSourceConnector extends SourceConnector {
             "written to the dead letter queue. To avoid clashing with headers from the original record, all error context header " +
             "keys, all error context header keys will start with <code>__connect.errors.</code>";
     private static final String DLQ_CONTEXT_HEADERS_ENABLE_DISPLAY = "Enable Error Context Headers";
+
+    public static final String CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMAS_ENABLE = "mq.record.builder.json.schemas.enable";
+    public static final String CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_JSON_SCHEMAS_ENABLE = "Include schemas within the Kafka messages produced by the JSON record builder.";
+    public static final String CONFIG_DISPLAY_MQ_RECORD_BUILDER_JSON_SCHEMAS_ENABLE = "Enable Schemas";
+
+    public static final String CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT = "mq.record.builder.json.schema.content";
+    public static final String CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT = "When set, this is used as the schema for all messages. This should be a Kafka Connect schema, as used by JsonConverter.";
+    public static final String CONFIG_DISPLAY_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT = "Schema Content";
+
 
     // Define valid reconnect options
     public static final String[] CONFIG_VALUE_MQ_VALID_RECONNECT_OPTIONS = {
@@ -666,6 +682,22 @@ public class MQSourceConnector extends SourceConnector {
                 32,
                 ConfigDef.Width.MEDIUM,
                 CONFIG_DISPLAY_MAX_POLL_TIME);
+        CONFIGDEF.define(CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMAS_ENABLE,
+                Type.BOOLEAN,
+                false, new ConfigDef.NonNullValidator(),
+                Importance.LOW,
+                CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_JSON_SCHEMAS_ENABLE,
+                CONFIG_GROUP_MQ, 33,
+                Width.SHORT,
+                CONFIG_DISPLAY_MQ_RECORD_BUILDER_JSON_SCHEMAS_ENABLE);
+        CONFIGDEF.define(CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT,
+                Type.STRING,
+                null, new SchemaValidator(),
+                Importance.LOW,
+                CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT,
+                CONFIG_GROUP_MQ, 34,
+                Width.MEDIUM,
+                CONFIG_DISPLAY_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT);
 
         CONFIGDEF.define(CONFIG_NAME_TOPIC,
                 Type.STRING,
@@ -712,6 +744,43 @@ public class MQSourceConnector extends SourceConnector {
                 new URL(strValue);
             } catch (final MalformedURLException exc) {
                 throw new ConfigException(name, value, "Value must be a valid URL");
+            }
+        }
+    }
+
+    private static class SchemaValidator implements ConfigDef.Validator {
+        @Override
+        public void ensureValid(final String name, final Object value) {
+            final String strValue = (String) value;
+            if (value == null || strValue.trim().isEmpty()) {
+                // only validate non-empty schemas
+                return;
+            }
+
+            // Start with a quick and simple "sniff test" on the provided schema
+            //  by checking if it starts and ends in curly-parentheses
+            // This will quickly catch obvious configuration errors, such as
+            //  providing a name, id, or file location for a schema
+            final String trimmedStr = strValue.trim();
+            if (!trimmedStr.startsWith("{") || !trimmedStr.endsWith("}")) {
+                throw new ConfigException(name, value, "Value should be a Kafka Connect schema");
+            }
+
+            // Create a temporary JsonDeserializer/JsonConverter to parse the
+            //  provided schema.
+            // The aim for doing this is to catch any invalid schemas at
+            //  startup time, rather than allow this to go unnoticed until
+            //  the first MQ message is received (potentially a long time
+            //  later).
+            try (
+                final JsonDeserializer deserializer = new JsonDeserializer();
+                final JsonConverter conv = new JsonConverter()
+            ) {
+                final JsonNode jsonStr = deserializer.deserialize(trimmedStr, trimmedStr.getBytes());
+                conv.configure(Map.of(JsonConverterConfig.TYPE_CONFIG, ConverterType.VALUE.getName()));
+                conv.asConnectSchema(jsonStr);
+            } catch (final DataException exc) {
+                throw new ConfigException(name, value, exc.getMessage());
             }
         }
     }
