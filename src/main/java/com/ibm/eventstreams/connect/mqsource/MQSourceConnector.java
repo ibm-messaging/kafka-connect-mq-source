@@ -19,6 +19,7 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -776,8 +777,11 @@ public class MQSourceConnector extends SourceConnector {
                 final JsonDeserializer deserializer = new JsonDeserializer();
                 final JsonConverter conv = new JsonConverter()
             ) {
+                final Map<String, String> converterConfig = new HashMap<>();
+                converterConfig.put(JsonConverterConfig.TYPE_CONFIG, ConverterType.VALUE.getName());
+                conv.configure(converterConfig);
+
                 final JsonNode jsonStr = deserializer.deserialize(trimmedStr, trimmedStr.getBytes());
-                conv.configure(Map.of(JsonConverterConfig.TYPE_CONFIG, ConverterType.VALUE.getName()));
                 conv.asConnectSchema(jsonStr);
             } catch (final DataException exc) {
                 throw new ConfigException(name, value, exc.getMessage());

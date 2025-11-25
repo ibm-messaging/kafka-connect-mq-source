@@ -16,6 +16,7 @@
 package com.ibm.eventstreams.connect.mqsource.builders;
 
 import org.assertj.core.api.Assertions;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
@@ -25,11 +26,14 @@ import java.util.Map;
 
 public class RecordBuilderFactoryTest {
 
-    final Map<String, String> placeholderProps = Map.of(
-        "mq.queue.manager", "placeholder",
-        "mq.queue", "placeholder",
-        "topic", "placeholder"
-    );
+    final Map<String, String> placeholderProps = new HashMap<>();
+
+    @Before
+    public void prepareProperties() {
+        placeholderProps.put("mq.queue.manager", "placeholder");
+        placeholderProps.put("mq.queue", "placeholder");
+        placeholderProps.put("topic", "placeholder");
+    }
 
     @Test
     public void testGetRecordBuilder_ForJsonRecordBuilder() {
