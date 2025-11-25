@@ -126,7 +126,7 @@ public class JsonRecordBuilder extends BaseRecordBuilder {
         if (recordBuilderSchemaSupport) {
             return converter.toConnectData(topic,
                 // embed schema in the event payload
-                (schemaSupportEnvelope + new String(payload) + "}").getBytes());
+                (schemaSupportEnvelope + new String(payload) + "}").getBytes(UTF_8));
         } else {
             return converter.toConnectData(topic,
                 // submit the payload as-is to the converter
