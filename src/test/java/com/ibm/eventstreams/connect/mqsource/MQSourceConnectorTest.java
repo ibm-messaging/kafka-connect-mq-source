@@ -187,6 +187,29 @@ public class MQSourceConnectorTest {
                 .anyMatch(msg -> msg.contains("The value of 'mq.reconnect.delay.max.ms' must be greater than or equal to the value of 'mq.reconnect.delay.min.ms'.")));
     }
 
+    // verify that valid JSON schema config will be accepted
+    @Test
+    public void testValidJsonSchemaConfig() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.queue.manager", "placeholder");
+        configProps.put("mq.queue", "placeholder");
+        configProps.put("topic", "placeholder");
+        configProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+        configProps.put("mq.record.builder.json.schemas.enable", "true");
+        configProps.put("mq.record.builder.json.schema.content", "{\n" +
+                "    \"type\": \"struct\", \n" +
+                "    \"fields\": [\n" +
+                "        {\n" +
+                "            \"field\": \"test\", \n" +
+                "            \"type\": \"string\"\n" +
+                "        }\n" +
+                "    ]\n" +
+                "}");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+        assertTrue(config.configValues().stream().allMatch(cv -> cv.errorMessages().size() == 0));
+    }
+
     // verify that providing a schema that isn't JSON will be rejected
     @Test
     public void testValidateJsonSchemaConfig() {
