@@ -225,7 +225,7 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_DISPLAY_MQ_RECORD_BUILDER_JSON_SCHEMAS_ENABLE = "Enable Schemas";
 
     public static final String CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT = "mq.record.builder.json.schema.content";
-    public static final String CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT = "When set, this is used as the schema for all messages. This should be a Kafka Connect schema, as used by JsonConverter.";
+    public static final String CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT = "When set, this is used as the schema for all messages. This must be a Kafka Connect schema, as used by JsonConverter.";
     public static final String CONFIG_DISPLAY_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT = "Schema Content";
 
 
