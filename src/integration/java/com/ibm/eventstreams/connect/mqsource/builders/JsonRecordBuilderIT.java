@@ -65,6 +65,7 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
 
         // use the builder to convert it to a Kafka record
         final JsonRecordBuilder builder = new JsonRecordBuilder();
+        builder.configure(getDefaultConnectorProperties());
         final SourceRecord record = builder.toSourceRecord(getJmsContext(), topic, isJMS, message);
 
         // verify the Kafka record
@@ -82,6 +83,7 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
 
         // use the builder to convert it to a Kafka record
         final JsonRecordBuilder builder = new JsonRecordBuilder();
+        builder.configure(getDefaultConnectorProperties());
         final SourceRecord record = builder.toSourceRecord(getJmsContext(), topic, isJMS, message);
 
         // verify the Kafka record
@@ -100,6 +102,7 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
 
         // use the builder to convert it to a Kafka record
         final JsonRecordBuilder builder = new JsonRecordBuilder();
+        builder.configure(getDefaultConnectorProperties());
         final RecordBuilderException exc = assertThrows(RecordBuilderException.class, () -> {
             builder.toSourceRecord(getJmsContext(), topic, isJMS, message);
         });
@@ -115,6 +118,7 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
 
         // use the builder to convert it to a Kafka record
         final JsonRecordBuilder builder = new JsonRecordBuilder();
+        builder.configure(getDefaultConnectorProperties());
         final DataException exec = assertThrows(DataException.class, () -> builder.toSourceRecord(getJmsContext(), topic, isJMS, message));
         assertEquals("Converting byte[] to Kafka Connect data failed due to serialization error: ", exec.getMessage());
     }
@@ -143,7 +147,7 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
 
         // use the builder to convert it to a Kafka record
         final JsonRecordBuilder builder = new JsonRecordBuilder();
-        final HashMap<String, String> config = new HashMap<String, String>();
+        final Map<String, String> config = getDefaultConnectorProperties();
         config.put("errors.tolerance", "none");
         config.put("mq.message.body.jms", "true");
         config.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
@@ -187,7 +191,7 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
             assertThat(sourceRecord).isNotNull();
             assertThat(sourceRecord.value()).isInstanceOf(Map.class);
             assertNull(sourceRecord.valueSchema()); // JSON with no schema
-            
+
             // Verify JSON data
             @SuppressWarnings("unchecked")
             Map<String, Object> value = (Map<String, Object>) sourceRecord.value();

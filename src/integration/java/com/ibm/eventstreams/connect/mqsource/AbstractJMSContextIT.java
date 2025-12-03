@@ -19,6 +19,7 @@ import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Ports;
+import com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder;
 import com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil;
 import com.ibm.mq.jms.MQConnectionFactory;
 import com.ibm.msg.client.wmq.WMQConstants;
@@ -102,6 +103,7 @@ public class AbstractJMSContextIT {
         props.put("mq.channel.name", CHANNEL_NAME);
         props.put("mq.queue", DEFAULT_SOURCE_QUEUE);
         props.put("mq.user.authentication.mqcsp", "false");
+        props.put("mq.record.builder", DefaultRecordBuilder.class.getCanonicalName());
         props.put("topic", "mytopic");
         return props;
     }

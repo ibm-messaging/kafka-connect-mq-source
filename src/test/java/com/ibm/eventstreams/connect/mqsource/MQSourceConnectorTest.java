@@ -186,4 +186,105 @@ public class MQSourceConnectorTest {
                 .flatMap(cv -> cv.errorMessages().stream())
                 .anyMatch(msg -> msg.contains("The value of 'mq.reconnect.delay.max.ms' must be greater than or equal to the value of 'mq.reconnect.delay.min.ms'.")));
     }
+
+    // verify that valid JSON schema config will be accepted
+    @Test
+    public void testValidJsonSchemaConfig() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.queue.manager", "placeholder");
+        configProps.put("mq.queue", "placeholder");
+        configProps.put("topic", "placeholder");
+        configProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.JsonRecordBuilder");
+        configProps.put("mq.record.builder.json.schemas.enable", "true");
+        configProps.put("mq.record.builder.json.schema.content", "{\n" +
+                "    \"type\": \"struct\", \n" +
+                "    \"fields\": [\n" +
+                "        {\n" +
+                "            \"field\": \"test\", \n" +
+                "            \"type\": \"string\"\n" +
+                "        }\n" +
+                "    ]\n" +
+                "}");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+        assertTrue(config.configValues().stream().allMatch(cv -> cv.errorMessages().size() == 0));
+    }
+
+    // verify that providing a schema that isn't JSON will be rejected
+    @Test
+    public void testValidateJsonSchemaConfig() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.record.builder.json.schemas.enable", "true");
+        configProps.put("mq.record.builder.json.schema.content", "Hello world");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("should be a Kafka Connect schema")));
+    }
+
+    // verify that providing JSON (such as JSON schema) that isn't a
+    //  Kafka Connect JSON Converter schema will be rejected
+    @Test
+    public void testValidateJsonConnectSchemaConfig() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.record.builder.json.schemas.enable", "true");
+        configProps.put("mq.record.builder.json.schema.content", "{\n" +
+            "  \"$id\": \"https:example.com/person.schema.json\",\n" +
+            "  \"$schema\": \"https:json-schema.org/draft/2020-12/schema\",\n" +
+            "  \"title\": \"Person\",\n" +
+            "  \"type\": \"object\",\n" +
+            "  \"properties\": {\n" +
+            "    \"firstName\": {\n" +
+            "      \"type\": \"string\",\n" +
+            "      \"description\": \"The person's first name.\"\n" +
+            "    },\n" +
+            "    \"lastName\": {\n" +
+            "      \"type\": \"string\",\n" +
+            "      \"description\": \"The person's last name.\"\n" +
+            "    },\n" +
+            "    \"age\": {\n" +
+            "      \"description\": \"Age in years which must be equal to or greater than zero.\",\n" +
+            "      \"type\": \"integer\",\n" +
+            "      \"minimum\": 0\n" +
+            "    }\n" +
+            "  }\n" +
+            "}");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("Unknown schema type")));
+    }
+
+    // verify that Kafka Connect JSON Converter schemas containing
+    //  invalid types will be rejected
+    @Test
+    public void testValidateJsonSchemaTypesConfig() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.record.builder.json.schemas.enable", "true");
+        configProps.put("mq.record.builder.json.schema.content", "{\n" +
+                "    \"type\": \"struct\", \n" +
+                "    \"fields\": [\n" +
+                "        {\n" +
+                "            \"field\": \"test\", \n" +
+                "            \"type\": \"not-a-real-type\"\n" +
+                "        }\n" +
+                "    ]\n" +
+                "}");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("Unknown schema type: not-a-real-type")));
+    }
 }
