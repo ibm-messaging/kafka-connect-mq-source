@@ -17,7 +17,8 @@ package com.ibm.eventstreams.connect.mqsource;
 
 import java.io.File;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -742,8 +743,8 @@ public class MQSourceConnector extends SourceConnector {
             }
 
             try {
-                new URL(strValue);
-            } catch (final MalformedURLException exc) {
+                new URI(strValue).toURL();
+            } catch (final MalformedURLException | URISyntaxException exc) {
                 throw new ConfigException(name, value, "Value must be a valid URL");
             }
         }
