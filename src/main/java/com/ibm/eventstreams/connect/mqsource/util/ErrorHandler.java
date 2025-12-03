@@ -250,6 +250,9 @@ public class ErrorHandler {
         try {
             if (message instanceof BytesMessage) {
                 log.debug("Extracting payload from BytesMessage for DLQ");
+                // Without reset(), the second read would fail because the internal 
+                // pointer is already at the end of the message from the first read attempt.
+                ((BytesMessage) message).reset(); // Reset read pointer
                 return Optional.ofNullable(message.getBody(byte[].class));
             } else if (message instanceof TextMessage) {
                 log.debug("Extracting payload from TextMessage for DLQ");
