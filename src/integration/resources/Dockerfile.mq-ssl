@@ -1,0 +1,20 @@
+# Use ARG to allow build-time image override
+# Default to public IBM MQ image for CI/CD compatibility
+ARG BASE_IMAGE=icr.io/ibm-messaging/mq:latest
+FROM ${BASE_IMAGE}
+
+USER root
+
+# Create directories and copy certificates
+RUN mkdir -p /etc/mqm/pki/keys/default /etc/mqm/pki/trust/default
+COPY ssl-certs/server.key /etc/mqm/pki/keys/default/key.key
+COPY ssl-certs/server-cert.pem /etc/mqm/pki/keys/default/key.crt
+COPY ssl-certs/ca.crt /etc/mqm/pki/trust/default/ca.crt
+RUN chmod 600 /etc/mqm/pki/keys/default/key.key
+RUN chmod 644 /etc/mqm/pki/keys/default/key.crt /etc/mqm/pki/trust/default/ca.crt
+
+# Copy MQ configuration
+COPY ssl-qmgr.mqsc /etc/mqm/99-ssl-qmgr.mqsc
+
+# Expose both SSL and non-SSL ports
+EXPOSE 1414 9443

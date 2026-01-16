@@ -27,7 +27,7 @@ jobs:
       - name: Checkstyle
         run: mvn -X validate
       - name: Test
-        run: mvn -X verify
+        run: mvn -X verify -DskipITs=false
   verify-commits:
     name: Verify Commits
     runs-on: ubuntu-latest

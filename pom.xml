@@ -40,6 +40,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <skipITs>false</skipITs>
     </properties>
     <dependencies>
         <dependency>
@@ -100,7 +101,7 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.20.1</version>
+            <version>1.21.0</version>
             <scope>test</scope>
         </dependency>
 
@@ -153,6 +154,12 @@
                     <additionalClasspathElements>
                         <additionalClasspathElement>src/test/resources</additionalClasspathElement>
                     </additionalClasspathElements>
+                    <!-- Exclude integration tests from unit test phase -->
+                    <excludes>
+                        <exclude>**/*IT.java</exclude>
+                        <exclude>**/IT*.java</exclude>
+                        <exclude>**/*ITCase.java</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
 
@@ -176,6 +183,33 @@
                             <goal>integration-test</goal>
                             <goal>verify</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Generate SSL certificates before integration tests -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-ssl-certificates</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>/bin/bash</executable>
+                            <arguments>
+                                <argument>${project.basedir}/src/integration/resources/generate-ssl-certs.sh</argument>
+                            </arguments>
+                            <workingDirectory>${project.basedir}/src/integration/resources</workingDirectory>
+                            <skip>${skipITs}</skip>
+                            <successCodes>
+                                <successCode>0</successCode>
+                            </successCodes>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -224,7 +258,7 @@
                 <executions>
                     <execution>
                         <id>add-test-source</id>
-                        <phase>process-test-sources</phase>
+                        <phase>generate-test-sources</phase>
                         <goals>
                             <goal>add-test-source</goal>
                         </goals>
@@ -232,6 +266,7 @@
                             <sources>
                                 <source>src/integration/java</source>
                             </sources>
+                            <skipIfMissing>true</skipIfMissing>
                         </configuration>
                     </execution>
                 </executions>
