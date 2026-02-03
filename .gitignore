@@ -20,3 +20,6 @@ target/
 mqjms.log.*
 /src/main/resources/simplelogger.properties
 .envrc
+
+# SSL certificates for integration tests (generated automatically)
+src/integration/resources/ssl-certs/

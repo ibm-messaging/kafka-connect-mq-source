@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2018, 2019, 2023, 2024 IBM Corporation
+ * Copyright 2017, 2018, 2019, 2023, 2024, 2026 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -286,5 +286,92 @@ public class MQSourceConnectorTest {
                 .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT))
                 .flatMap(cv -> cv.errorMessages().stream())
                 .anyMatch(msg -> msg.contains("Unknown schema type: not-a-real-type")));
+    }
+
+    // SSL Configuration Tests - Basic validation only
+    // Detailed SSL configuration tests are in JMSWorkerSSLConfigTest and SSLContextBuilderTest
+
+    @Test
+    public void testValidateSSLConfigWithKeystoreContent() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.queue.manager", "QM1");
+        configProps.put("mq.queue", "DEV.QUEUE.1");
+        configProps.put("topic", "test-topic");
+        configProps.put("mq.ssl.keystore.content", "dGVzdCBrZXlzdG9yZSBjb250ZW50"); // valid base64
+        configProps.put("mq.ssl.keystore.password", "changeit");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+        
+        // Should not have errors for SSL keystore content configuration
+        assertFalse(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_CONTENT))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg != null && !msg.isEmpty()));
+    }
+
+    @Test
+    public void testValidateSSLConfigWithTruststoreContent() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.queue.manager", "QM1");
+        configProps.put("mq.queue", "DEV.QUEUE.1");
+        configProps.put("topic", "test-topic");
+        configProps.put("mq.ssl.truststore.content", "dGVzdCB0cnVzdHN0b3JlIGNvbnRlbnQ="); // valid base64
+        configProps.put("mq.ssl.truststore.password", "changeit");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+        
+        // Should not have errors for SSL truststore content configuration
+        assertFalse(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_CONTENT))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg != null && !msg.isEmpty()));
+    }
+
+    @Test
+    public void testValidateSSLConfigWithBothKeystoreLocationAndContent() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.queue.manager", "QM1");
+        configProps.put("mq.queue", "DEV.QUEUE.1");
+        configProps.put("topic", "test-topic");
+        configProps.put("mq.ssl.keystore.location", "/path/to/keystore.jks");
+        configProps.put("mq.ssl.keystore.content", "dGVzdCBrZXlzdG9yZSBjb250ZW50");
+        configProps.put("mq.ssl.keystore.password", "changeit");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+        
+        // Should have errors when both location and content are provided
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_LOCATION))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("Cannot specify both")));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_SSL_KEYSTORE_CONTENT))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("Cannot specify both")));
+    }
+
+    @Test
+    public void testValidateSSLConfigWithBothTruststoreLocationAndContent() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.queue.manager", "QM1");
+        configProps.put("mq.queue", "DEV.QUEUE.1");
+        configProps.put("topic", "test-topic");
+        configProps.put("mq.ssl.truststore.location", "/path/to/truststore.jks");
+        configProps.put("mq.ssl.truststore.content", "dGVzdCB0cnVzdHN0b3JlIGNvbnRlbnQ=");
+        configProps.put("mq.ssl.truststore.password", "changeit");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+        
+        // Should have errors when both location and content are provided
+        assertTrue(config.configValues().stream().anyMatch(cv -> cv.errorMessages().size() > 0));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_LOCATION))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("Cannot specify both")));
+        assertTrue(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_SSL_TRUSTSTORE_CONTENT))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("Cannot specify both")));
     }
 }
