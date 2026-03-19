@@ -112,6 +112,7 @@ public class MQSourceConnector extends SourceConnector {
     public static final String CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONID = "JMSCorrelationID";
     public static final String CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONIDASBYTES = "JMSCorrelationIDAsBytes";
     public static final String CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION = "JMSDestination";
+    public static final String CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSXGROUPID = "JMSXGroupID";
 
     public static final String CONFIG_NAME_MQ_SSL_CIPHER_SUITE = "mq.ssl.cipher.suite";
     public static final String CONFIG_DOCUMENTATION_MQ_SSL_CIPHER_SUITE = "The name of the cipher suite for the TLS (SSL) connection.";
@@ -484,12 +485,13 @@ public class MQSourceConnector extends SourceConnector {
 
         CONFIGDEF.define(CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER,
                 Type.STRING,
-                // optional value - four valid values
+                // optional value - five valid values
                 null, ConfigDef.ValidString.in(null,
                         CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSMESSAGEID,
                         CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONID,
                         CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSCORRELATIONIDASBYTES,
-                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION),
+                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION,
+                        CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSXGROUPID),
                 Importance.MEDIUM,
                 CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_KEY_HEADER,
                 CONFIG_GROUP_MQ, 11, Width.MEDIUM,

@@ -40,7 +40,7 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
     private static final Logger log = LoggerFactory.getLogger(BaseRecordBuilder.class);
 
     public enum KeyHeader {
-        NONE, MESSAGE_ID, CORRELATION_ID, CORRELATION_ID_AS_BYTES, DESTINATION
+        NONE, MESSAGE_ID, CORRELATION_ID, CORRELATION_ID_AS_BYTES, DESTINATION, JMSX_GROUP_ID
     };
 
     protected KeyHeader keyheader = KeyHeader.NONE;
@@ -86,6 +86,9 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             } else if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSDESTINATION)) {
                 keyheader = KeyHeader.DESTINATION;
                 log.debug("Setting Kafka record key from JMSDestination header field");
+            } else if (kh.equals(MQSourceConnector.CONFIG_VALUE_MQ_RECORD_BUILDER_KEY_HEADER_JMSXGROUPID)) {
+                keyheader = KeyHeader.JMSX_GROUP_ID;
+                log.debug("Setting Kafka record key from JMSXGroupID header field");
             } else {
                 log.error("Unsupported MQ record builder key header value {}", kh);
                 throw new RecordBuilderException("Unsupported MQ record builder key header value");
@@ -152,6 +155,10 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
             case DESTINATION:
                 keySchema = Schema.OPTIONAL_STRING_SCHEMA;
                 key = message.getJMSDestination().toString();
+                break;
+            case JMSX_GROUP_ID:
+                keySchema = Schema.OPTIONAL_STRING_SCHEMA;
+                key = message.getStringProperty("JMSXGroupID");
                 break;
             default:
                 break;

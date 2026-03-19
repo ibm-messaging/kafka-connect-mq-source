@@ -287,4 +287,23 @@ public class MQSourceConnectorTest {
                 .flatMap(cv -> cv.errorMessages().stream())
                 .anyMatch(msg -> msg.contains("Unknown schema type: not-a-real-type")));
     }
+
+    // Test that JMSXGroupID is accepted as a valid value for mq.record.builder.key.header
+    @Test
+    public void testValidateJMSXGroupIDKeyHeader() {
+        final Map<String, String> configProps = new HashMap<String, String>();
+        configProps.put("mq.queue.manager", "QM1");
+        configProps.put("mq.queue", "DEV.QUEUE.1");
+        configProps.put("topic", "test-topic");
+        configProps.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
+        configProps.put("mq.record.builder.key.header", "JMSXGroupID");
+
+        final Config config = new MQSourceConnector().validate(configProps);
+
+        // Should have no errors for JMSXGroupID
+        assertFalse(config.configValues().stream()
+                .filter(cv -> cv.name().equals(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER_KEY_HEADER))
+                .flatMap(cv -> cv.errorMessages().stream())
+                .anyMatch(msg -> msg.contains("Invalid value")));
+    }
 }
