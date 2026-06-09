@@ -1,5 +1,5 @@
 /**
- * Copyright 2018, 2019, 2023, 2024, 2025 IBM Corporation
+ * Copyright 2018, 2019, 2023, 2024, 2025, 2026 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 package com.ibm.eventstreams.connect.mqsource.builders;
 
 import java.util.Map;
-import java.util.Optional;
 
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
@@ -101,7 +100,8 @@ public abstract class BaseRecordBuilder implements RecordBuilder {
      */
     private void configureJmsProperties(final Map<String, String> props) {
         final String str = props.get(MQSourceConnector.CONFIG_NAME_MQ_JMS_PROPERTY_COPY_TO_KAFKA_HEADER);
-        copyJmsPropertiesFlag = Boolean.parseBoolean(Optional.ofNullable(str).orElse("false"));
+        copyJmsPropertiesFlag = Boolean.parseBoolean(str);
+        
         jmsToKafkaHeaderConverter = new JmsToKafkaHeaderConverter();
     }
 
