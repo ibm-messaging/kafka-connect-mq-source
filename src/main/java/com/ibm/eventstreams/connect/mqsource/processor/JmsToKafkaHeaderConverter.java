@@ -24,9 +24,7 @@ import com.ibm.msg.client.jms.JmsConstants;
 import javax.jms.JMSException;
 import javax.jms.Message;
 
-import java.util.Collections;
 import java.util.Enumeration;
-import java.util.List;
 
 /**
  * Single responsibility class to copy JMS properties to Kafka headers.
@@ -47,63 +45,46 @@ public class JmsToKafkaHeaderConverter {
         try {
             @SuppressWarnings("unchecked")
             final Enumeration<String> propertyNames = (Enumeration<String>) message.getPropertyNames();
-            final List<String> jmsPropertyKeys = Collections.list(propertyNames);
-
-            jmsPropertyKeys.forEach(key -> {
-                try {
-                    final Object prop;
-            
-                    if (key.equals(JmsConstants.JMS_IBM_MQMD_MSGID)) {
-                        prop = message.getJMSMessageID();
-                    } else if (key.equals(JmsConstants.JMS_IBM_MQMD_CORRELID)) {
-                        prop = message.getJMSCorrelationID();
-                    } else {
-                        prop = message.getObjectProperty(key);
-                    }
-
-                    log.debug("Adding JMS property {} with value {}", key, prop);
-                    addHeaderWithType(connectHeaders, key, prop);
-                } catch (final JMSException e) {
-                    // Not failing the message processing if JMS properties cannot be read for some
-                    // reason.
-                    log.warn("Could not copy property {} from the JMS message due to exception {}", key, e);
-                }
-            });
+            while (propertyNames.hasMoreElements()) {
+                copyPropertyToHeader(message, connectHeaders, propertyNames.nextElement());
+            }
         } catch (final JMSException e) {
-            // Not failing the message processing if JMS properties cannot be read for some
-            // reason.
-            log.warn("JMS exception {}", e);
+            // Allow message processing to continue but log failure
+            log.warn("Failed to read JMS property names from message", e);
         }
 
         return connectHeaders;
     }
 
-    /**
-     * Adds a header to ConnectHeaders
-     * - Only MQMD properties like GroupId/AccountingToken can be byte[]
-     *   when mq.message.mqmd.read=true
-     * - For any other types, convert to String
-     *
-     * @param headers The ConnectHeaders to add to
-     * @param key The header key
-     * @param value The header value
-     */
-    private void addHeaderWithType(final ConnectHeaders headers, final String key, final Object value) {
+    private void copyPropertyToHeader(final Message message, final ConnectHeaders connectHeaders, final String key) {
+        try {
+            final Object prop;
 
-        if (value == null) {
-            headers.addString(key, null);
-            return;
-        }
+            if (key.equals(JmsConstants.JMS_IBM_MQMD_MSGID)) {
+                // special case - instead of using getObjectProperty("JMS_IBM_MQMD_MsgId")
+                //  to return the byte array, we use the JMS method that returns it as
+                //  an "ID:"-prefixed hex string
+                prop = message.getJMSMessageID();
+            } else if (key.equals(JmsConstants.JMS_IBM_MQMD_CORRELID)) {
+                // special case - instead of using getObjectProperty("JMS_IBM_MQMD_CorrelId")
+                //  to return the byte array, we use the JMS method that returns it as
+                //  an "ID:"-prefixed hex string
+                prop = message.getJMSCorrelationID();
+            } else {
+                prop = message.getObjectProperty(key);
+            }
 
-        if (value instanceof byte[]) {
-            // Only MQMD properties like GroupId/AccountingToken can be byte[]
-            // JMS spec does not allow custom properties to be byte[] - only MQMD properties (when mq.message.mqmd.read=true)
-            log.debug("Converting property '{}' from byte[]: {}", key, (byte[]) value);
-            headers.addBytes(key, (byte[]) value);
-        } else {
-            // For any other types, convert to String
-            log.debug("Converting property '{}' of type '{}' to String", key, value.getClass().getName());
-            headers.addString(key, value.toString());
+            log.debug("Adding JMS property {} with value {}", key, prop);
+
+            if (prop instanceof byte[]) {
+                connectHeaders.addBytes(key, (byte[]) prop);
+            } else {
+                // this yields `null` if prop is null, otherwise its toString()
+                connectHeaders.addString(key, prop != null ? prop.toString() : null);
+            }
+        } catch (final JMSException e) {
+            // Allow message processing to continue but log failure
+            log.warn("Could not copy property {} from the JMS message", key, e);
         }
     }
 }
