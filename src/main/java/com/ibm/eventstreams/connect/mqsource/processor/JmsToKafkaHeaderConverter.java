@@ -76,11 +76,29 @@ public class JmsToKafkaHeaderConverter {
 
             log.debug("Adding JMS property {} with value {}", key, prop);
 
-            if (prop instanceof byte[]) {
+            if (prop == null) {
+                connectHeaders.addString(key, null);
+            } else if (prop instanceof byte[]) {
                 connectHeaders.addBytes(key, (byte[]) prop);
+            } else if (prop instanceof Byte) {
+                connectHeaders.addByte(key, (Byte) prop);
+            } else if (prop instanceof Short) {
+                connectHeaders.addShort(key, (Short) prop);
+            } else if (prop instanceof Integer) {
+                connectHeaders.addInt(key, (Integer) prop);
+            } else if (prop instanceof Long) {
+                connectHeaders.addLong(key, (Long) prop);
+            } else if (prop instanceof Float) {
+                connectHeaders.addFloat(key, (Float) prop);
+            } else if (prop instanceof Double) {
+                connectHeaders.addDouble(key, (Double) prop);
+            } else if (prop instanceof Boolean) {
+                connectHeaders.addBoolean(key, (Boolean) prop);
+            } else if (prop instanceof String) {
+                connectHeaders.addString(key, (String) prop);
             } else {
-                // this yields `null` if prop is null, otherwise its toString()
-                connectHeaders.addString(key, prop != null ? prop.toString() : null);
+                log.debug("Converting property '{}' of type '{}' to String", key, prop.getClass().getName());
+                connectHeaders.addString(key, prop.toString());
             }
         } catch (final JMSException e) {
             // Allow message processing to continue but log failure

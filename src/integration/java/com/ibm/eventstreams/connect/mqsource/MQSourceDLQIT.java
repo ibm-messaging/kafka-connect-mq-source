@@ -565,8 +565,8 @@ public class MQSourceDLQIT extends AbstractJMSContextIT {
 
         // Actual headers
         assertThat(headers.lastWithName("teststring").value()).isEqualTo("myvalue");
-        assertThat(headers.lastWithName("volume").value()).isEqualTo("11");
-        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo("42.0");
+        assertThat(headers.lastWithName("volume").value()).isEqualTo(11);
+        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo(42.0);
 
         // Expected DLQ Headers
         /**
@@ -639,8 +639,8 @@ public class MQSourceDLQIT extends AbstractJMSContextIT {
 
         // Actual headers
         assertThat(headers.lastWithName("teststring").value()).isEqualTo("myvalue");
-        assertThat(headers.lastWithName("volume").value()).isEqualTo("11");
-        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo("42.0");
+        assertThat(headers.lastWithName("volume").value()).isEqualTo(11);
+        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo(42.0);
 
         assertThat(headers.lastWithName("__connect.errors.topic")).isNull();
         assertThat(headers.lastWithName("__connect.errors.class.name")).isNull();
@@ -829,8 +829,8 @@ public class MQSourceDLQIT extends AbstractJMSContextIT {
 
         // Actual headers
         assertThat(headers.lastWithName("teststring").value()).isEqualTo("myvalue");
-        assertThat(headers.lastWithName("volume").value()).isEqualTo("11");
-        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo("42.0");
+        assertThat(headers.lastWithName("volume").value()).isEqualTo(11);
+        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo(42.0);
 
         assertThat(headers.lastWithName("__connect.errors.topic")).isNull();
         assertThat(headers.lastWithName("__connect.errors.class.name")).isNull();
@@ -886,8 +886,8 @@ public class MQSourceDLQIT extends AbstractJMSContextIT {
 
         // Actual headers
         assertThat(headers.lastWithName("teststring").value()).isEqualTo("myvalue");
-        assertThat(headers.lastWithName("volume").value()).isEqualTo("11");
-        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo("42.0");
+        assertThat(headers.lastWithName("volume").value()).isEqualTo(11);
+        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo(42.0);
 
         assertThat(headers.lastWithName("__connect.errors.topic")).isNull();
         assertThat(headers.lastWithName("__connect.errors.class.name")).isNull();
