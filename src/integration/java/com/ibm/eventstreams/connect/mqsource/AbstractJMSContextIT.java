@@ -112,4 +112,24 @@ public class AbstractJMSContextIT {
         final AbstractConfig connectorConfig = new AbstractConfig(MQSourceConnector.CONFIGDEF, props);
         return connectorConfig;
     }
+
+    protected void grantAppUserMqmdPutOnQueue(final String queueName) throws Exception {
+        grantAppUserMqmdPut(mqContainer, QMGR_NAME, queueName, USERNAME);
+    }
+
+    public static void grantAppUserMqmdPut(final GenericContainer<?> mqContainer, final String queueManager,
+            final String queueName, final String username) throws Exception {
+        mqContainer.execInContainer("setmqaut",
+                "-m", queueManager,
+                "-n", queueName,
+                "-p", username,
+                "-t", "queue",
+                "+setall", "+get", "+browse", "+put", "+inq");
+
+        mqContainer.execInContainer("setmqaut",
+                "-m", queueManager,
+                "-p", username,
+                "-t", "qmgr",
+                "+setall");
+    }
 }

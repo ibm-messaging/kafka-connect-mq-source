@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Base64;
@@ -31,6 +32,7 @@ import java.util.Map;
 import javax.jms.TextMessage;
 
 import com.ibm.msg.client.jms.JmsConstants;
+import com.ibm.msg.client.wmq.WMQConstants;
 
 import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.header.Headers;
@@ -67,6 +69,17 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
         0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18
     };
 
+    // "ID:" + lowercase hex of TEST_CORREL_ID — the format MQ returns from getJMSMessageID()
+    // and getJMSCorrelationID(). Derived here so it stays in sync with the byte array above.
+    private static final String TEST_CORREL_ID_HEX;
+    static {
+        final StringBuilder sb = new StringBuilder("ID:");
+        for (final byte b : TEST_CORREL_ID) {
+            sb.append(String.format("%02x", b));
+        }
+        TEST_CORREL_ID_HEX = sb.toString();
+    }
+
     private MQSourceTask connectTask = null;
     private HeaderConverter converter;
 
@@ -77,6 +90,7 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
 
         final Map<String, String> converterConfig = new HashMap<>();
         converter.configure(converterConfig);
+        grantAppUserMqmdPutOnQueue(DEFAULT_SOURCE_QUEUE);
     }
 
     @After
@@ -113,7 +127,10 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
     }
 
     private Headers pollHeaders(final TextMessage message) throws Exception {
-        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, Arrays.asList(message));
+        final String queueName = "queue:///" + DEFAULT_SOURCE_QUEUE + "?" + WMQConstants.WMQ_MQMD_WRITE_ENABLED
+                + "=true&" + WMQConstants.WMQ_MQMD_MESSAGE_CONTEXT + "="
+                + WMQConstants.WMQ_MDCTX_SET_ALL_CONTEXT;
+        putAllMessagesToQueue(queueName, Arrays.asList(message));
         final List<SourceRecord> records = connectTask.poll();
         assertThat(records).hasSize(1);
         return records.get(0).headers();
@@ -235,6 +252,7 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
     public void jmsxUserId() throws Exception {
         startTask(false);
         final TextMessage message = getJmsContext().createTextMessage("msg");
+        message.setStringProperty(JmsConstants.JMS_IBM_MQMD_USERIDENTIFIER, "app");
         final Headers headers = pollHeaders(message);
         assertThat(getHeaderAsString(headers, JmsConstants.JMSX_USERID).trim()).isEqualTo("app");
     }
@@ -299,8 +317,9 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
     public void jmsIbmPutDate() throws Exception {
         startTask(false);
         final TextMessage message = getJmsContext().createTextMessage("msg");
-        final Headers headers = pollHeaders(message);
         final String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        message.setStringProperty(JmsConstants.JMS_IBM_MQMD_PUTDATE, today);
+        final Headers headers = pollHeaders(message);
         assertThat(getHeaderAsString(headers, JmsConstants.JMS_IBM_PUTDATE)).isEqualTo(today);
     }
 
@@ -308,8 +327,12 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
     public void jmsIbmPutTime() throws Exception {
         startTask(false);
         final TextMessage message = getJmsContext().createTextMessage("msg");
+        final String time = LocalTime.now()
+            .format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+        message.setStringProperty(JmsConstants.JMS_IBM_MQMD_PUTTIME, time);
         final Headers headers = pollHeaders(message);
-        assertThat(getHeaderAsString(headers, JmsConstants.JMS_IBM_PUTTIME)).matches("\\d{8}");
+        assertThat(getHeaderAsString(headers, JmsConstants.JMS_IBM_PUTTIME)).isEqualTo(time);
     }
 
     @Test
@@ -337,8 +360,9 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
     public void jmsIbmMqmdPutDate() throws Exception {
         startTask(true);
         final TextMessage message = getJmsContext().createTextMessage("msg");
-        final Headers headers = pollHeaders(message);
         final String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        message.setStringProperty(JmsConstants.JMS_IBM_MQMD_PUTDATE, today);
+        final Headers headers = pollHeaders(message);
         assertThat(getHeaderAsString(headers, JmsConstants.JMS_IBM_MQMD_PUTDATE)).isEqualTo(today);
     }
 
@@ -346,8 +370,11 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
     public void jmsIbmMqmdPutTime() throws Exception {
         startTask(true);
         final TextMessage message = getJmsContext().createTextMessage("msg");
+        final String time = LocalTime.now()
+            .format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        message.setStringProperty(JmsConstants.JMS_IBM_MQMD_PUTTIME, time);
         final Headers headers = pollHeaders(message);
-        assertThat(getHeaderAsString(headers, JmsConstants.JMS_IBM_MQMD_PUTTIME)).matches("\\d{8}");
+        assertThat(getHeaderAsString(headers, JmsConstants.JMS_IBM_MQMD_PUTTIME)).isEqualTo(time);
     }
 
     @Test
@@ -393,19 +420,18 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
     }
 
     /**
-     * Verifies that MsgId is returned as an "ID:"-prefixed hex string rather than
-     * a raw byte-array object reference (e.g. "[B@5cde362e").
+     * Verifies that a custom MsgId is faithfully propagated as an "ID:"-prefixed
+     * lowercase hex string, mirroring the behaviour of CorrelId.
+     * JMS_IBM_MQMD_MsgId must be set as byte[], not String.
      */
     @Test
     public void jmsIbmMqmdMsgId() throws Exception {
         startTask(true);
         final TextMessage message = getJmsContext().createTextMessage("msg");
+        message.setObjectProperty(JmsConstants.JMS_IBM_MQMD_MSGID, TEST_CORREL_ID);
         final Headers headers = pollHeaders(message);
-        // ID will be dynamically generated; verify it is a readable hex string, not an object ref
         assertThat(getHeaderAsString(headers, JmsConstants.JMS_IBM_MQMD_MSGID))
-            .startsWith("ID:")
-            .doesNotContain("[B@")
-            .hasSize("ID:".length() + 48);
+                .isEqualTo(TEST_CORREL_ID_HEX);
     }
 
     /**
@@ -419,8 +445,7 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
         message.setJMSCorrelationIDAsBytes(TEST_CORREL_ID);
         final Headers headers = pollHeaders(message);
         assertThat(getHeaderAsString(headers, JmsConstants.JMS_IBM_MQMD_CORRELID))
-            .doesNotContain("[B@")
-            .isEqualTo("ID:0102030405060708090a0b0c0d0e0f101112131415161718");
+                .isEqualTo(TEST_CORREL_ID_HEX);
     }
 
     /**
@@ -431,41 +456,44 @@ public class MQSourceTaskHeadersDefaultIT extends AbstractJMSContextIT {
     @Test
     public void jmsIbmMqmdAccountingToken() throws Exception {
         startTask(true);
+
+        // Build the fixed-width 32-byte accounting token (zero-padded)
+        final byte[] customAccountingToken = new byte[32];
+        final byte[] sourceData = "MyBillingDeptToken123".getBytes(StandardCharsets.UTF_8);
+        System.arraycopy(sourceData, 0, customAccountingToken, 0, sourceData.length);
+
         final TextMessage message = getJmsContext().createTextMessage("msg");
+        message.setObjectProperty(JmsConstants.JMS_IBM_MQMD_ACCOUNTINGTOKEN, customAccountingToken);
         final Headers headers = pollHeaders(message);
 
-        // SimpleHeaderConverter base64-encodes BYTES values; 32 bytes → 44 base64 chars
-        final byte[] wire = getHeaderAsBytes(headers, JmsConstants.JMS_IBM_MQMD_ACCOUNTINGTOKEN);
-        assertThat(wire).hasSize(44);
-
-        // The wire bytes should be valid base64 encoding of a 32-byte value
-        final byte[] decoded = Base64.getDecoder().decode(wire);
-        assertThat(decoded).hasSize(32);
-
-        // Crucially, the raw string must NOT look like a Java object reference
-        assertThat(new String(wire, StandardCharsets.UTF_8)).doesNotContain("[B@");
+        // Expected: the same 32-byte array base64-encoded (computed independently)
+        final String expected = Base64.getEncoder().encodeToString(customAccountingToken);
+        assertThat(getHeaderAsString(headers, JmsConstants.JMS_IBM_MQMD_ACCOUNTINGTOKEN))
+                .isEqualTo(expected);
     }
 
     /**
-     * Verifies that GroupId is stored as a binary BYTES header (not an object
-     * reference string). SimpleHeaderConverter base64-encodes BYTES headers;
-     * a 24-byte value produces a 32-character base64 string.
+     * Verifies that a custom GroupId is faithfully propagated as a base64-encoded
+     * string header. The id is padded to the fixed 24-byte MQ field width with
+     * zero bytes before sending, and the expected base64 string is derived
+     * independently from those same 24 bytes.
      */
     @Test
     public void jmsIbmMqmdGroupId() throws Exception {
         startTask(true);
+
+        // Build the fixed-width 24-byte group id (zero-padded)
+        final byte[] customGroupId = new byte[24];
+        final byte[] sourceData = "MyMessageGroup42".getBytes(StandardCharsets.UTF_8);
+        System.arraycopy(sourceData, 0, customGroupId, 0, sourceData.length);
+
         final TextMessage message = getJmsContext().createTextMessage("msg");
+        message.setObjectProperty(JmsConstants.JMSX_GROUPID, "MyMessageGroup42");
         final Headers headers = pollHeaders(message);
 
-        // SimpleHeaderConverter base64-encodes BYTES values; 24 bytes → 32 base64 chars
-        final byte[] wire = getHeaderAsBytes(headers, JmsConstants.JMS_IBM_MQMD_GROUPID);
-        assertThat(wire).hasSize(32);
-
-        // The wire bytes should be valid base64 encoding of a 24-byte value
-        final byte[] decoded = Base64.getDecoder().decode(wire);
-        assertThat(decoded).hasSize(24);
-
-        // Crucially, the raw string must NOT look like a Java object reference
-        assertThat(new String(wire, StandardCharsets.UTF_8)).doesNotContain("[B@");
+        // Expected: the same 24-byte array base64-encoded (computed independently)
+        final String expected = Base64.getEncoder().encodeToString(customGroupId);
+        assertThat(getHeaderAsString(headers, JmsConstants.JMS_IBM_MQMD_GROUPID))
+                .isEqualTo(expected);
     }
 }
