@@ -1,5 +1,5 @@
 /**
- * Copyright 2017, 2020, 2023, 2024, 2026 IBM Corporation
+ * Copyright 2017, 2020, 2023, 2024 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -593,7 +593,7 @@ public class MQSourceConnector extends SourceConnector {
                 Boolean.TRUE, new ConfigDef.NonNullValidator(),
                 Importance.LOW,
                 CONFIG_DOCUMENTATION_MQ_SSL_USE_IBM_CIPHER_MAPPINGS,
-                CONFIG_GROUP_MQ, 23, Width.SHORT,
+                CONFIG_GROUP_MQ, 22, Width.SHORT,
                 CONFIG_DISPLAY_MQ_SSL_USE_IBM_CIPHER_MAPPINGS);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_EXACTLY_ONCE_STATE_QUEUE,
@@ -601,7 +601,7 @@ public class MQSourceConnector extends SourceConnector {
                 null, ANY,
                 Importance.LOW,
                 CONFIG_DOCUMENTATION_MQ_EXACTLY_ONCE_STATE_QUEUE,
-                CONFIG_GROUP_MQ, 24, Width.LONG,
+                CONFIG_GROUP_MQ, 23, Width.LONG,
                 CONFIG_DISPLAY_MQ_EXACTLY_ONCE_STATE_QUEUE);
 
         // How long the SourceTask will wait for a previous batch of messages to
@@ -614,7 +614,7 @@ public class MQSourceConnector extends SourceConnector {
                 2000, ConfigDef.Range.atLeast(0),
                 Importance.MEDIUM,
                 CONFIG_DOCUMENTATION_MAX_POLL_BLOCKED_TIME_MS,
-                null, 25, Width.MEDIUM,
+                null, 24, Width.MEDIUM,
                 CONFIG_DISPLAY_MAX_POLL_BLOCKED_TIME_MS);
 
         CONFIGDEF.define(CONFIG_NAME_MQ_CLIENT_RECONNECT_OPTIONS,
@@ -623,7 +623,7 @@ public class MQSourceConnector extends SourceConnector {
                 ConfigDef.ValidString.in(CONFIG_VALUE_MQ_VALID_RECONNECT_OPTIONS),
                 Importance.MEDIUM,
                 CONFIG_DOCUMENTATION_MQ_CLIENT_RECONNECT_OPTIONS,
-                CONFIG_GROUP_MQ, 26,
+                CONFIG_GROUP_MQ, 25,
                 Width.SHORT,
                 CONFIG_DISPLAY_MQ_CLIENT_RECONNECT_OPTIONS);
         CONFIGDEF.define(CONFIG_MAX_RECEIVE_TIMEOUT,
@@ -633,7 +633,7 @@ public class MQSourceConnector extends SourceConnector {
                 ConfigDef.Importance.MEDIUM,
                 CONFIG_DOCUMENTATION_MAX_RECEIVE_TIMEOUT,
                 CONFIG_GROUP_MQ,
-                27,
+                26,
                 ConfigDef.Width.MEDIUM,
                 CONFIG_DISPLAY_MAX_RECEIVE_TIMEOUT);
         CONFIGDEF.define(CONFIG_SUBSEQUENT_RECEIVE_TIMEOUT,
@@ -642,7 +642,7 @@ public class MQSourceConnector extends SourceConnector {
                 ConfigDef.Importance.LOW,
                 CONFIG_DOCUMENTATION_SUBSEQUENT_RECEIVE_TIMEOUT,
                 CONFIG_GROUP_MQ,
-                28,
+                27,
                 ConfigDef.Width.MEDIUM,
                 CONFIG_DISPLAY_SUBSEQUENT_RECEIVE_TIMEOUT);
         CONFIGDEF.define(CONFIG_RECONNECT_DELAY_MIN,
@@ -650,7 +650,7 @@ public class MQSourceConnector extends SourceConnector {
                 CONFIG_RECONNECT_DELAY_MIN_DEFAULT, ConfigDef.Range.atLeast(CONFIG_RECONNECT_DELAY_MIN_MINIMUM),
                 Importance.MEDIUM,
                 CONFIG_DOCUMENTATION_RECONNECT_DELAY_MIN,
-                CONFIG_GROUP_MQ, 29,
+                CONFIG_GROUP_MQ, 28,
                 Width.MEDIUM,
                 CONFIG_DISPLAY_RECONNECT_DELAY_MIN);
         CONFIGDEF.define(CONFIG_RECONNECT_DELAY_MAX,
@@ -658,7 +658,7 @@ public class MQSourceConnector extends SourceConnector {
                 CONFIG_RECONNECT_DELAY_MAX_DEFAULT, ConfigDef.Range.atLeast(CONFIG_RECONNECT_DELAY_MAX_MINIMUM),
                 Importance.MEDIUM,
                 CONFIG_DOCUMENTATION_RECONNECT_DELAY_MAX,
-                CONFIG_GROUP_MQ, 30,
+                CONFIG_GROUP_MQ, 29,
                 Width.MEDIUM,
                 CONFIG_DISPLAY_RECONNECT_DELAY_MAX);
         CONFIGDEF.define(DLQ_TOPIC_NAME_CONFIG,
@@ -666,7 +666,7 @@ public class MQSourceConnector extends SourceConnector {
                 DLQ_TOPIC_DEFAULT,
                 Importance.MEDIUM,
                 DLQ_TOPIC_NAME_DOC,
-                CONFIG_GROUP_MQ, 31,
+                CONFIG_GROUP_MQ, 30,
                 Width.MEDIUM,
                 DLQ_TOPIC_DISPLAY);
         CONFIGDEF.define(DLQ_CONTEXT_HEADERS_ENABLE_CONFIG,
@@ -674,7 +674,7 @@ public class MQSourceConnector extends SourceConnector {
                 DLQ_CONTEXT_HEADERS_ENABLE_DEFAULT,
                 Importance.MEDIUM,
                 DLQ_CONTEXT_HEADERS_ENABLE_DOC,
-                CONFIG_GROUP_MQ, 32,
+                CONFIG_GROUP_MQ, 31,
                 Width.MEDIUM,
                 DLQ_CONTEXT_HEADERS_ENABLE_DISPLAY);
         CONFIGDEF.define(CONFIG_MAX_POLL_TIME,
@@ -683,7 +683,7 @@ public class MQSourceConnector extends SourceConnector {
                 ConfigDef.Importance.LOW,
                 CONFIG_DOCUMENTATION_MAX_POLL_TIME,
                 CONFIG_GROUP_MQ,
-                33,
+                32,
                 ConfigDef.Width.MEDIUM,
                 CONFIG_DISPLAY_MAX_POLL_TIME);
         CONFIGDEF.define(CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMAS_ENABLE,
@@ -691,7 +691,7 @@ public class MQSourceConnector extends SourceConnector {
                 false, new ConfigDef.NonNullValidator(),
                 Importance.LOW,
                 CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_JSON_SCHEMAS_ENABLE,
-                CONFIG_GROUP_MQ, 34,
+                CONFIG_GROUP_MQ, 33,
                 Width.SHORT,
                 CONFIG_DISPLAY_MQ_RECORD_BUILDER_JSON_SCHEMAS_ENABLE);
         CONFIGDEF.define(CONFIG_NAME_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT,
@@ -699,7 +699,7 @@ public class MQSourceConnector extends SourceConnector {
                 null, new SchemaValidator(),
                 Importance.LOW,
                 CONFIG_DOCUMENTATION_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT,
-                CONFIG_GROUP_MQ, 35,
+                CONFIG_GROUP_MQ, 34,
                 Width.MEDIUM,
                 CONFIG_DISPLAY_MQ_RECORD_BUILDER_JSON_SCHEMA_CONTENT);
 
