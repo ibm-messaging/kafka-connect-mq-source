@@ -17,9 +17,9 @@ package com.ibm.eventstreams.connect.mqsource;
 
 import com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil;
 import org.apache.kafka.connect.source.SourceRecord;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -31,14 +31,14 @@ import java.util.Map;
 import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.putAllMessagesToQueue;
 import static com.ibm.eventstreams.connect.mqsource.utils.MessagesObjectMother.createAListOfMessages;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class JMSWorkerIT extends AbstractJMSContextIT {
     private JMSWorker jmsWorker;
 
-    @Before
+    @BeforeEach
     public void setUpJMSWorker() {
         Map<String, String> defaultConnectorProperties = getDefaultConnectorProperties();
         defaultConnectorProperties.put("mq.message.body.jms", "true");
@@ -49,7 +49,7 @@ public class JMSWorkerIT extends AbstractJMSContextIT {
         jmsWorker.connect();
     }
 
-    @After
+    @AfterEach
     public void cleanStateQueue() {
         try {
             MQTestUtil.removeAllMessagesFromQueue(DEFAULT_STATE_QUEUE);

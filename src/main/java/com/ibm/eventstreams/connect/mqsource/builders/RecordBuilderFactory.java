@@ -38,9 +38,10 @@ public class RecordBuilderFactory {
 
         try {
             final Class<? extends RecordBuilder> c = Class.forName(builderClass).asSubclass(RecordBuilder.class);
-            builder = c.newInstance();
+            builder = c.getDeclaredConstructor().newInstance();
             builder.configure(props);
-        } catch (ClassNotFoundException | ClassCastException | IllegalAccessException | InstantiationException exc) {
+        } catch (ClassNotFoundException | ClassCastException | IllegalAccessException | InstantiationException
+                | java.lang.reflect.InvocationTargetException | NoSuchMethodException exc) {
             log.error("Could not instantiate message builder {}", builderClass);
             throw new RecordBuilderException("Could not instantiate message builder", exc);
         }

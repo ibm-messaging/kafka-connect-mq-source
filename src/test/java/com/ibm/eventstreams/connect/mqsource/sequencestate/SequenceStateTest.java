@@ -15,8 +15,8 @@
  */
 package com.ibm.eventstreams.connect.mqsource.sequencestate;
 
-import org.junit.Test;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.ArrayList;

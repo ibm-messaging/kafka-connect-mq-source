@@ -21,8 +21,8 @@ import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.DEFAULT
 import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.DEFAULT_STATE_QUEUE;
 import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.QMGR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 
@@ -35,7 +35,7 @@ import javax.jms.JMSException;
 
 import org.apache.kafka.connect.source.SourceTaskContext;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import com.ibm.eventstreams.connect.mqsource.JMSWorker;
@@ -103,7 +103,7 @@ public class SequenceStateClientTest {
         assertThat(sequenceFromKafkaOffset).isEmpty();
     }
 
-    @Test(expected = Test.None.class /* no exception expected */)
+    @Test
     public void test_validateStateQueue_OK() throws JMSException {
         Map<String, String> props = getDefaultConnectorProperties();
         props.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");

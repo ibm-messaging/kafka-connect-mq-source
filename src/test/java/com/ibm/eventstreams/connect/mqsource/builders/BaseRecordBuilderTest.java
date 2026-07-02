@@ -15,8 +15,8 @@
  */
 package com.ibm.eventstreams.connect.mqsource.builders;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -29,7 +29,7 @@ import javax.jms.Message;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
 
@@ -68,10 +68,8 @@ public class BaseRecordBuilderTest {
         SchemaAndValue result = builder.getKey(context, "test-topic", message);
 
         // Verify
-        assertEquals("Key schema should be OPTIONAL_STRING_SCHEMA", 
-                     Schema.OPTIONAL_STRING_SCHEMA, result.schema());
-        assertEquals("Key value should be the JMSXGroupID value", 
-                     expectedGroupId, result.value());
+        assertEquals(Schema.OPTIONAL_STRING_SCHEMA, result.schema(), "Key schema should be OPTIONAL_STRING_SCHEMA");
+        assertEquals(expectedGroupId, result.value(), "Key value should be the JMSXGroupID value");
     }
 
     @Test
@@ -92,10 +90,8 @@ public class BaseRecordBuilderTest {
         SchemaAndValue result = builder.getKey(context, "test-topic", message);
 
         // Verify
-        assertEquals("Key schema should be OPTIONAL_STRING_SCHEMA", 
-                     Schema.OPTIONAL_STRING_SCHEMA, result.schema());
-        assertNull("Key value should be null when JMSXGroupID is not present", 
-                   result.value());
+        assertEquals(Schema.OPTIONAL_STRING_SCHEMA, result.schema(), "Key schema should be OPTIONAL_STRING_SCHEMA");
+        assertNull(result.value(), "Key value should be null when JMSXGroupID is not present");
     }
 
     @Test
@@ -126,11 +122,11 @@ public class BaseRecordBuilderTest {
         SchemaAndValue result3 = builder.getKey(context, "test-topic", message3);
 
         // Verify all have the same key value
-        assertEquals("All messages should have the same key", groupId, result1.value());
-        assertEquals("All messages should have the same key", groupId, result2.value());
-        assertEquals("All messages should have the same key", groupId, result3.value());
-        assertEquals("Keys should be equal", result1.value(), result2.value());
-        assertEquals("Keys should be equal", result2.value(), result3.value());
+        assertEquals(groupId, result1.value(), "All messages should have the same key");
+        assertEquals(groupId, result2.value(), "All messages should have the same key");
+        assertEquals(groupId, result3.value(), "All messages should have the same key");
+        assertEquals(result1.value(), result2.value(), "Keys should be equal");
+        assertEquals(result2.value(), result3.value(), "Keys should be equal");
     }
 
     @Test
@@ -160,9 +156,9 @@ public class BaseRecordBuilderTest {
         SchemaAndValue resultC = builder.getKey(context, "test-topic", messageC);
 
         // Verify all have different key values
-        assertEquals("Key A should be GROUP-A", "GROUP-A", resultA.value());
-        assertEquals("Key B should be GROUP-B", "GROUP-B", resultB.value());
-        assertEquals("Key C should be GROUP-C", "GROUP-C", resultC.value());
+        assertEquals("GROUP-A", resultA.value(), "Key A should be GROUP-A");
+        assertEquals("GROUP-B", resultB.value(), "Key B should be GROUP-B");
+        assertEquals("GROUP-C", resultC.value(), "Key C should be GROUP-C");
         
         // Verify they are different from each other
         assert !resultA.value().equals(resultB.value());
@@ -186,7 +182,7 @@ public class BaseRecordBuilderTest {
         SchemaAndValue result = builder.getKey(context, "test-topic", message);
 
         // Verify - key should be null when no key header is configured
-        assertNull("Key schema should be null when no key header configured", result.schema());
-        assertNull("Key value should be null when no key header configured", result.value());
+        assertNull(result.schema(), "Key schema should be null when no key header configured");
+        assertNull(result.value(), "Key value should be null when no key header configured");
     }
 }

@@ -19,7 +19,7 @@ import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskObjectMother.get
 import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.putAllMessagesToQueue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,9 +39,9 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.source.SourceRecord;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil;
 import com.ibm.eventstreams.connect.mqsource.utils.SourceTaskStopper;
 
@@ -49,13 +49,13 @@ public class MQSourceDLQIT extends AbstractJMSContextIT {
 
     private MQSourceTask connectTask = null;
 
-    @After
+    @AfterEach
     public void after() throws InterruptedException {
         final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
         stopper.run();
     }
 
-    @Before
+    @BeforeEach
     public void before() throws JMSException {
         MQTestUtil.removeAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
         MQTestUtil.removeAllMessagesFromQueue(DEFAULT_STATE_QUEUE);

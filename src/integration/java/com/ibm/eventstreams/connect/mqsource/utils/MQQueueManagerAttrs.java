@@ -41,7 +41,7 @@ public class MQQueueManagerAttrs {
         String property = enable ? "ENABLED" : "DISABLED";
         parametersNode.put("command", "ALTER QLOCAL(\'" + queueName + "\') "+operation+"("+property+")" );
 
-        rootNode.put("parameters", parametersNode);
+        rootNode.set("parameters", parametersNode);
         return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(rootNode);
     };
 

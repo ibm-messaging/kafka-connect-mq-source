@@ -27,7 +27,7 @@ To build the connector, you must have the following installed:
 
 - [git](https://git-scm.com/)
 - [Maven 3.0 or later](https://maven.apache.org)
-- Java 8 or later
+- Java 17 or later
 
 Clone the repository with the following command:
 

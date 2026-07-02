@@ -18,14 +18,15 @@ package com.ibm.eventstreams.connect.mqsource.util;
 import com.ibm.mq.constants.MQConstants;
 import com.ibm.mq.jms.MQQueue;
 import com.ibm.msg.client.wmq.WMQConstants;
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import javax.jms.JMSException;
 import static org.assertj.core.api.Assertions.assertThat;
 
 
-public class QueueConfigTest extends TestCase {
+public class QueueConfigTest {
 
+    @Test
     public void testApplyToQueue_JMSBody() throws JMSException {
         QueueConfig jmsBodyConfig = new QueueConfig(true, false);
         MQQueue mockQueue = Mockito.mock(MQQueue.class);
@@ -35,6 +36,7 @@ public class QueueConfigTest extends TestCase {
         Mockito.verify(mockQueue).setMessageBodyStyle(MQConstants.WMQ_MESSAGE_BODY_JMS);
     }
 
+    @Test
     public void testApplyToQueue_MQBody() throws JMSException {
         QueueConfig mqBodyConfig = new QueueConfig(false, false);
         MQQueue mockQueue = Mockito.mock(MQQueue.class);
@@ -44,20 +46,22 @@ public class QueueConfigTest extends TestCase {
         Mockito.verify(mockQueue).setMessageBodyStyle(MQConstants.WMQ_MESSAGE_BODY_MQ);
     }
 
+    @Test
     public void testApplyToQueue_MQMDRead() throws JMSException {
         QueueConfig mqmdReadBodyConfig = new QueueConfig(false, true);
         MQQueue mockQueue = Mockito.mock(MQQueue.class);
         mqmdReadBodyConfig.applyToQueue(mockQueue);
 
-        Mockito.verify(mockQueue).setBooleanProperty(WMQConstants.WMQ_MQMD_READ_ENABLED,true);
+        Mockito.verify(mockQueue).setBooleanProperty(WMQConstants.WMQ_MQMD_READ_ENABLED, true);
 
         QueueConfig mqmdNoReadBodyConfig = new QueueConfig(false, false);
         MQQueue mockQueue2 = Mockito.mock(MQQueue.class);
         mqmdNoReadBodyConfig.applyToQueue(mockQueue2);
 
-        Mockito.verify(mockQueue2, Mockito.never()).setBooleanProperty(WMQConstants.WMQ_MQMD_READ_ENABLED,true);
+        Mockito.verify(mockQueue2, Mockito.never()).setBooleanProperty(WMQConstants.WMQ_MQMD_READ_ENABLED, true);
     }
 
+    @Test
     public void testIsMqMessageBodyJms() {
         QueueConfig jmsBodyConfig = new QueueConfig(true, false);
         assertThat(jmsBodyConfig.isMqMessageBodyJms()).isTrue();
@@ -66,12 +70,12 @@ public class QueueConfigTest extends TestCase {
         assertThat(mqBodyConfig.isMqMessageBodyJms()).isFalse();
     }
 
+    @Test
     public void testIsMqMessageMqmdRead() {
         QueueConfig mqmdBodyConfig = new QueueConfig(false, true);
         assertThat(mqmdBodyConfig.isMqMessageMqmdRead()).isTrue();
 
         QueueConfig nomqmdBodyConfig = new QueueConfig(false, false);
         assertThat(nomqmdBodyConfig.isMqMessageMqmdRead()).isFalse();
-
     }
 }
