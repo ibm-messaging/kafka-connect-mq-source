@@ -19,6 +19,7 @@ import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 
 public class RecordBuilderFactory {
@@ -41,7 +42,7 @@ public class RecordBuilderFactory {
             builder = c.getDeclaredConstructor().newInstance();
             builder.configure(props);
         } catch (ClassNotFoundException | ClassCastException | IllegalAccessException | InstantiationException
-                | java.lang.reflect.InvocationTargetException | NoSuchMethodException exc) {
+                | InvocationTargetException | NoSuchMethodException exc) {
             log.error("Could not instantiate message builder {}", builderClass);
             throw new RecordBuilderException("Could not instantiate message builder", exc);
         }
