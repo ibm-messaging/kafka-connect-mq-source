@@ -1,5 +1,5 @@
 /**
- * Copyright 2022, 2023, 2024, 2025 IBM Corporation
+ * Copyright 2022, 2023, 2024, 2025, 2026 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -434,6 +434,7 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         connectTask.commitRecord(kafkaMessage, null);
     }
+
     @Test
     public void verifyJmsMessageHeadersConvertedToString() throws Exception {
         // Test that JMS properties are converted to String (except byte[])
@@ -466,17 +467,17 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("teststring").schema().type());
         assertEquals("myvalue", kafkaMessage.headers().lastWithName("teststring").value());
         
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("volume").schema().type());
-        assertEquals("11", kafkaMessage.headers().lastWithName("volume").value());
+        assertEquals(Schema.Type.INT32, kafkaMessage.headers().lastWithName("volume").schema().type());
+        assertEquals(11, kafkaMessage.headers().lastWithName("volume").value());
         
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("decimalmeaning").schema().type());
-        assertEquals("42.0", kafkaMessage.headers().lastWithName("decimalmeaning").value());
+        assertEquals(Schema.Type.FLOAT64, kafkaMessage.headers().lastWithName("decimalmeaning").schema().type());
+        assertEquals(42.0, kafkaMessage.headers().lastWithName("decimalmeaning").value());
         
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("longvalue").schema().type());
-        assertEquals("123456789", kafkaMessage.headers().lastWithName("longvalue").value());
+        assertEquals(Schema.Type.INT64, kafkaMessage.headers().lastWithName("longvalue").schema().type());
+        assertEquals(123456789L, kafkaMessage.headers().lastWithName("longvalue").value());
         
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("flag").schema().type());
-        assertEquals("true", kafkaMessage.headers().lastWithName("flag").value());
+        assertEquals(Schema.Type.BOOLEAN, kafkaMessage.headers().lastWithName("flag").schema().type());
+        assertEquals(true, kafkaMessage.headers().lastWithName("flag").value());
 
         connectTask.commitRecord(kafkaMessage, null);
     }
@@ -512,8 +513,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("JMS_IBM_MQMD_MsgId").schema().type());
         
         // Custom integer property is also converted to String
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("volume").schema().type());
-        assertEquals("11", kafkaMessage.headers().lastWithName("volume").value());
+        assertEquals(Schema.Type.INT32, kafkaMessage.headers().lastWithName("volume").schema().type());
+        assertEquals(11, kafkaMessage.headers().lastWithName("volume").value());
 
         connectTask.commitRecord(kafkaMessage, null);
     }
@@ -546,11 +547,11 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         // Verify MQMD properties are present and converted to String
         // MQMD properties start with JMS_IBM_MQMD_ prefix
         assertNotNull(kafkaMessage.headers().lastWithName("JMS_IBM_MQMD_Priority"));
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("JMS_IBM_MQMD_Priority").schema().type());
+        assertEquals(Schema.Type.INT32, kafkaMessage.headers().lastWithName("JMS_IBM_MQMD_Priority").schema().type());
         
         // Custom property is also converted to String
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("customIntProp").schema().type());
-        assertEquals("999", kafkaMessage.headers().lastWithName("customIntProp").value());
+        assertEquals(Schema.Type.INT32, kafkaMessage.headers().lastWithName("customIntProp").schema().type());
+        assertEquals(999, kafkaMessage.headers().lastWithName("customIntProp").value());
 
         connectTask.commitRecord(kafkaMessage, null);
     }
