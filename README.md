@@ -259,8 +259,26 @@ If you write your own RecordBuilder, you can access the MQMD fields of the MQ me
 ### JMS message properties as Kafka headers
 
 When `mq.jms.properties.copy.to.kafka.headers` is set to `true`, JMS message properties are copied to Kafka headers.
-**Note**: When `mq.message.mqmd.read=true`, MQMD fields (such as `JMS_IBM_MQMD_Priority`, `JMS_IBM_MQMD_MsgId`, `JMS_IBM_MQMD_CorrelId`) become available as JMS properties .
- 
+
+**Note**: When `mq.message.mqmd.read=true`, MQMD fields (such as `JMS_IBM_MQMD_Priority`, `JMS_IBM_MQMD_MsgId`, `JMS_IBM_MQMD_CorrelId`) become available as JMS properties.
+
+#### Header type mapping
+
+JMS message properties are propagated to Kafka headers with their native types preserved. The Connect header schema assigned to each property reflects the original JMS type:
+
+| JMS property type | Connect header schema | Example value |
+| ----------------- | --------------------- | ------------- |
+| `String`          | `Schema.STRING`       | `"hello"`     |
+| `boolean`         | `Schema.BOOLEAN`      | `true`        |
+| `byte`            | `Schema.INT8`         | `64`          |
+| `short`           | `Schema.INT16`        | `1000`        |
+| `int`             | `Schema.INT32`        | `42`          |
+| `long`            | `Schema.INT64`        | `123456789`   |
+| `float`           | `Schema.FLOAT32`      | `1.5`         |
+| `double`          | `Schema.FLOAT64`      | `3.14`        |
+| `byte[]`          | `Schema.BYTES`        | `[0x01, ...]` |
+
+**Upgrade note**: Prior to this change, all non-byte-array JMS properties were converted to strings before being placed in Kafka headers. If you are upgrading from an earlier version and your downstream consumers expect string-typed headers for numeric or boolean properties (for example, `"42"` instead of `42`), you will need to update those consumers to handle the correctly-typed values.
 
 ## Security
 
