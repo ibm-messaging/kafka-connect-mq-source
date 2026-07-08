@@ -63,12 +63,37 @@ public class JmsToKafkaHeaderConverterTest {
     }
 
     @Test
+    public void convertIntegerJmsPropertiesToKafkaHeaders() throws JMSException {
+        // Test that Integer JMS properties are stored as INT32 headers
+        final JmsToKafkaHeaderConverter converter = new JmsToKafkaHeaderConverter();
+
+        final List<String> keys = Arrays.asList("JMS_IBM_MQMD_Priority", "customIntProp");
+        final Enumeration<String> keyEnumeration = Collections.enumeration(keys);
+
+        // Arrange
+        when(message.getPropertyNames()).thenReturn(keyEnumeration);
+        when(message.getObjectProperty("JMS_IBM_MQMD_Priority")).thenReturn(5);
+        when(message.getObjectProperty("customIntProp")).thenReturn(12345);
+
+        // Act
+        final ConnectHeaders actualConnectHeaders = converter.convertJmsPropertiesToKafkaHeaders(message);
+
+        // Verify
+        assertEquals(2, actualConnectHeaders.size());
+
+        Header priorityHeader = actualConnectHeaders.lastWithName("JMS_IBM_MQMD_Priority");
+        assertEquals(Schema.Type.INT32, priorityHeader.schema().type());
+        assertEquals(5, priorityHeader.value());
+
+        Header customIntHeader = actualConnectHeaders.lastWithName("customIntProp");
+        assertEquals(Schema.Type.INT32, customIntHeader.schema().type());
+        assertEquals(12345, customIntHeader.value());
+    }
+
+    @Test
     public void convertMqmdByteArrayPropertiesToKafkaHeaders() throws JMSException {
         // Test that MQMD byte array properties are preserved as byte arrays.
         // Note: JMS spec does not allow custom byte[] properties - only MQMD properties can be byte[].
-        // Previously these were converted to their object reference string (e.g. "[B@5cde362e")
-        // which was not useful. This test verifies they are now stored as BYTES headers.
-
         final JmsToKafkaHeaderConverter converter = new JmsToKafkaHeaderConverter();
 
         final List<String> keys = Arrays.asList("JMS_IBM_MQMD_GroupId", "JMS_IBM_MQMD_AccountingToken");
@@ -124,51 +149,52 @@ public class JmsToKafkaHeaderConverterTest {
     }
 
     @Test
-    public void convertNumericJmsPropertiesToStringKafkaHeaders() throws JMSException {
-        // Test that numeric JMS properties are converted to their string representation.
-        // Integer 42 becomes the string "42", long 123456789L becomes "123456789", etc.
+    public void convertNumericAndPrimitiveJmsPropertiesToKafkaHeaders() throws JMSException {
+        // Test that all numeric and primitive JMS types are stored with their native schema types
         final JmsToKafkaHeaderConverter converter = new JmsToKafkaHeaderConverter();
 
-        final List<String> keys = Arrays.asList("intProp", "longProp", "floatProp",
-                                                  "doubleProp", "boolProp", "byteProp", "shortProp");
+        final List<String> keys = Arrays.asList("longProp", "shortProp", "byteProp",
+                                                  "booleanProp", "floatProp", "doubleProp");
         final Enumeration<String> keyEnumeration = Collections.enumeration(keys);
 
         // Arrange
         when(message.getPropertyNames()).thenReturn(keyEnumeration);
-        when(message.getObjectProperty("intProp")).thenReturn(42);
         when(message.getObjectProperty("longProp")).thenReturn(123456789L);
+        when(message.getObjectProperty("shortProp")).thenReturn((short) 100);
+        when(message.getObjectProperty("byteProp")).thenReturn((byte) 42);
+        when(message.getObjectProperty("booleanProp")).thenReturn(true);
         when(message.getObjectProperty("floatProp")).thenReturn(3.14f);
         when(message.getObjectProperty("doubleProp")).thenReturn(2.718281828);
-        when(message.getObjectProperty("boolProp")).thenReturn(true);
-        when(message.getObjectProperty("byteProp")).thenReturn((byte) 64);
-        when(message.getObjectProperty("shortProp")).thenReturn((short) 1000);
 
         // Act
         final ConnectHeaders actualConnectHeaders = converter.convertJmsPropertiesToKafkaHeaders(message);
 
-        // Verify: all non-byte-array types are stored as STRING headers
-        assertEquals(7, actualConnectHeaders.size());
+        // Verify: each type maps to its corresponding Connect schema type
+        assertEquals(6, actualConnectHeaders.size());
 
-        assertEquals(Schema.Type.STRING, actualConnectHeaders.lastWithName("intProp").schema().type());
-        assertEquals("42", actualConnectHeaders.lastWithName("intProp").value());
+        Header longHeader = actualConnectHeaders.lastWithName("longProp");
+        assertEquals(Schema.Type.INT64, longHeader.schema().type());
+        assertEquals(123456789L, longHeader.value());
 
-        assertEquals(Schema.Type.STRING, actualConnectHeaders.lastWithName("longProp").schema().type());
-        assertEquals("123456789", actualConnectHeaders.lastWithName("longProp").value());
+        Header shortHeader = actualConnectHeaders.lastWithName("shortProp");
+        assertEquals(Schema.Type.INT16, shortHeader.schema().type());
+        assertEquals((short) 100, shortHeader.value());
 
-        assertEquals(Schema.Type.STRING, actualConnectHeaders.lastWithName("floatProp").schema().type());
-        assertEquals("3.14", actualConnectHeaders.lastWithName("floatProp").value());
+        Header byteHeader = actualConnectHeaders.lastWithName("byteProp");
+        assertEquals(Schema.Type.INT8, byteHeader.schema().type());
+        assertEquals((byte) 42, byteHeader.value());
 
-        assertEquals(Schema.Type.STRING, actualConnectHeaders.lastWithName("doubleProp").schema().type());
-        assertEquals("2.718281828", actualConnectHeaders.lastWithName("doubleProp").value());
+        Header booleanHeader = actualConnectHeaders.lastWithName("booleanProp");
+        assertEquals(Schema.Type.BOOLEAN, booleanHeader.schema().type());
+        assertEquals(true, booleanHeader.value());
 
-        assertEquals(Schema.Type.STRING, actualConnectHeaders.lastWithName("boolProp").schema().type());
-        assertEquals("true", actualConnectHeaders.lastWithName("boolProp").value());
+        Header floatHeader = actualConnectHeaders.lastWithName("floatProp");
+        assertEquals(Schema.Type.FLOAT32, floatHeader.schema().type());
+        assertEquals(3.14f, floatHeader.value());
 
-        assertEquals(Schema.Type.STRING, actualConnectHeaders.lastWithName("byteProp").schema().type());
-        assertEquals("64", actualConnectHeaders.lastWithName("byteProp").value());
-
-        assertEquals(Schema.Type.STRING, actualConnectHeaders.lastWithName("shortProp").schema().type());
-        assertEquals("1000", actualConnectHeaders.lastWithName("shortProp").value());
+        Header doubleHeader = actualConnectHeaders.lastWithName("doubleProp");
+        assertEquals(Schema.Type.FLOAT64, doubleHeader.schema().type());
+        assertEquals(2.718281828, doubleHeader.value());
     }
 
     @Test

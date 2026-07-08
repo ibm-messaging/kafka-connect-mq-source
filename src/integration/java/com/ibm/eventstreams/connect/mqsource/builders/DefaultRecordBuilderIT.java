@@ -210,8 +210,8 @@ public class DefaultRecordBuilderIT extends AbstractJMSContextIT {
             // Verify JMS properties are copied to Kafka headers
             Headers headers = sourceRecord.headers();
             assertThat(headers.lastWithName("customHeader").value()).isEqualTo("headerValue");
-            assertThat(headers.lastWithName("priority").value()).isEqualTo("5");
-            assertThat(headers.lastWithName("price").value()).isEqualTo("99.99");
+            assertThat(headers.lastWithName("priority").value()).isEqualTo(5);
+            assertThat(headers.lastWithName("price").value()).isEqualTo(99.99);
         } finally {
             worker.stop();
         }
@@ -258,8 +258,8 @@ public class DefaultRecordBuilderIT extends AbstractJMSContextIT {
             // Verify JMS properties are copied to Kafka headers
             Headers headers = sourceRecord.headers();
             assertThat(headers.lastWithName("messageType").value()).isEqualTo("binary");
-            assertThat(headers.lastWithName("version").value()).isEqualTo("2");
-            assertThat(headers.lastWithName("timestamp").value()).isEqualTo("1234567890");
+            assertThat(headers.lastWithName("version").value()).isEqualTo(2);
+            assertThat(headers.lastWithName("timestamp").value()).isEqualTo(1234567890L);
         } finally {
             worker.stop();
         }
@@ -305,9 +305,9 @@ public class DefaultRecordBuilderIT extends AbstractJMSContextIT {
             // Verify JMS properties are copied to Kafka headers
             Headers headers = sourceRecord.headers();
             assertThat(headers.lastWithName("source").value()).isEqualTo("system-a");
-            assertThat(headers.lastWithName("retryCount").value()).isEqualTo("3");
-            assertThat(headers.lastWithName("threshold").value()).isEqualTo("0.95");
-            assertThat(headers.lastWithName("enabled").value()).isEqualTo("true");
+            assertThat(headers.lastWithName("retryCount").value()).isEqualTo(3);
+            assertThat(headers.lastWithName("threshold").value()).isEqualTo(0.95);
+            assertThat(headers.lastWithName("enabled").value()).isEqualTo(true);
         } finally {
             worker.stop();
         }

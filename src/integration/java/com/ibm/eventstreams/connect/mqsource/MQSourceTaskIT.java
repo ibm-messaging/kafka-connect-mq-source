@@ -429,11 +429,12 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals("helloworld", kafkaMessage.value());
 
         assertEquals("myvalue", kafkaMessage.headers().lastWithName("teststring").value());
-        assertEquals("11", kafkaMessage.headers().lastWithName("volume").value());
-        assertEquals("42.0", kafkaMessage.headers().lastWithName("decimalmeaning").value());
+        assertEquals(11, kafkaMessage.headers().lastWithName("volume").value());
+        assertEquals(42.0, kafkaMessage.headers().lastWithName("decimalmeaning").value());
 
         connectTask.commitRecord(kafkaMessage, null);
     }
+
     @Test
     public void verifyJmsMessageHeadersConvertedToString() throws Exception {
         // Test that JMS properties are converted to String (except byte[])
@@ -466,17 +467,17 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("teststring").schema().type());
         assertEquals("myvalue", kafkaMessage.headers().lastWithName("teststring").value());
         
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("volume").schema().type());
-        assertEquals("11", kafkaMessage.headers().lastWithName("volume").value());
+        assertEquals(Schema.Type.INT32, kafkaMessage.headers().lastWithName("volume").schema().type());
+        assertEquals(11, kafkaMessage.headers().lastWithName("volume").value());
         
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("decimalmeaning").schema().type());
-        assertEquals("42.0", kafkaMessage.headers().lastWithName("decimalmeaning").value());
+        assertEquals(Schema.Type.FLOAT64, kafkaMessage.headers().lastWithName("decimalmeaning").schema().type());
+        assertEquals(42.0, kafkaMessage.headers().lastWithName("decimalmeaning").value());
         
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("longvalue").schema().type());
-        assertEquals("123456789", kafkaMessage.headers().lastWithName("longvalue").value());
+        assertEquals(Schema.Type.INT64, kafkaMessage.headers().lastWithName("longvalue").schema().type());
+        assertEquals(123456789L, kafkaMessage.headers().lastWithName("longvalue").value());
         
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("flag").schema().type());
-        assertEquals("true", kafkaMessage.headers().lastWithName("flag").value());
+        assertEquals(Schema.Type.BOOLEAN, kafkaMessage.headers().lastWithName("flag").schema().type());
+        assertEquals(true, kafkaMessage.headers().lastWithName("flag").value());
 
         connectTask.commitRecord(kafkaMessage, null);
     }
@@ -512,8 +513,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("JMS_IBM_MQMD_MsgId").schema().type());
         
         // Custom integer property is also converted to String
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("volume").schema().type());
-        assertEquals("11", kafkaMessage.headers().lastWithName("volume").value());
+        assertEquals(Schema.Type.INT32, kafkaMessage.headers().lastWithName("volume").schema().type());
+        assertEquals(11, kafkaMessage.headers().lastWithName("volume").value());
 
         connectTask.commitRecord(kafkaMessage, null);
     }
@@ -546,11 +547,11 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
         // Verify MQMD properties are present and converted to String
         // MQMD properties start with JMS_IBM_MQMD_ prefix
         assertNotNull(kafkaMessage.headers().lastWithName("JMS_IBM_MQMD_Priority"));
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("JMS_IBM_MQMD_Priority").schema().type());
+        assertEquals(Schema.Type.INT32, kafkaMessage.headers().lastWithName("JMS_IBM_MQMD_Priority").schema().type());
         
         // Custom property is also converted to String
-        assertEquals(Schema.Type.STRING, kafkaMessage.headers().lastWithName("customIntProp").schema().type());
-        assertEquals("999", kafkaMessage.headers().lastWithName("customIntProp").value());
+        assertEquals(Schema.Type.INT32, kafkaMessage.headers().lastWithName("customIntProp").schema().type());
+        assertEquals(999, kafkaMessage.headers().lastWithName("customIntProp").value());
 
         connectTask.commitRecord(kafkaMessage, null);
     }
@@ -1270,8 +1271,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         // Actual headers
         assertThat(headers.lastWithName("teststring").value()).isEqualTo("myvalue");
-        assertThat(headers.lastWithName("volume").value()).isEqualTo("11");
-        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo("42.0");
+        assertThat(headers.lastWithName("volume").value()).isEqualTo(11);
+        assertThat(headers.lastWithName("decimalmeaning").value()).isEqualTo(42.0);
     }
 
     @Test
@@ -1304,9 +1305,9 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         // Verify JMS properties are copied to Kafka headers
         assertThat(headers.lastWithName("customHeader").value()).isEqualTo("headerValue");
-        assertThat(headers.lastWithName("priority").value()).isEqualTo("5");
-        assertThat(headers.lastWithName("price").value()).isEqualTo("99.99");
-        assertThat(headers.lastWithName("isActive").value()).isEqualTo("true");
+        assertThat(headers.lastWithName("priority").value()).isEqualTo(5);
+        assertThat(headers.lastWithName("price").value()).isEqualTo(99.99);
+        assertThat(headers.lastWithName("isActive").value()).isEqualTo(true);
     }
 
     @Test
@@ -1372,8 +1373,8 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         // Verify JMS properties are copied to Kafka headers
         assertThat(headers.lastWithName("correlationId").value()).isEqualTo("corr-123");
-        assertThat(headers.lastWithName("retryCount").value()).isEqualTo("3");
-        assertThat(headers.lastWithName("amount").value()).isEqualTo("150.75");
+        assertThat(headers.lastWithName("retryCount").value()).isEqualTo(3);
+        assertThat(headers.lastWithName("amount").value()).isEqualTo(150.75);
     }
 
     @Test
@@ -1435,15 +1436,15 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         final Headers headers = processedRecords.get(0).headers();
 
-        // Verify all property types are correctly converted to string headers
+        // Verify all property types are correctly converted to typed headers
         assertThat(headers.lastWithName("stringProp").value()).isEqualTo("text");
-        assertThat(headers.lastWithName("intProp").value()).isEqualTo("100");
-        assertThat(headers.lastWithName("longProp").value()).isEqualTo("999999999");
-        assertThat(headers.lastWithName("floatProp").value()).isEqualTo("3.14");
-        assertThat(headers.lastWithName("doubleProp").value()).isEqualTo("2.71828");
-        assertThat(headers.lastWithName("boolProp").value()).isEqualTo("false");
-        assertThat(headers.lastWithName("byteProp").value()).isEqualTo("127");
-        assertThat(headers.lastWithName("shortProp").value()).isEqualTo("32000");
+        assertThat(headers.lastWithName("intProp").value()).isEqualTo(100);
+        assertThat(headers.lastWithName("longProp").value()).isEqualTo(999999999L);
+        assertThat(headers.lastWithName("floatProp").value()).isEqualTo(3.14f);
+        assertThat(headers.lastWithName("doubleProp").value()).isEqualTo(2.71828);
+        assertThat(headers.lastWithName("boolProp").value()).isEqualTo(false);
+        assertThat(headers.lastWithName("byteProp").value()).isEqualTo((byte) 127);
+        assertThat(headers.lastWithName("shortProp").value()).isEqualTo((short) 32000);
     }
 
     @Test
@@ -1475,9 +1476,9 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
         // Verify all property types are correctly converted
         assertThat(headers.lastWithName("env").value()).isEqualTo("production");
-        assertThat(headers.lastWithName("maxRetries").value()).isEqualTo("5");
-        assertThat(headers.lastWithName("createdAt").value()).isEqualTo("1609459200000");
-        assertThat(headers.lastWithName("threshold").value()).isEqualTo("0.95");
-        assertThat(headers.lastWithName("enabled").value()).isEqualTo("true");
+        assertThat(headers.lastWithName("maxRetries").value()).isEqualTo(5);
+        assertThat(headers.lastWithName("createdAt").value()).isEqualTo(1609459200000L);
+        assertThat(headers.lastWithName("threshold").value()).isEqualTo(0.95);
+        assertThat(headers.lastWithName("enabled").value()).isEqualTo(true);
     }
 }

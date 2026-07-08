@@ -202,9 +202,9 @@ public class JsonRecordBuilderIT extends AbstractJMSContextIT {
             // Verify JMS properties are copied to Kafka headers
             Headers headers = sourceRecord.headers();
             assertThat(headers.lastWithName("source").value()).isEqualTo("system-a");
-            assertThat(headers.lastWithName("retryCount").value()).isEqualTo("3");
-            assertThat(headers.lastWithName("threshold").value()).isEqualTo("0.95");
-            assertThat(headers.lastWithName("enabled").value()).isEqualTo("true");
+            assertThat(headers.lastWithName("retryCount").value()).isEqualTo(3);
+            assertThat(headers.lastWithName("threshold").value()).isEqualTo(0.95);
+            assertThat(headers.lastWithName("enabled").value()).isEqualTo(true);
         } finally {
             worker.stop();
         }
