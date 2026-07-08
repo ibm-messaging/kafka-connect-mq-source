@@ -19,10 +19,10 @@ import com.ibm.eventstreams.connect.mqsource.processor.JmsToKafkaHeaderConverter
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.header.ConnectHeaders;
 import org.apache.kafka.connect.header.Header;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import javax.jms.JMSException;
 import javax.jms.TextMessage;
@@ -31,12 +31,12 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.when;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class JmsToKafkaHeaderConverterTest {
 
     @Mock
@@ -59,7 +59,7 @@ public class JmsToKafkaHeaderConverterTest {
         final ConnectHeaders actualConnectHeaders = converter.convertJmsPropertiesToKafkaHeaders(message);
 
         //Verify
-        assertEquals("All three custom JMS properties were copied to kafka successfully.", 3, actualConnectHeaders.size());
+        assertEquals(3, actualConnectHeaders.size(), "All three custom JMS properties were copied to kafka successfully.");
     }
 
     @Test

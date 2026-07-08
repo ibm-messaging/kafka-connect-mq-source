@@ -25,9 +25,11 @@ import com.ibm.mq.jms.MQConnectionFactory;
 import com.ibm.msg.client.wmq.WMQConstants;
 
 import org.apache.kafka.common.config.AbstractConfig;
-import org.junit.ClassRule;
+import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.MountableFile;
 
 import javax.jms.JMSContext;
@@ -40,6 +42,8 @@ import java.util.Map;
  *  It starts a queue manager in a test container, and uses it to create
  *  a JMSContext instance, that can be used in tests.
  */
+@Testcontainers
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class AbstractJMSContextIT {
 
     public static final int TCP_MQ_HOST_PORT = 9090;
@@ -59,7 +63,7 @@ public class AbstractJMSContextIT {
     public static final String USERNAME = "app";
     public static final String ADMIN_PASSWORD = "passw0rd";
 
-    @ClassRule
+    @Container
     public static GenericContainer<?> mqContainer = new GenericContainer<>(MQTestUtil.mqContainer)
             .withEnv("LICENSE", "accept")
             .withEnv("MQ_QMGR_NAME", QMGR_NAME)

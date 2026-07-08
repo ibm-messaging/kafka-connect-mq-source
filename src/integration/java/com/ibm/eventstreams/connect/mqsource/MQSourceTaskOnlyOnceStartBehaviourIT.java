@@ -22,9 +22,9 @@ import com.ibm.eventstreams.connect.mqsource.utils.SourceTaskStopper;
 import org.apache.kafka.connect.connector.ConnectRecord;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.jetbrains.annotations.NotNull;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -44,14 +44,14 @@ import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.getIDsOfMes
 import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.putAllMessagesToQueue;
 import static com.ibm.eventstreams.connect.mqsource.utils.SourceTaskContextObjectMother.SourceTaskContextWithOffsetId;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
 
     private MQSourceTask connectTask;
     private SequenceStateClient sequenceStateClient;
 
-    @Before
+    @BeforeEach
     public void startup() throws Exception {
 
         JMSWorker shared = new JMSWorker();
@@ -66,7 +66,7 @@ public class MQSourceTaskOnlyOnceStartBehaviourIT extends AbstractJMSContextIT {
         removeAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
     }
 
-    @After
+    @AfterEach
     public void cleanup() throws InterruptedException {
         final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
         stopper.run();

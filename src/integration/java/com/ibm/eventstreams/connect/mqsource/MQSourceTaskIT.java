@@ -22,12 +22,12 @@ import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.putAllMessa
 import static com.ibm.eventstreams.connect.mqsource.utils.MessagesObjectMother.createAListOfMessages;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -48,9 +48,9 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.source.SourceRecord;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceStateClient;
@@ -64,13 +64,13 @@ public class MQSourceTaskIT extends AbstractJMSContextIT {
 
     private MQSourceTask connectTask = null;
 
-    @After
+    @AfterEach
     public void after() throws InterruptedException {
         final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
         stopper.run();
     }
 
-    @Before
+    @BeforeEach
     public void before() throws JMSException {
         MQTestUtil.removeAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
         MQTestUtil.removeAllMessagesFromQueue(DEFAULT_STATE_QUEUE);

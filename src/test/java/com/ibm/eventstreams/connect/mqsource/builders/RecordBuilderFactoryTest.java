@@ -16,8 +16,8 @@
 package com.ibm.eventstreams.connect.mqsource.builders;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.ibm.eventstreams.connect.mqsource.MQSourceConnector;
 
@@ -28,7 +28,7 @@ public class RecordBuilderFactoryTest {
 
     final Map<String, String> placeholderProps = new HashMap<>();
 
-    @Before
+    @BeforeEach
     public void prepareProperties() {
         placeholderProps.put("mq.queue.manager", "placeholder");
         placeholderProps.put("mq.queue", "placeholder");
@@ -53,11 +53,12 @@ public class RecordBuilderFactoryTest {
         Assertions.assertThat(recordBuilder).isInstanceOf(DefaultRecordBuilder.class);
     }
 
-    @Test(expected = RecordBuilderException.class)
+    @Test
     public void testGetRecordBuilder_JunkClass() {
         Map<String, String> props = new HashMap<>(placeholderProps);
         props.put(MQSourceConnector.CONFIG_NAME_MQ_RECORD_BUILDER, "casjsajhasdhusdo;iasd");
 
-        RecordBuilderFactory.getRecordBuilder(props);
+        org.junit.jupiter.api.Assertions.assertThrows(RecordBuilderException.class,
+                () -> RecordBuilderFactory.getRecordBuilder(props));
     }
 }

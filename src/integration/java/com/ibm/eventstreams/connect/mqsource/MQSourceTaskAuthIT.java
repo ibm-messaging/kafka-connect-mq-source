@@ -16,10 +16,10 @@
 package com.ibm.eventstreams.connect.mqsource;
 
 import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskObjectMother.getSourceTaskWithEmptyKafkaOffset;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,10 +29,11 @@ import java.util.Map;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.source.SourceRecord;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
@@ -48,6 +49,7 @@ import com.ibm.mq.MQQueueManager;
 import com.ibm.mq.constants.MQConstants;
 
 @SuppressWarnings("resource")
+@Testcontainers
 public class MQSourceTaskAuthIT {
 
     private static final String QMGR_NAME = "MYAUTHQMGR";
@@ -62,8 +64,8 @@ public class MQSourceTaskAuthIT {
     private static final int REST_API_HOST_PORT = 9091;
     private static final int REST_API_EXPOSED_PORT = 9443;
 
-    @ClassRule
-     public static GenericContainer<?> mqContainer = new GenericContainer<>(MQTestUtil.mqContainer)
+    @Container
+    public static GenericContainer<?> mqContainer = new GenericContainer<>(MQTestUtil.mqContainer)
             .withEnv("LICENSE", "accept")
             .withEnv("MQ_QMGR_NAME", QMGR_NAME)
             .withEnv("MQ_APP_PASSWORD", APP_PASSWORD)
@@ -145,10 +147,10 @@ public class MQSourceTaskAuthIT {
                 ADMIN_PASSWORD);
 
         // verify number of connections changed as expected
-        assertTrue("connections should have increased after starting the source task",
-                numQmgrConnectionsDuring > numQmgrConnectionsBefore);
-        assertTrue("connections should have decreased after calling stop()",
-                numQmgrConnectionsAfter < numQmgrConnectionsDuring);
+        assertTrue(numQmgrConnectionsDuring > numQmgrConnectionsBefore,
+                "connections should have increased after starting the source task");
+        assertTrue(numQmgrConnectionsAfter < numQmgrConnectionsDuring,
+                "connections should have decreased after calling stop()");
 
         // cleanup
         final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);

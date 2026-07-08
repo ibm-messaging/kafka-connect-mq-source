@@ -22,11 +22,11 @@ import com.ibm.eventstreams.connect.mqsource.util.QueueConfig;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTaskContext;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -44,13 +44,13 @@ import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.DEFAULT
 import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.DEFAULT_STATE_QUEUE;
 import static com.ibm.eventstreams.connect.mqsource.AbstractJMSContextIT.QMGR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class MQSourceTaskTest {
 
     @Mock private TextMessage jmsMessage;
