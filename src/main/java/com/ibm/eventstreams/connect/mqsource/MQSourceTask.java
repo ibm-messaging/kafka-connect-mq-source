@@ -84,8 +84,7 @@ public class MQSourceTask extends SourceTask {
 
     // The number of times a new poll was blocked because the current batch
     //  is not yet complete. (A batch is complete once all messages have
-    //  been delivered to Kafka, as confirmed by callbacks to #commitRecord
-    //  and #commit).
+    //  been delivered to Kafka, as confirmed by callbacks to #commitRecord).
     private int blockedPollsCount = 0;
 
     // The maximum number of times the SourceTask will tolerate new polls
@@ -94,9 +93,6 @@ public class MQSourceTask extends SourceTask {
 
     // Incremented each time poll() is called successfully
     private AtomicLong pollCycle = new AtomicLong(1);
-
-    // The value of pollCycle the last time commit() was called
-    private long lastCommitPollCycle = 0;
 
     private AtomicLong sequenceStateId = new AtomicLong(0);
     private List<String> msgIds = new ArrayList<String>();
@@ -470,44 +466,20 @@ public class MQSourceTask extends SourceTask {
     }
 
     /**
-     * Indicates that Connect believes all records in the previous batch
-     *  have been committed.
+     * Invoked periodically by Kafka Connect when offsets are committed.
+     * <p>
+     * This must not be treated as proof that every record from the last
+     * {@link #poll()} was delivered to Kafka. Connect may call this while
+     * produces are still in flight (for example retrying
+     * {@code NOT_ENOUGH_REPLICAS}). Only {@link #commitRecord} may count a
+     * record as delivered for the MQ batch latch. If commits are missing for
+     * too long, {@link #poll()} reports {@code Missing commits for message batch}
+     * via {@link #MAX_BLOCKED_POLLS} so the MQ transaction can roll back.
      */
+    @Override
     public void commit() throws InterruptedException {
-        log.trace("[{}] Entry {}.commit", Thread.currentThread().getId(), this.getClass().getName());
-
-        // This callback is simply used to ensure that the mechanism to use
-        //  commitRecord callbacks to check that all messages in a batch are
-        //  complete is not getting stuck. If this callback is being called,
-        //  it means that Kafka Connect believes that all outstanding messages
-        //  have been completed. That should mean that commitRecord has been
-        //  called for all of them too.
-        //
-        // However, if too few calls to commitRecord are received, the
-        //  connector could wait indefinitely.
-        //
-        // If this commit callback is called twice without the poll cycle
-        //  increasing, trigger the batch complete signal directly.
-        final long currentPollCycle = pollCycle.get();
-        log.debug("Commit starting in poll cycle {}", currentPollCycle);
-
-        if (lastCommitPollCycle == currentPollCycle) {
-            synchronized (this) {
-                if (batchCompleteSignal != null) {
-                    log.debug("Bumping batch complete signal by {}", batchCompleteSignal.getCount());
-
-                    // This means we're waiting for the signal in the poll() method and it's been
-                    // waiting for at least two calls to this commit callback. It's stuck.
-                    while (batchCompleteSignal.getCount() > 0) {
-                        batchCompleteSignal.countDown();
-                    }
-                }
-            }
-        } else {
-            lastCommitPollCycle = currentPollCycle;
-        }
-
-        log.trace("[{}]  Exit {}.commit", Thread.currentThread().getId(), this.getClass().getName());
+        log.trace("[{}] Entry/Exit {}.commit (poll cycle {})", Thread.currentThread().getId(),
+                this.getClass().getName(), pollCycle.get());
     }
 
     /**

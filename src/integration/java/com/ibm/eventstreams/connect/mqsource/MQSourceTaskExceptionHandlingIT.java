@@ -19,10 +19,10 @@ import static com.ibm.eventstreams.connect.mqsource.MQSourceTaskObjectMother.get
 import static com.ibm.eventstreams.connect.mqsource.utils.MQQueueManagerAttrs.startChannel;
 import static com.ibm.eventstreams.connect.mqsource.utils.MQQueueManagerAttrs.stopChannel;
 import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.browseAllMessagesFromQueue;
-import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.removeAllMessagesFromQueue;
 import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.getAllMessagesFromQueue;
 import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.getMessageCount;
 import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.putAllMessagesToQueue;
+import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.removeAllMessagesFromQueue;
 import static com.ibm.eventstreams.connect.mqsource.utils.MessagesObjectMother.createAListOfMessages;
 import static com.ibm.eventstreams.connect.mqsource.utils.MessagesObjectMother.listOfMessagesButOneIsMalformed;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -317,8 +317,12 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         // first batch should successfully retrieve messages 01-10
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
+        // Connect offset-commit thread: first call records the poll cycle,
         connectTask.commit();
         connectTask.commit();
+        for (final SourceRecord record : kafkaMessages) {
+            connectTask.commitRecord(record, null);
+        }
 
         // second batch (11-20) should fail because of message 16
         final ConnectException exc = assertThrows(ConnectException.class, () -> {
@@ -373,8 +377,8 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         assertThat(connectTask.poll()).isNull();
         assertThat(connectTask.getBatchCompleteSignal().getCount()).isEqualTo(3);
 
-        // Connect offset-commit thread: first call records the poll cycle,
-        // second call in the same cycle currently force-completes the latch
+        // Connect offset-commit thread may invoke SourceTask.commit() more than
+        // once while produces are still retrying — that must not complete the batch
         connectTask.commit();
         connectTask.commit();
 
