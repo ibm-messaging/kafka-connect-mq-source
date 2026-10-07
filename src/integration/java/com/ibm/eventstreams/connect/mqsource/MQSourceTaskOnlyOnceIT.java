@@ -24,9 +24,9 @@ import com.ibm.eventstreams.connect.mqsource.utils.SourceTaskStopper;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.jetbrains.annotations.NotNull;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -52,7 +52,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
     private MQSourceTask connectTask;
     private SequenceStateClient sequenceStateClient;
 
-    @Before
+    @BeforeEach
     public void startup() throws Exception {
         connectTask = getSourceTaskWithEmptyKafkaOffset();
         removeAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
@@ -68,7 +68,7 @@ public class MQSourceTaskOnlyOnceIT extends AbstractJMSContextIT {
         connectTask.start(connectorConfigProps, shared, dedicated, sequenceStateClient);
     }
 
-    @After
+    @AfterEach
     public void cleanup() throws InterruptedException {
         final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
         stopper.run();

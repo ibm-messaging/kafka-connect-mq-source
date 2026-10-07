@@ -272,4 +272,40 @@ public class MQSourceTaskTest {
         //  task has been blocked for too long
         assertThrows(ConnectException.class, () -> mqSourceTask.poll());
     }
+
+    /**
+     * DR / NOT_ENOUGH_REPLICAS scenario: some records in a batch get Kafka acks,
+     * others remain in-flight. Connect may still call {@link MQSourceTask#commit()}
+     * more than once in the same poll cycle (periodic offset commit). That must
+     * not force-complete the batch latch or commit the MQ transaction.
+     */
+    @Test
+    public void testPartialKafkaAcksDoNotCommitMqWhenSourceTaskCommitCalledTwice() throws JMSRuntimeException, JMSException, InterruptedException {
+        Mockito.when(jmsWorker.receive(anyString(), any(QueueConfig.class), anyBoolean())).thenReturn(jmsMessage);
+
+        MQSourceTask mqSourceTask = new MQSourceTask();
+        mqSourceTask.initialize(sourceTaskContext);
+        mqSourceTask.start(createDefaultConnectorProperties(), jmsWorker, dedicatedWorker, sequenceStateClient);
+
+        List<SourceRecord> batch = mqSourceTask.poll();
+        assertThat(batch.size()).isEqualTo(MQ_BATCH_SIZE);
+
+        // Partial Kafka success (remaining records still retrying, e.g. NOT_ENOUGH_REPLICAS)
+        mqSourceTask.commitRecord(batch.get(0), null);
+        mqSourceTask.commitRecord(batch.get(1), null);
+        assertThat(mqSourceTask.getBatchCompleteSignal().getCount()).isEqualTo(MQ_BATCH_SIZE - 2);
+
+        // Periodic SourceTask.commit() — does not mean all poll() records were delivered
+        mqSourceTask.commit();
+        mqSourceTask.commit();
+
+        List<SourceRecord> nextPoll = mqSourceTask.poll();
+        assertThat(nextPoll)
+                .as("poll must not start a new MQ batch while Kafka acks are outstanding")
+                .isNull();
+        assertThat(mqSourceTask.getBatchCompleteSignal().getCount())
+                .as("batch complete signal must still wait for unacked records")
+                .isEqualTo(MQ_BATCH_SIZE - 2);
+        Mockito.verify(jmsWorker, Mockito.never()).commit();
+    }
 }

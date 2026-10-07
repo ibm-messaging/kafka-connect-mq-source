@@ -37,9 +37,9 @@ import javax.jms.Message;
 import javax.jms.TextMessage;
 
 import org.jetbrains.annotations.NotNull;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import com.ibm.eventstreams.connect.mqsource.sequencestate.SequenceState;
@@ -52,7 +52,7 @@ public class SequenceStateClientIT extends AbstractJMSContextIT {
     private SequenceStateClient sequenceStateClient;
     private JMSWorker shared;
 
-    @Before
+    @BeforeEach
     public void createSequenceStateClient() {
         Map<String, String> props = getDefaultConnectorProperties();
         props.put("mq.record.builder", "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder");
@@ -63,7 +63,7 @@ public class SequenceStateClientIT extends AbstractJMSContextIT {
         sequenceStateClient = new SequenceStateClient(DEFAULT_STATE_QUEUE, shared, dedicated);
     }
 
-    @After
+    @AfterEach
     public void closeConnectionsAndClearStateQueue() throws JMSException, IOException, NoSuchAlgorithmException, KeyManagementException {
         sequenceStateClient.closeClientConnections();
         enableQueuePUT(QMGR_NAME, REST_API_HOST_PORT, ADMIN_PASSWORD, DEFAULT_STATE_QUEUE);

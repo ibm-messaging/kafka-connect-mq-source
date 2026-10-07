@@ -48,9 +48,9 @@ import javax.jms.TextMessage;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,7 +75,7 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         return sequenceStateClient;
     }
 
-    @Before
+    @BeforeEach
     public void startup() throws Exception {
         connectTask = getSourceTaskWithEmptyKafkaOffset();
         final Map<String, String> connectorConfigProps = getConnectorProps();
@@ -90,7 +90,7 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         createSequenceStateClient(shared, dedicated, connectorConfigProps);
     }
 
-    @After
+    @AfterEach
     public void cleanup() throws Exception {
         removeAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
         removeAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
@@ -331,6 +331,71 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         connectTask.stop();
         final List<Message> remainingMQMessages = getAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
         assertEquals(20, remainingMQMessages.size());
+    }
+
+    /**
+     * Recreates the DR-test message-loss sequence around NOT_ENOUGH_REPLICAS:
+     * <ol>
+     *   <li>Poll a batch of 5 messages from MQ</li>
+     *   <li>Kafka acks only 2 of them ({@code commitRecord}); the other 3 remain
+     *       in-flight (as with producer retries on NOT_ENOUGH_REPLICAS)</li>
+     *   <li>Kafka Connect invokes {@link MQSourceTask#commit()} twice in the same
+     *       poll cycle (periodic offset commit; javadoc notes this does <em>not</em>
+     *       mean every record from {@code poll()} was delivered)</li>
+     *   <li>A subsequent poll must keep waiting — it must not commit the MQ
+     *       transaction and remove the 3 unacked messages</li>
+     * </ol>
+     */
+    @Test
+    public void verifyPartialKafkaAcksDoNotCommitUnackedMessagesWhenSourceTaskCommitCalledTwice() throws Exception {
+        connectTask = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = getConnectorProps();
+        connectorConfigProps.put("mq.batch.size", "5");
+        connectorConfigProps.put("mq.max.poll.blocked.time.ms", "100");
+
+        connectTask.start(connectorConfigProps);
+
+        // 5 messages in the failing batch + 50 more (as in the DR test cascade)
+        final List<Message> messages = createAListOfMessages(getJmsContext(), 55, "dr-msg-");
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, messages);
+        assertThat(browseAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE)).hasSize(55);
+
+        final List<SourceRecord> firstBatch = connectTask.poll();
+        assertThat(firstBatch).hasSize(5);
+
+        // Partial Kafka success — mirrors IDs 000010712 and 000010714 being acked
+        // while 000010711, 000010713, 000010715 were still pending
+        connectTask.commitRecord(firstBatch.get(1), null);
+        connectTask.commitRecord(firstBatch.get(3), null);
+
+        // Polls skip while waiting for the remaining Kafka acks
+        assertThat(connectTask.poll()).isNull();
+        assertThat(connectTask.getBatchCompleteSignal().getCount()).isEqualTo(3);
+
+        // Connect offset-commit thread: first call records the poll cycle,
+        // second call in the same cycle currently force-completes the latch
+        connectTask.commit();
+        connectTask.commit();
+
+        // Correct behaviour: still waiting for the 3 Kafka acks; must not
+        // proceed to a new MQ batch (which would require committing the previous one)
+        final List<SourceRecord> nextPoll = connectTask.poll();
+        assertThat(nextPoll)
+                .as("poll must not start a new MQ batch while Kafka acks are outstanding")
+                .isNull();
+        assertThat(connectTask.getBatchCompleteSignal().getCount())
+                .as("batch complete signal must still wait for the 3 unacked records")
+                .isEqualTo(3);
+
+        connectTask.stop();
+
+        // MQ transaction should roll back on stop so nothing is lost
+        // (duplicates of the 2 Kafka-acked messages are acceptable on redelivery)
+        final List<Message> remaining = getAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
+        assertThat(remaining)
+                .as("unacked messages must not be committed off MQ")
+                .hasSize(55);
     }
 
 

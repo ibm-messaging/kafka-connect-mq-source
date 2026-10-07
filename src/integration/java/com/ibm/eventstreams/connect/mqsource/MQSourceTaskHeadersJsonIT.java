@@ -37,9 +37,9 @@ import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.storage.HeaderConverter;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder;
 import com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil;
@@ -65,7 +65,7 @@ public class MQSourceTaskHeadersJsonIT extends AbstractJMSContextIT {
     private MQSourceTask connectTask = null;
     private HeaderConverter converter;
 
-    @Before
+    @BeforeEach
     public void before() throws Exception {
         MQTestUtil.removeAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
         converter = new JsonConverter();
@@ -76,7 +76,7 @@ public class MQSourceTaskHeadersJsonIT extends AbstractJMSContextIT {
         converter.configure(converterConfig);
     }
 
-    @After
+    @AfterEach
     public void after() throws InterruptedException {
         final SourceTaskStopper stopper = new SourceTaskStopper(connectTask);
         stopper.run();
