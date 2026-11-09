@@ -321,6 +321,10 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         for (final SourceRecord record : kafkaMessages) {
             connectTask.commitRecord(record, null);
         }
+        // Connect also calls commit() on its offset-flush timer, so keep calling it
+        //  to check it does not interfere with the batch completing via commitRecord()
+        connectTask.commit();
+        connectTask.commit();
 
         // second batch (11-20) should fail because of message 16
         final ConnectException exc = assertThrows(ConnectException.class, () -> {
