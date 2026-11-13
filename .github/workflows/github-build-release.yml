@@ -1,66 +1,51 @@
+name: Build and create release
+
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+' # Push events to matching semver, i.e. 10.0.0
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and release (e.g. v2.8.0)'
+        required: true
 
-name: Build and create release
+permissions:
+  contents: write
 
 jobs:
   build:
     name: Build and upload release binary
-    #if: github.event.base_ref == 'refs/heads/master' # only run if on master branch
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: 17
-          distribution: 'semeru'
-      - name: Get java-version
-        run: |
-          BUILD_VERSION=$( mvn help:evaluate -Dexpression=project.version -q -DforceStdout )
-          echo "VERSION=$BUILD_VERSION" >> $GITHUB_ENV
+          distribution: semeru
+          cache: maven
+      - name: Get project version
+        run: echo "VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
       - name: Build
-        run: mvn package
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-      - name: Upload Release Asset With Dependencies
-        id: upload-release-asset-with-dependencies
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/kafka-connect-mq-source-${{env.VERSION}}-jar-with-dependencies.jar
-          asset_name: kafka-connect-mq-source-${{env.VERSION}}-jar-with-dependencies.jar
-          asset_content_type: application/java-archive
-      - name: Upload Release Asset With non-MQ Dependencies
-        id: upload-release-asset-with-dependencies-exc-mq
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/kafka-connect-mq-source-${{env.VERSION}}-dependencies-exc-mq.jar
-          asset_name: kafka-connect-mq-source-${{env.VERSION}}-dependencies-exc-mq.jar
-          asset_content_type: application/java-archive
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/kafka-connect-mq-source-${{env.VERSION}}.jar
-          asset_name: kafka-connect-mq-source-${{env.VERSION}}.jar
-          asset_content_type: application/java-archive
+        run: mvn --batch-mode package
+      - name: Create release if it does not exist
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; reusing it."
+          else
+            gh release create "$TAG" --title "Release $TAG" --generate-notes --verify-tag \
+              || gh release view "$TAG" >/dev/null   # tolerate race with a UI-created release
+          fi
+      - name: Upload release assets (overwrite if present)
+        run: |
+          gh release upload "$TAG" --clobber \
+            "target/kafka-connect-mq-source-${VERSION}-jar-with-dependencies.jar" \
+            "target/kafka-connect-mq-source-${VERSION}-dependencies-exc-mq.jar" \
+            "target/kafka-connect-mq-source-${VERSION}.jar"
