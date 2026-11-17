@@ -26,8 +26,9 @@ import static com.ibm.eventstreams.connect.mqsource.utils.MQTestUtil.putAllMessa
 import static com.ibm.eventstreams.connect.mqsource.utils.MessagesObjectMother.createAListOfMessages;
 import static com.ibm.eventstreams.connect.mqsource.utils.MessagesObjectMother.listOfMessagesButOneIsMalformed;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -48,9 +49,9 @@ import javax.jms.TextMessage;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.RetriableException;
 import org.apache.kafka.connect.source.SourceRecord;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,7 +76,7 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         return sequenceStateClient;
     }
 
-    @Before
+    @BeforeEach
     public void startup() throws Exception {
         connectTask = getSourceTaskWithEmptyKafkaOffset();
         final Map<String, String> connectorConfigProps = getConnectorProps();
@@ -90,7 +91,7 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         createSequenceStateClient(shared, dedicated, connectorConfigProps);
     }
 
-    @After
+    @AfterEach
     public void cleanup() throws Exception {
         removeAllMessagesFromQueue(DEFAULT_STATE_QUEUE);
         removeAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE);
@@ -317,6 +318,11 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         // first batch should successfully retrieve messages 01-10
         kafkaMessages = connectTask.poll();
         assertEquals(10, kafkaMessages.size());
+        for (final SourceRecord record : kafkaMessages) {
+            connectTask.commitRecord(record, null);
+        }
+        // Connect also calls commit() on its offset-flush timer, so keep calling it
+        //  to check it does not interfere with the batch completing via commitRecord()
         connectTask.commit();
         connectTask.commit();
 
@@ -333,6 +339,103 @@ public class MQSourceTaskExceptionHandlingIT extends AbstractJMSContextIT {
         assertEquals(20, remainingMQMessages.size());
     }
 
+    private MQSourceTask startTaskWithBatchOfFive() throws Exception {
+        final MQSourceTask task = getSourceTaskWithEmptyKafkaOffset();
+
+        final Map<String, String> connectorConfigProps = getConnectorProps();
+        connectorConfigProps.put("mq.batch.size", "5");
+        // keep the blocked polls short so the test does not take minutes
+        connectorConfigProps.put("mq.max.poll.blocked.time.ms", "10");
+
+        task.start(connectorConfigProps);
+        return task;
+    }
+
+    @Test
+    public void verifyStalledBatchIsNotCommittedByConnectCommitCallback() throws Exception {
+        connectTask = startTaskWithBatchOfFive();
+
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, createAListOfMessages(getJmsContext(), 5, "stalled batch: "));
+
+        final List<SourceRecord> records = connectTask.poll();
+        assertEquals(5, records.size());
+
+        // Kafka has only acknowledged 2 of the 5 records (e.g. the producer is retrying
+        // after NOT_ENOUGH_REPLICAS)
+        connectTask.commitRecord(records.get(0), null);
+        connectTask.commitRecord(records.get(1), null);
+
+        // Connect calls commit() on its offset flush timer, regardless of delivery.
+        // This must not complete the batch.
+        connectTask.commit();
+        connectTask.commit();
+        connectTask.commit();
+
+        // The batch is still incomplete, so the poll is blocked
+        assertNull(connectTask.poll());
+        assertEquals(3, connectTask.getBatchCompleteSignal().getCount());
+
+        // The MQ transaction was never committed, so all 5 messages are rolled back on stop
+        connectTask.stop();
+        assertEquals(5, getAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE).size());
+    }
+
+    @Test
+    public void verifyStalledBatchFailsTaskAfterMaxBlockedPolls() throws Exception {
+        connectTask = startTaskWithBatchOfFive();
+
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, createAListOfMessages(getJmsContext(), 5, "stalled batch: "));
+
+        final List<SourceRecord> records = connectTask.poll();
+        assertEquals(5, records.size());
+        connectTask.commitRecord(records.get(0), null);
+        connectTask.commitRecord(records.get(1), null);
+
+        // MAX_BLOCKED_POLLS is 50: the first 50 blocked polls are skipped...
+        for (int i = 0; i < 50; i++) {
+            connectTask.commit();
+            assertNull(connectTask.poll());
+        }
+
+        // ...and the next one fails the task
+        final ConnectException exc = assertThrows(ConnectException.class, () -> connectTask.poll());
+        assertEquals("Missing commits for message batch", exc.getMessage());
+
+        // nothing was committed to MQ, so the whole batch is available for redelivery
+        connectTask.stop();
+        assertEquals(5, getAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE).size());
+    }
+
+    @Test
+    public void verifyStalledBatchCompletesWhenRecordsAreAcknowledgedLate() throws Exception {
+        connectTask = startTaskWithBatchOfFive();
+
+        putAllMessagesToQueue(DEFAULT_SOURCE_QUEUE, createAListOfMessages(getJmsContext(), 10, "late ack: "));
+
+        final List<SourceRecord> firstBatch = connectTask.poll();
+        assertEquals(5, firstBatch.size());
+        connectTask.commitRecord(firstBatch.get(0), null);
+        connectTask.commitRecord(firstBatch.get(1), null);
+
+        // blocked for a few polls while Kafka is unavailable
+        for (int i = 0; i < 5; i++) {
+            connectTask.commit();
+            assertNull(connectTask.poll());
+        }
+
+        // Kafka recovers and the remaining records are acknowledged
+        connectTask.commitRecord(firstBatch.get(2), null);
+        connectTask.commitRecord(firstBatch.get(3), null);
+        connectTask.commitRecord(firstBatch.get(4), null);
+
+        // the first batch is now committed to MQ and the next batch is read
+        final List<SourceRecord> secondBatch = connectTask.poll();
+        assertEquals(5, secondBatch.size());
+
+        // only the second batch is still in flight, so it is the only one rolled back on stop
+        connectTask.stop();
+        assertEquals(5, getAllMessagesFromQueue(DEFAULT_SOURCE_QUEUE).size());
+    }
 
     private static void pollCommitAndAssert(MQSourceTask connectTask, int recordsProcessed, int recordsLeft) throws Exception {
 
