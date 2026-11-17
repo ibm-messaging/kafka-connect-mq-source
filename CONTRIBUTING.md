@@ -39,19 +39,21 @@ For a list of the maintainers, see the [MAINTAINERS.md](MAINTAINERS.md) page.
 
 Releases are built and uploaded by the
 [Build and create release](.github/workflows/github-build-release.yml) GitHub Actions workflow.
-It runs only when started by hand. Pushing a tag or publishing a release directly does not start it.
+It starts in one of two ways. Publishing a release directly in the GitHub UI does not start it.
 You need write access to the repository.
 
 1. Set the version in `pom.xml` to the release version (for example `2.8.0`) and merge that change to `main`.
-   The jar file names come from the `pom.xml` version, so it must match the tag.
-2. Create and push the tag on the commit to release. The tag must look like `v<major>.<minor>.<patch>`:
-   ```
-   git tag v2.8.0
-   git push upstream v2.8.0
-   ```
-3. In GitHub, open **Actions > Build and create release > Run workflow**, select `main`, and enter the tag
-   (for example `v2.8.0`). Leave **overwrite** unticked.
-4. When the run succeeds, open the new **draft** release under **Releases**. It has generated notes and
+   The workflow stops if the `pom.xml` version does not match the tag.
+2. Start the release in **one** of these ways. The tag must look like `v<major>.<minor>.<patch>`.
+   - **From GitHub:** open **Actions > Build and create release > Run workflow**, select `main`, and enter the
+     new tag (for example `v2.8.0`). Leave **overwrite** unticked. You do not need to create the tag yourself.
+     The workflow builds the tip of `main`, and after the build succeeds it creates the tag on that commit.
+   - **From the terminal:** tag a commit that is on `main` and push the tag. The push starts the workflow.
+     ```
+     git tag v2.8.0
+     git push upstream v2.8.0
+     ```
+3. When the run succeeds, open the new **draft** release under **Releases**. It has generated notes and
    three jars attached:
    - `kafka-connect-mq-source-<version>-jar-with-dependencies.jar`
    - `kafka-connect-mq-source-<version>-dependencies-exc-mq.jar`
@@ -61,7 +63,9 @@ You need write access to the repository.
 
 ### If a run fails
 
-Run the workflow again with the same tag.
+Run the workflow again from the Actions tab with the same tag. Re-running is only possible this way,
+because `overwrite` is not available on a tag push. If the tag was already created, the re-run builds from that tag,
+not from the current tip of `main`.
 
 - If the release is still a **draft**, tick **overwrite** to replace jars that were already uploaded.
   Nobody can have downloaded a draft, so this is safe.
@@ -69,10 +73,13 @@ Run the workflow again with the same tag.
   their checksums would change for people who already downloaded them. To fix a published release,
   make a new patch release instead.
 
-### Tag validation
+### Checks the workflow makes
 
-The workflow stops before building if the tag does not match `v<major>.<minor>.<patch>`,
-for example `v2.8` or `2.8.0`.
+It stops before building if:
+- the tag does not match `v<major>.<minor>.<patch>`, for example `v2.8` or `2.8.0`;
+- it was started manually from a branch other than `main`;
+- the tag already exists but points at a commit that is not on `main`;
+- the `pom.xml` version does not match the tag.
 
 ## Legal
 
